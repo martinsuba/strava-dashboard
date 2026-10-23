@@ -99,5 +99,46 @@ def test_track_with_fewer_than_two_points() -> None:
     assert find_efforts(Track(t=[1], lat=[LAT0], lon=[LON0], d=[0.0]), START, END) == []
 
 
+def _laps(*laps: Track) -> Track:
+    t, lat, lon, d = [], [], [], []
+    for lap in laps:
+        off_t = (t[-1] + 10 - lap.t[0]) if t else 0
+        off_d = d[-1] if d else 0.0
+        t += [x + off_t for x in lap.t]
+        lat += lap.lat
+        lon += lap.lon
+        d += [x + off_d for x in lap.d]
+    return Track(t, lat, lon, d)
+
+
+def test_two_laps_give_two_efforts() -> None:
+    lap = northbound(-500, 2500)
+    ride_back = northbound(-500, 2500, x=200)  # a parallel road, outside both gates
+    back = Track(t=ride_back.t, lat=list(reversed(ride_back.lat)), lon=ride_back.lon, d=ride_back.d)
+    efforts = find_efforts(_laps(lap, back, lap), START, END)
+    assert len(efforts) == 2
+    assert efforts[0].start_t < efforts[1].start_t
+    assert all(abs(e.elapsed_s - 400) <= 1 for e in efforts)
+
+
+def test_start_equal_to_end_out_and_back_is_not_zero_length() -> None:
+    out = northbound(-500, 1000)
+    back = Track(t=out.t, lat=list(reversed(out.lat)), lon=out.lon, d=out.d)
+    track = _laps(out, back)
+    (e,) = find_efforts(track, START, START)
+    assert e.elapsed_s > 100 and e.distance_m > 500
+
+
+def test_sparse_legs_still_find_the_effort() -> None:
+    (e,) = find_efforts(northbound(-500, 2500, step=50.0, speed=5.0), START, END)
+    assert abs(e.elapsed_s - 400) <= 2
+
+
+def test_one_pass_is_not_used_as_both_start_and_end() -> None:
+    # gates 20 m apart side by side; one ride passes both at the same moment
+    east_gate = (lat_at(0), lon_at(20))
+    assert find_efforts(northbound(-500, 500, x=10), (lat_at(0), lon_at(0)), east_gate) == []
+
+
 def test_helper_geometry_sanity() -> None:
     assert abs(haversine_m(*START, *END) - 2000) < 5

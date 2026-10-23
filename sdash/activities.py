@@ -49,8 +49,18 @@ def _number(text: str) -> float:
     return float(text) if text.strip() else 0.0
 
 
-def read_activities(path: Path) -> list[Activity]:
-    """All rows of activities.csv. For duplicated column names the first occurrence is used."""
+def read_activities(
+    path: Path,
+    *,
+    cycling_only: bool = False,
+    errors: list[tuple[str, str]] | None = None,
+) -> list[Activity]:
+    """Rows of activities.csv. For duplicated column names the first occurrence is used.
+
+    With `cycling_only`, other rows are skipped before their dates are parsed. A row with an
+    unreadable date raises ValueError, or, when `errors` is given, is appended there as
+    (activity id, reason) and skipped.
+    """
     with path.open(newline="", encoding="utf-8-sig") as fh:
         reader = csv.reader(fh)
         header = next(reader, [])
@@ -76,18 +86,31 @@ def read_activities(path: Path) -> list[Activity]:
             i = first[name]
             return row[i] if i < len(row) else ""
 
-        return [
-            Activity(
-                id=cell(row, "Activity ID").strip(),
-                date=parse_strava_date(cell(row, "Activity Date")),
-                name=cell(row, "Activity Name"),
-                type=cell(row, "Activity Type"),
-                gear=cell(row, "Activity Gear"),
-                filename=cell(row, "Filename"),
-                distance_km=_number(cell(row, "Distance")),
-                elapsed_s=round(_number(cell(row, "Elapsed Time"))),
-                moving_s=round(_number(cell(row, "Moving Time"))),
+        activities: list[Activity] = []
+        for row in reader:
+            if not row:
+                continue
+            type_ = cell(row, "Activity Type")
+            if cycling_only and type_ not in CYCLING_TYPES:
+                continue
+            try:
+                date = parse_strava_date(cell(row, "Activity Date"))
+            except ValueError as exc:
+                if errors is None:
+                    raise
+                errors.append((cell(row, "Activity ID").strip(), str(exc)))
+                continue
+            activities.append(
+                Activity(
+                    id=cell(row, "Activity ID").strip(),
+                    date=date,
+                    name=cell(row, "Activity Name"),
+                    type=type_,
+                    gear=cell(row, "Activity Gear"),
+                    filename=cell(row, "Filename"),
+                    distance_km=_number(cell(row, "Distance")),
+                    elapsed_s=round(_number(cell(row, "Elapsed Time"))),
+                    moving_s=round(_number(cell(row, "Moving Time"))),
+                )
             )
-            for row in reader
-            if row
-        ]
+        return activities

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,31 +23,61 @@ class ParseReport:
     failed: list[tuple[str, str]]  # (activity id, reason)
 
 
-def cycling_activities(data_dir: Path) -> list[Activity]:
+_ACTIVITY_ID = re.compile(r"[0-9]+")
+
+
+def valid_activity_id(activity_id: str) -> bool:
+    return _ACTIVITY_ID.fullmatch(activity_id) is not None
+
+
+def cycling_rides(data_dir: Path) -> tuple[list[Activity], list[tuple[str, str]]]:
+    """Cycling activities with a safe ID, and (id, reason) for rows that must be reported."""
     csv_path = data_dir / "raw" / "activities.csv"
     if not csv_path.is_file():
         raise PipelineError(f"{csv_path} not found: run `sdash import` first")
+    bad: list[tuple[str, str]] = []
     try:
-        return [a for a in read_activities(csv_path) if a.is_cycling]
+        rows = read_activities(csv_path, cycling_only=True, errors=bad)
     except ValueError as exc:
         raise PipelineError(str(exc)) from exc
+    good: list[Activity] = []
+    for a in rows:
+        if valid_activity_id(a.id):
+            good.append(a)
+        else:
+            bad.append((a.id, "activity ID is not a number"))
+    return good, bad
+
+
+def cycling_activities(data_dir: Path) -> list[Activity]:
+    return cycling_rides(data_dir)[0]
 
 
 def cache_path(data_dir: Path, activity_id: str) -> Path:
+    if not valid_activity_id(activity_id):
+        raise ValueError(f"invalid activity ID {activity_id!r}")
     return data_dir / "cache" / f"{activity_id}.json.gz"
+
+
+def ride_file(data_dir: Path, filename: str) -> Path:
+    """raw/<filename>, refusing anything that resolves outside raw/ (absolute, ../)."""
+    raw = (data_dir / "raw").resolve()
+    path = (raw / filename).resolve()
+    if not path.is_relative_to(raw):
+        raise ValueError(f"file name {filename!r} points outside raw/")
+    return path
 
 
 def parse_rides(data_dir: Path) -> ParseReport:
     """Parse every cycling ride into cache/<id>.json.gz; a broken file is reported, not fatal."""
     parsed = 0
-    failed: list[tuple[str, str]] = []
-    for act in cycling_activities(data_dir):
+    activities, failed = cycling_rides(data_dir)
+    for act in activities:
         if not act.filename:
             failed.append((act.id, "no file in activities.csv"))
             continue
-        path = data_dir / "raw" / act.filename
         try:
-            track = parse_track(path)
+            track = parse_track(ride_file(data_dir, act.filename))
         except (OSError, ValueError) as exc:
             failed.append((act.id, str(exc)))
             continue
@@ -88,6 +119,10 @@ def match_segments(data_dir: Path) -> tuple[list[Activity], list[SegmentResult]]
     ref_cache: dict[str, Track | None] = {}
     results: list[SegmentResult] = []
     for seg in segments:
+        if not valid_activity_id(seg.ref_activity):
+            raise PipelineError(
+                f"segment {seg.name!r}: ref_activity {seg.ref_activity!r} must be an activity ID"
+            )
         if seg.ref_activity not in ref_cache:
             path = cache_path(data_dir, seg.ref_activity)
             ref_cache[seg.ref_activity] = tracks.get(seg.ref_activity) or (

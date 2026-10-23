@@ -46,7 +46,7 @@ function effortsTable(efforts: Effort[]): HTMLElement {
 
 export function renderSegmentData(root: HTMLElement, data: SegmentData): void {
   root.replaceChildren(
-    h("p", {}, h("a", { href: "#/" }, "← All segments")),
+    h("p", {}, h("a", { href: "#/" }, h("span", { "aria-hidden": "true" }, "← "), "All segments")),
     h("h1", {}, data.name),
     data.efforts.length === 0
       ? h("p", {}, "No efforts on this segment yet.")
@@ -55,7 +55,17 @@ export function renderSegmentData(root: HTMLElement, data: SegmentData): void {
 }
 
 export function renderSegment(root: HTMLElement, slug: string): void {
-  root.replaceChildren(h("h1", {}, "Segment"), h("p", {}, "Loading…"));
+  const status = (text: string): void =>
+    root.replaceChildren(
+      h("h1", {}, "Segment"),
+      h("p", { role: "status", "aria-live": "polite" }, text),
+      h(
+        "p",
+        {},
+        h("a", { href: "#/" }, h("span", { "aria-hidden": "true" }, "← "), "All segments"),
+      ),
+    );
+  root.replaceChildren(h("h1", {}, "Segment"), h("p", { "aria-live": "polite" }, "Loading…"));
   fetchJson<SegmentData>(`segments/${slug}.json`).then(
     (data) => {
       // A newer navigation may have replaced the page meanwhile.
@@ -64,7 +74,9 @@ export function renderSegment(root: HTMLElement, slug: string): void {
     (err: unknown) => {
       if (err instanceof NotFoundError) renderNotFound(root);
       else
-        root.replaceChildren(h("h1", {}, "Segment"), h("p", {}, `Could not load: ${String(err)}`));
+        status(
+          "Could not load this segment. Check your connection and reload, or go back to all segments.",
+        );
     },
   );
 }

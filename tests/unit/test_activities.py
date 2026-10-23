@@ -81,3 +81,26 @@ def test_missing_column_is_reported(tmp_path: Path) -> None:
     p.write_text("Activity ID,Activity Name\n1,x\n", encoding="utf-8")
     with pytest.raises(ValueError, match="Activity Date"):
         read_activities(p)
+
+
+def test_bad_date_on_non_cycling_row_is_ignored(tmp_path: Path) -> None:
+    rows = [
+        '1,"not a date",n,Run,1,1,,f,1,1,1',
+        '2,"Jun 1, 2026, 9:00:00 AM",n,Ride,1,1,,f,1,1,1',
+    ]
+    acts = read_activities(_write(tmp_path / "activities.csv", *rows), cycling_only=True)
+    assert [a.id for a in acts] == ["2"]
+
+
+def test_bad_date_on_cycling_row_is_collected_or_raised(tmp_path: Path) -> None:
+    rows = [
+        '1,"not a date",n,Ride,1,1,,f,1,1,1',
+        '2,"Jun 1, 2026, 9:00:00 AM",n,Ride,1,1,,f,1,1,1',
+    ]
+    p = _write(tmp_path / "activities.csv", *rows)
+    errors: list[tuple[str, str]] = []
+    acts = read_activities(p, cycling_only=True, errors=errors)
+    assert [a.id for a in acts] == ["2"]
+    assert errors and errors[0][0] == "1" and "date" in errors[0][1]
+    with pytest.raises(ValueError, match="date"):
+        read_activities(p, cycling_only=True)

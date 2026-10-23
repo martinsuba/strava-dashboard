@@ -123,3 +123,14 @@ def test_rebuild_is_byte_identical_and_replaces_stale_files(tmp_path: Path) -> N
     assert "stale.json" not in first
     _build(out)
     assert first == {p.name: p.read_bytes() for p in out.rglob("*.json")}
+
+
+def test_rebuild_leaves_foreign_json_alone(tmp_path: Path) -> None:
+    out = tmp_path / "o"
+    keep = [out / "keep.json", out / "deep" / "nested" / "keep.json"]
+    for k in keep:
+        k.parent.mkdir(parents=True, exist_ok=True)
+        k.write_text("{}")
+    _build(out)
+    _build(out)
+    assert all(k.read_text() == "{}" for k in keep)

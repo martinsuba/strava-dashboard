@@ -76,8 +76,13 @@ def write_site_data(
     out: Path, activities: Sequence[Activity], results: Sequence[SegmentResult]
 ) -> None:
     """Replace the JSON files in `out` with index.json and segments/<slug>.json."""
-    for stale in list(out.rglob("*.json")) if out.is_dir() else []:
-        stale.unlink()
+    # Only the files this writer owns; anything else in `out` is left alone.
+    for stale in [
+        out / "index.json",
+        *sorted((out / "segments").glob("*.json")),
+        *sorted((out / "rides").glob("*.json")),
+    ]:
+        stale.unlink(missing_ok=True)
     ride_names = {a.id: a.name for a in activities}
     n_efforts: dict[str, int] = defaultdict(int)
     for r in results:
