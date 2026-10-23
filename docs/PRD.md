@@ -1,5 +1,5 @@
 # PRD: strava-dashboard
-Status: draft (plan PR Plan v1) · Last update: 2026-10-23
+Status: approved (Plan v1, PR #1); Plan v2 amendments · Last update: 2026-10-23
 
 ## Problem & why
 Martin wants to compare **all his own times on every segment over time**. Strava shows this only with a paid
@@ -105,6 +105,7 @@ Acceptance criteria:
 - Given a ride, When opening its page, Then it shows date, name, distance, moving/elapsed time and gear from `activities.csv`.
 - Given a ride with matched segments, Then each matched effort shows elapsed time, PR time, average time, gap to PR, rank among all efforts, and is marked when it is the PR (or the PR at the time it was ridden).
 - Given a ride with no matched segments, Then the page says so.
+- Given a ride that started at 15:05 UTC on a summer day, When any viewer opens its page (whatever their browser time zone), Then its start time shows as 17:05, because all dates and times are shown in Europe/Bratislava time (D-007).
 Priority: must
 
 ### REQ-009: One-command refresh and deploy
