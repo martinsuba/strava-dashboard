@@ -18,7 +18,7 @@ const BY_DATE = [
 ];
 
 test.describe("REQ-007 segment page", { tag: "@REQ-007" }, () => {
-  fixme("REQ-007: table lists every effort with date and elapsed time", async ({ page }) => {
+  test("REQ-007: table lists every effort with date and elapsed time", async ({ page }) => {
     await open(page, HILL);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hill Road climb");
     const rows = page.getByRole("table", { name: "All efforts" }).locator("tbody tr");
