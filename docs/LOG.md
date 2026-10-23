@@ -22,3 +22,4 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-23 | harness gate | added acceptance-change label and merged harness PR #2 | n: gate decision (label is the human approval of protected tests)
 2026-10-23 | harness | (agent) set + verified branch protection on main | y: done by agent
 2026-10-23 | plan v2 | decided display time zone Europe/Bratislava | n: owner preference
+2026-10-23 | M1 gate | merged Plan v2 (auto-merge) and said "go M1" | n: gate decision
