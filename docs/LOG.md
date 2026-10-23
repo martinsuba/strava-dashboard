@@ -23,3 +23,6 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-23 | harness | (agent) set + verified branch protection on main | y: done by agent
 2026-10-23 | plan v2 | decided display time zone Europe/Bratislava | n: owner preference
 2026-10-23 | M1 gate | merged Plan v2 (auto-merge) and said "go M1" | n: gate decision
+2026-10-23 | M1 | (none) seeded-bug check passed: test-reviewer rejected weakened assertion on PR #4 | y: done by agents. Framework note: required branch name `chore/seeded-bug` reveals the test to the reviewer
+2026-10-23 | M1 | (none) framework inconsistency: next-task step 8 says tick PLAN.md in the next task branch, merge condition d forbids PLAN.md in task PRs -> ticks in STATUS, PLAN in milestone PR | y: fix next-task skill
+2026-10-23 | M1 | (none) test-reviewer report claimed Martin's label was still needed although its own test-review status satisfies acceptance-guard | y: clarify in test-reviewer agent prompt

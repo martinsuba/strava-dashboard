@@ -78,7 +78,6 @@ def test_req005_site_data_has_lists_and_effort_data(
     assert load_json(out / "rides" / f"{NO_MATCH}.json")["efforts"] == []
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-005 not implemented (T-002 partial, T-007)")
 def test_req005_site_data_has_no_coordinates_or_raw_tracks(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path
 ) -> None:
@@ -94,7 +93,6 @@ def test_req005_site_data_has_no_coordinates_or_raw_tracks(
     assert not leaks, "\n".join(leaks)
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-005 determinism not implemented (T-007)")
 def test_req005_build_twice_is_byte_identical(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path
 ) -> None:

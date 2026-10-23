@@ -67,7 +67,6 @@ def test_req009_refresh_from_zip_builds_deploys_and_reports(
     )
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req009_refresh_without_argument_rebuilds_from_existing_data(
     sdash: SdashRunner, data_dir: Path, site_repo: SiteRepo
 ) -> None:
