@@ -1,9 +1,9 @@
 # Status: strava-dashboard
-Phase: build review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M1 / T-003 (all ride formats + cycling filter + cache): in progress. Done: T-001 (PR #5), T-002 (PR #6)
-Open PRs: –
-Blockers: –
-Next step: builder on T-001, then T-002…T-006 (M1); stop at milestone end for Martin's review
+Phase: paused review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: M1 / T-003 PR #7 in review (paused 2026-10-23: Claude usage limit near). Done: T-001 (PR #5), T-002 (PR #6)
+Open PRs: #7 T-003 (branch task/T-003-formats-cache)
+Blockers: usage limit (pause requested by Martin)
+Next step: on resume, see "Resume here" below
 
 ## Decisions log
 - 2026-10-23: project created
@@ -41,3 +41,14 @@ Next step: builder on T-001, then T-002…T-006 (M1); stop at milestone end for 
 - For T-005: when a (start,end) pair fails direction/path/length, move to the next start pass instead of consuming the end pass; add the A->B, B->A, A->B ride as a unit test (reviewer probe3).
 - For T-003: test_req002_changed_ride_is_parsed_again must keep passing once the cache exists.
 - Milestone PR todo: TESTS.md status column (16 tests now passing after T-002), PLAN.md ticks.
+- 2026-10-23: paused on Martin's note "approaching claude limit". Task loop stopped mid-T-003.
+
+## Resume here (written 2026-10-23 at pause)
+State of T-003 / PR #7 (https://github.com/martinsuba/strava-dashboard/pull/7):
+- Builder done: code commit 9140e0a (FIT/TCX/.gz parsing, 200 MB bounded decompression, TCX DOCTYPE/ENTITY refusal, size+mtime cache). Local checks reported green: pytest unit 82 passed, acceptance 52 passed / 45 xfailed.
+- CI on 9140e0a: ci pass, screenshots pass, acceptance-guard fail (expected until test-review).
+- Reviewer was running on 9140e0a when paused (focus: XML entity expansion for TCX and GPX/gpxpy, gz cap, cache). Check for its PR comment ("Review verdict: … (SHA 9140e0a)").
+- This STATUS commit moves the PR head past 9140e0a (docs-only delta). Merge condition c needs the reviewer's APPROVE for the CURRENT head: if 9140e0a was approved, ask the reviewer to confirm the new head (diff vs 9140e0a = docs/STATUS.md only), then run the test-reviewer (test_parse.py marker changes: FORMATS list now plain names), rerun acceptance-guard, merge with --match-head-commit.
+- Fix rounds used on T-003: 0 of 3.
+Then continue M1: T-004 (import, security-relevant; add unit tests evilstrava.com vs strava.com and calhost vs localhost), T-005 (full matcher; include reviewer note: when a (start,end) pair fails direction/path/length, move to the next start pass; add A->B, B->A, A->B ride unit test), T-006 (segments). Then milestone M1 PR (TESTS.md status column + PLAN.md ticks, screenshots, mutation report) and stop for Martin.
+To resume: Martin says "continue" (or "resume M1") in the strava-dashboard Lead session; Lead reads this section, `git status`, `gh pr list`.
