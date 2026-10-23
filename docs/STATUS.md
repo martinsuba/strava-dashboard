@@ -1,6 +1,6 @@
 # Status: strava-dashboard
 Phase: build review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M1 / T-002 (thin slice: GPX → segment → JSON → segment page): in progress. Done: T-001 (PR #5)
+Current task: M1 / T-003 (all ride formats + cycling filter + cache): in progress. Done: T-001 (PR #5), T-002 (PR #6)
 Open PRs: –
 Blockers: –
 Next step: builder on T-001, then T-002…T-006 (M1); stop at milestone end for Martin's review
@@ -37,3 +37,7 @@ Next step: builder on T-001, then T-002…T-006 (M1); stop at milestone end for 
 - 2026-10-23: T-001 merged (PR #5): reviewer + test-reviewer approve, 0 fix rounds.
 - Follow-up (needs a task allowed to edit workflows): CI "Install Playwright browser" step sometimes takes ~11 min (apt deps); fix with the Playwright container image or caching.
 - Note: task progress ticks live in STATUS.md during a milestone; PLAN.md ticks go into the milestone PR (merge condition d forbids PLAN.md in task PRs).
+- 2026-10-23: T-002 merged (PR #6): 1 fix round (reviewer: build-data deleted foreign JSON recursively; path traversal via CSV Activity ID/Filename and ref_activity -> fixed + unit tests). Test-reviewer approved 16 marker removals.
+- For T-005: when a (start,end) pair fails direction/path/length, move to the next start pass instead of consuming the end pass; add the A->B, B->A, A->B ride as a unit test (reviewer probe3).
+- For T-003: test_req002_changed_ride_is_parsed_again must keep passing once the cache exists.
+- Milestone PR todo: TESTS.md status column (16 tests now passing after T-002), PLAN.md ticks.
