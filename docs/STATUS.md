@@ -1,9 +1,9 @@
 # Status: strava-dashboard
-Phase: plan review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: Plan v1 PR #1 open (design chosen: A2, docs/DESIGN.md)
-Open PRs: #1 Plan v1
+Phase: harness   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: harness (branch harness), not started
+Open PRs: –
 Blockers: –
-Next step: Martin reviews and merges Plan v1 (PR #1); then harness skill
+Next step: run harness skill (test-architect builds skeleton, CI, acceptance tests from PRD)
 
 ## Decisions log
 - 2026-10-23: project created
@@ -24,3 +24,4 @@ Next step: Martin reviews and merges Plan v1 (PR #1); then harness skill
 - 2026-10-23: design round 2 feedback: A preferred; drop B/C/D; try A with Strava-like colours (A2).
 - 2026-10-23: design chosen: A2 Logbook with Strava orange #FC4C02 for all accents (Martin). Spec docs/DESIGN.md, mockups docs/design/. Light only.
 - 2026-10-23: proposed in DEPLOY.md: data-only refreshes deploy on Martin's request without a separate gate; approved by merging Plan v1.
+- 2026-10-23: Plan v1 merged by Martin (PR #1). Data-only refresh rule in DEPLOY.md approved.

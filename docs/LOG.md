@@ -13,3 +13,4 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-23 | plan | design feedback round 1 (A layout + B style, light only) | n: taste decision
 2026-10-23 | plan | design feedback round 2 (keep A, try Strava-like colours) | n: taste decision
 2026-10-23 | plan | picked design A2, all accents Strava orange | n: taste decision
+2026-10-23 | plan gate | merged Plan v1 PR #1 | n: gate decision
