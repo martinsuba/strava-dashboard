@@ -1,6 +1,6 @@
 # Status: strava-dashboard
 Phase: plan review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: Plan v1 PR #1 open; UI design step added: 2 alternatives (A Logbook, B Scoreboard) on design canvas https://claude.ai/artifact/1ajnh1ZBL2wfpKTQrSAhs7 (synthetic data)
+Current task: Plan v1 PR #1 open; UI design round 2: C Light Scoreboard, D Race Number (A layout + B style, light) on https://claude.ai/artifact/1ajnh1ZBL2wfpKTQrSAhs7
 Open PRs: #1 Plan v1
 Blockers: –
 Next step: Martin picks a design -> record it in docs/DESIGN.md + PLAN (M2 tasks follow it) on plan/1; then Martin merges Plan v1
@@ -20,4 +20,5 @@ Next step: Martin picks a design -> record it in docs/DESIGN.md + PLAN (M2 tasks
 - 2026-10-23: Martin confirmed "segments by name" = no map anywhere; segment geometry internal via `sdash segment add`.
 - 2026-10-23: framework inconsistency logged: plan skill step 7 suggests `/model sonnet`, FRAMEWORK.md says Lead always Opus. Martin: stay on Opus, fix framework later (retro item).
 - 2026-10-23: Martin: design the UI first, show 2 alternatives, pick one, then code. Added as part of Plan v1 (design recorded before merge).
+- 2026-10-23: design round 1 feedback: layout A, visual style B, but light (no dark mode). Round 2 alternatives C and D added.
 - 2026-10-23: proposed in DEPLOY.md: data-only refreshes deploy on Martin's request without a separate gate; approved by merging Plan v1.
