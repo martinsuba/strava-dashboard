@@ -221,10 +221,9 @@ def encode_track(points: Sequence[Point], fmt: str) -> bytes:
 # --------------------------------------------------------------------------------------------
 # activities.csv (Strava export layout)
 # --------------------------------------------------------------------------------------------
-# Column order as publicly documented for Strava bulk exports. docs/ARCHITECTURE.md records that the
-# real file has 101 columns with `Elapsed Time`, `Distance`, `Max Heart Rate`, `Relative Effort`
-# and `Commute` duplicated (first occurrence = summary values) but not the full list; this list has
-# those duplicates in the documented positions. T-001 should reconcile the exact list.
+# Exact 103-column header of the real export, as recorded in docs/ARCHITECTURE.md (names only).
+# `Elapsed Time`, `Distance`, `Max Heart Rate`, `Relative Effort` and `Commute` are duplicated
+# (first occurrence = summary values). tests/unit/test_synth_header.py compares this with the doc.
 ACTIVITIES_HEADER: list[str] = [
     "Activity ID", "Activity Date", "Activity Name", "Activity Type", "Activity Description",
     "Elapsed Time", "Distance", "Max Heart Rate", "Relative Effort", "Commute",
@@ -246,7 +245,8 @@ ACTIVITIES_HEADER: list[str] = [
     "Dirt Distance", "Newly Explored Distance", "Newly Explored Dirt Distance", "Activity Count",
     "Total Steps", "Carbon Saved", "Pool Length", "Training Load", "Intensity",
     "Average Grade Adjusted Pace", "Timer Time", "Total Cycles", "Recovery", "With Pet",
-    "Competition", "Long Run", "For a Cause", "Media",
+    "Competition", "Long Run", "For a Cause", "With Kid", "Downhill Distance", "Total Sets",
+    "Total Reps", "Media",
 ]  # fmt: skip
 DUPLICATED_COLUMNS = ("Elapsed Time", "Distance", "Max Heart Rate", "Relative Effort", "Commute")
 
