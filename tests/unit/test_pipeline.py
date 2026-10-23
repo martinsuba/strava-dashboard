@@ -82,3 +82,71 @@ def test_bad_ref_activity_names_the_segment(tmp_path: Path) -> None:
     )
     with pytest.raises(PipelineError, match="Sneaky"):
         match_segments(data)
+
+
+# --- T-003: cache and cycling filter ------------------------------------------------------------
+
+
+def test_unchanged_ride_is_not_parsed_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from sdash import pipeline
+
+    data = _data(tmp_path, _row("5", "activities/ok.gpx"))
+    assert parse_rides(data).parsed == 1
+    calls: list[Path] = []
+    real = pipeline.parse_track
+    monkeypatch.setattr(pipeline, "parse_track", lambda p: calls.append(p) or real(p))
+    assert parse_rides(data).parsed == 1
+    assert calls == []
+
+
+def test_changed_size_or_mtime_invalidates_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+
+    from sdash import pipeline
+
+    data = _data(tmp_path, _row("5", "activities/ok.gpx"))
+    parse_rides(data)
+    ride = data / "raw" / "activities" / "ok.gpx"
+    calls: list[Path] = []
+    real = pipeline.parse_track
+    monkeypatch.setattr(pipeline, "parse_track", lambda p: calls.append(p) or real(p))
+    st = ride.stat()
+    os.utime(ride, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
+    parse_rides(data)
+    assert len(calls) == 1
+    ride.write_bytes(ride.read_bytes() + b"\n")  # size (and mtime) changed
+    parse_rides(data)
+    assert len(calls) == 2
+
+
+def test_corrupt_cache_file_is_rebuilt(tmp_path: Path) -> None:
+    data = _data(tmp_path, _row("5", "activities/ok.gpx"))
+    parse_rides(data)
+    (data / "cache" / "5.json.gz").write_bytes(b"junk")
+    assert parse_rides(data).parsed == 1
+    assert (data / "cache" / "5.json.gz").read_bytes() != b"junk"
+
+
+def test_corrupt_fit_is_reported_and_others_continue(tmp_path: Path) -> None:
+    data = _data(tmp_path, _row("1", "activities/bad.fit"), _row("2", "activities/ok.gpx"))
+    (data / "raw" / "activities" / "bad.fit").write_bytes(b"\x0e\x10nonsense" * 10)
+    report = parse_rides(data)
+    assert report.parsed == 1
+    assert [f[0] for f in report.failed] == ["1"]
+    assert report.failed[0][1]
+
+
+def test_only_ride_and_ebike_are_parsed(tmp_path: Path) -> None:
+    data = _data(
+        tmp_path,
+        _row("1", "activities/ok.gpx", "Ride"),
+        _row("2", "activities/ok.gpx", "E-Bike Ride"),
+        _row("3", "activities/ok.gpx", "Run"),
+        _row("4", "activities/ok.gpx", "Virtual Ride"),
+    )
+    parse_rides(data)
+    assert sorted(p.name for p in (data / "cache").iterdir()) == ["1.json.gz", "2.json.gz"]

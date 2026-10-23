@@ -10,7 +10,14 @@ from sdash.activities import Activity, read_activities
 from sdash.match import find_efforts
 from sdash.segments import Segment, SegmentError, load_segments
 from sdash.sitedata import SegmentResult, write_site_data
-from sdash.tracks import Track, parse_track, read_cache, write_cache
+from sdash.tracks import (
+    Track,
+    parse_track,
+    read_cache,
+    read_cache_if_fresh,
+    source_stamp,
+    write_cache,
+)
 
 
 class PipelineError(Exception):
@@ -76,15 +83,21 @@ def parse_rides(data_dir: Path) -> ParseReport:
         if not act.filename:
             failed.append((act.id, "no file in activities.csv"))
             continue
+        cache = cache_path(data_dir, act.id)
         try:
-            track = parse_track(ride_file(data_dir, act.filename))
+            path = ride_file(data_dir, act.filename)
+            stamp = source_stamp(path)
+            if read_cache_if_fresh(cache, stamp) is not None:
+                parsed += 1  # unchanged (same size + mtime): not parsed again
+                continue
+            track = parse_track(path)
         except (OSError, ValueError) as exc:
             failed.append((act.id, str(exc)))
             continue
         if not track.t:
             failed.append((act.id, "no positions in file"))
             continue
-        write_cache(cache_path(data_dir, act.id), track)
+        write_cache(cache, track, stamp)
         parsed += 1
     return ParseReport(parsed, failed)
 
