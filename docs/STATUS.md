@@ -1,7 +1,7 @@
 # Status: strava-dashboard
 Phase: plan review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
 Current task: Plan v1 PR open (branch plan/1)
-Open PRs: –
+Open PRs: #1 Plan v1
 Blockers: –
 Next step: Martin reviews and merges the Plan v1 PR; then harness skill
 
