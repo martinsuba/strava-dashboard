@@ -29,6 +29,7 @@ web/dist/  ──guard──► sdash deploy ──► gh-pages branch ──►
 - **Frontend: Vite + TypeScript, no framework** (three read-only pages), `Chart.js` for charts, hash routing
   (`#/segment/<slug>`, `#/ride/<id>`) so GitHub Pages needs no 404 tricks. Vite `base: '/strava-dashboard/'`.
   Quality: `eslint`, `prettier`, `tsc --noEmit`, `vitest` for formatting/helpers.
+  Visual design: docs/DESIGN.md (light "Logbook" layout, Strava-style orange, Public Sans self-hosted).
 - **Acceptance tests:** `pytest` running the `sdash` CLI as a subprocess on synthetic fixtures (tests/acceptance/pipeline/),
   and Playwright against the site built from fixture data (tests/acceptance/web/).
 - **Mutation testing:** `mutmut` on `sdash/match.py` (critical logic), milestone PRs only, report only.
@@ -135,3 +136,9 @@ or `import-strava`. · Consequences: adding a segment needs no PR, only `sdash r
 ### D-005: Hash routing, JSON per page
 Context: GitHub Pages has no SPA rewrites. · Decision: `#/…` routes; each page fetches only its own JSON. ·
 Consequences: simple, works offline from `vite preview`.
+
+### D-006: UI design "Logbook, Strava orange" (A2)
+Context: Martin wanted to see designs before code. · Options: A Logbook (light tables), B Scoreboard (dark, big numbers,
+verdicts), C/D light scoreboard variants, A2 = A with Strava-style orange. · Decision: A2, with all accents in `#FC4C02`
+(Martin, 2026-10-23). · Consequences: docs/DESIGN.md is the spec for M2. Orange text has ~3:1 contrast, so it is used only
+for large or bold text and never as the only signal. No verdict labels in the MVP.

@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: plan review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: Plan v1 PR #1 open; UI design round 3: A (Logbook) vs A2 (same layout, Strava-style orange) on https://claude.ai/artifact/1ajnh1ZBL2wfpKTQrSAhs7
+Current task: Plan v1 PR #1 open (design chosen: A2, docs/DESIGN.md)
 Open PRs: #1 Plan v1
 Blockers: –
-Next step: Martin picks a design -> record it in docs/DESIGN.md + PLAN (M2 tasks follow it) on plan/1; then Martin merges Plan v1
+Next step: Martin reviews and merges Plan v1 (PR #1); then harness skill
 
 ## Decisions log
 - 2026-10-23: project created
@@ -22,4 +22,5 @@ Next step: Martin picks a design -> record it in docs/DESIGN.md + PLAN (M2 tasks
 - 2026-10-23: Martin: design the UI first, show 2 alternatives, pick one, then code. Added as part of Plan v1 (design recorded before merge).
 - 2026-10-23: design round 1 feedback: layout A, visual style B, but light (no dark mode). Round 2 alternatives C and D added.
 - 2026-10-23: design round 2 feedback: A preferred; drop B/C/D; try A with Strava-like colours (A2).
+- 2026-10-23: design chosen: A2 Logbook with Strava orange #FC4C02 for all accents (Martin). Spec docs/DESIGN.md, mockups docs/design/. Light only.
 - 2026-10-23: proposed in DEPLOY.md: data-only refreshes deploy on Martin's request without a separate gate; approved by merging Plan v1.

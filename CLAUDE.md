@@ -5,7 +5,7 @@ State: docs/STATUS.md (read it first). Plan: docs/PRD.md, docs/ARCHITECTURE.md, 
 ## Stack
 Python 3.12 pipeline (`sdash` CLI: fitdecode, gpxpy, PyYAML; ruff, mypy, pytest) + static frontend in `web/`
 (Vite + TypeScript, no framework, Chart.js; eslint, prettier, vitest, Playwright). Deployed as a static site to
-GitHub Pages (`gh-pages` branch) from agent-vps. See docs/ARCHITECTURE.md.
+GitHub Pages (`gh-pages` branch) from agent-vps. See docs/ARCHITECTURE.md. UI spec: docs/DESIGN.md.
 
 ## Data (never in Git)
 Real Strava export data lives in `~/data/strava-export/` (raw/, cache/, segments.yaml), chmod 700, outside the repo.

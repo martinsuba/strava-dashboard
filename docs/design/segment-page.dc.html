@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Segment page, Logbook orange</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F7F7FA}
+a{color:#FC4C02}a:hover{color:#D63F00}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #F7F7FA; color: #242428; font-family: 'Public Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums; font-size: 15px; line-height: 1.5">
+  <header style="border-bottom: 1px solid #DFDFE8; background: #FFFFFF">
+    <div style="max-width: 1120px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 28px">
+      <a href="#" style="font-weight: 800; font-size: 18px; color: #FC4C02; text-decoration: none; letter-spacing: -0.02em">Segment Log</a>
+      <nav aria-label="Main" style="display: flex; gap: 20px; font-size: 14px">
+        <a href="#" style="color: #242428; font-weight: 600; text-decoration: none; border-bottom: 3px solid #FC4C02; padding-bottom: 2px">Segments</a>
+        <a href="#" style="color: #5E5E6A; text-decoration: none">Rides</a>
+      </nav>
+    </div>
+  </header>
+
+  <main style="max-width: 1120px; margin: 0 auto; padding: 32px 24px 64px; display: flex; flex-direction: column; gap: 28px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <a href="#" style="font-size: 13px; text-decoration: none">← All segments</a>
+      <h1 style="margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.02em">Hill Road climb</h1>
+      <p style="margin: 0; color: #5E5E6A; font-size: 14px">2.40 km · {{count}} efforts · first ridden {{first}}</p>
+    </div>
+
+    <section aria-label="Summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); border: 1px solid #DFDFE8; background: #FFFFFF">
+      <div style="padding: 16px 20px; border-right: 1px solid #DFDFE8; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5E5E6A">Personal record</span>
+        <span style="font-family: 'Public Sans', sans-serif; font-size: 28px; font-weight: 500; color: #FC4C02">{{prTime}}</span>
+        <span style="font-size: 13px; color: #5E5E6A">{{prDate}} · {{prKmh}} km/h</span>
+      </div>
+      <div style="padding: 16px 20px; border-right: 1px solid #DFDFE8; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5E5E6A">Median</span>
+        <span style="font-family: 'Public Sans', sans-serif; font-size: 28px; font-weight: 500">{{median}}</span>
+        <span style="font-size: 13px; color: #5E5E6A">{{medianGap}} to PR</span>
+      </div>
+      <div style="padding: 16px 20px; border-right: 1px solid #DFDFE8; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5E5E6A">Latest</span>
+        <span style="font-family: 'Public Sans', sans-serif; font-size: 28px; font-weight: 500">{{lastTime}}</span>
+        <span style="font-size: 13px; color: #5E5E6A">{{lastDate}} · {{lastGap}} to PR</span>
+      </div>
+      <div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5E5E6A">This year</span>
+        <span style="font-family: 'Public Sans', sans-serif; font-size: 28px; font-weight: 500">{{yearCount}}</span>
+        <span style="font-size: 13px; color: #5E5E6A">efforts · best {{yearBest}}</span>
+      </div>
+    </section>
+
+    <section aria-labelledby="trend-h" style="background: #FFFFFF; border: 1px solid #DFDFE8; padding: 20px 20px 16px">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 14px">
+        <h2 id="trend-h" style="margin: 0; font-size: 15px; font-weight: 600">Time by date</h2>
+        <span style="font-size: 13px; color: #5E5E6A">faster is higher · <span style="color: #FC4C02">●</span> PR</span>
+      </div>
+      <div style="display: flex; gap: 10px">
+        <div aria-hidden="true" style="position: relative; width: 40px; height: 240px; flex: none; font-family: 'Public Sans', sans-serif; font-size: 11px; color: #5E5E6A">
+          <sc-for list="{{yTicks}}" as="t" hint-placeholder-count="5">
+            <span style="position: absolute; right: 0; top: {{t.top}}%; transform: translateY(-50%)">{{t.label}}</span>
+          </sc-for>
+        </div>
+        <div style="flex: 1; min-width: 0">
+          <div role="img" aria-label="{{chartLabel}}" style="position: relative; height: 240px; border-left: 1px solid #C4C4CF; border-bottom: 1px solid #C4C4CF">
+            <sc-for list="{{yTicks}}" as="t" hint-placeholder-count="5">
+              <div style="position: absolute; left: 0; right: 0; top: {{t.top}}%; border-top: 1px dashed #ECECF2"></div>
+            </sc-for>
+            <sc-for list="{{points}}" as="p" hint-placeholder-count="24">
+              <div style="{{p.style}}"></div>
+            </sc-for>
+            <div style="position: absolute; left: {{prLeft}}%; top: {{prTop}}%; transform: translate(10px, -50%); font-size: 12px; font-weight: 600; color: #FC4C02; white-space: nowrap">PR {{prTime}}</div>
+          </div>
+          <div aria-hidden="true" style="position: relative; height: 22px; font-family: 'Public Sans', sans-serif; font-size: 11px; color: #5E5E6A">
+            <sc-for list="{{xTicks}}" as="x" hint-placeholder-count="8">
+              <span style="position: absolute; top: 6px; left: {{x.left}}%">{{x.label}}</span>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start">
+      <section aria-labelledby="eff-h" style="flex: 999 1 560px; min-width: 0; background: #FFFFFF; border: 1px solid #DFDFE8">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #DFDFE8">
+          <h2 id="eff-h" style="margin: 0; font-size: 15px; font-weight: 600">All efforts</h2>
+          <div role="group" aria-label="Sort efforts" style="display: flex; border: 1px solid #C4C4CF; font-size: 13px">
+            <button type="button" aria-pressed="true" style="min-height: 36px; padding: 0 14px; border: 0; background: #242428; color: #FFFFFF; font: inherit; cursor: pointer">Fastest</button>
+            <button type="button" aria-pressed="false" style="min-height: 36px; padding: 0 14px; border: 0; background: #FFFFFF; color: #242428; font: inherit; cursor: pointer">Newest</button>
+          </div>
+        </div>
+        <div style="overflow-x: auto">
+          <div style="min-width: 560px">
+            <div style="display: grid; grid-template-columns: 56px 120px minmax(140px, 1fr) 80px 90px 80px; gap: 12px; padding: 10px 20px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5E5E6A; border-bottom: 1px solid #DFDFE8">
+              <span>Rank</span><span>Date</span><span>Ride</span><span style="text-align: right">Time</span><span style="text-align: right">km/h</span><span style="text-align: right">Gap</span>
+            </div>
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+              <div style="display: grid; grid-template-columns: 56px 120px minmax(140px, 1fr) 80px 90px 80px; gap: 12px; padding: 10px 20px; border-bottom: 1px solid #F0F0F5; align-items: center">
+                <span style="{{r.badgeStyle}}">{{r.badge}}</span>
+                <span style="font-size: 14px">{{r.date}}</span>
+                <a href="#" style="font-size: 14px; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.ride}}</a>
+                <span style="text-align: right; font-family: 'Public Sans', sans-serif; font-weight: 500">{{r.time}}</span>
+                <span style="text-align: right; font-family: 'Public Sans', sans-serif; color: #5E5E6A">{{r.kmh}}</span>
+                <span style="text-align: right; font-family: 'Public Sans', sans-serif; color: #5E5E6A">{{r.gap}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding: 12px 20px">
+          <button type="button" style="min-height: 44px; padding: 0 16px; border: 1px solid #C4C4CF; background: #FFFFFF; font: inherit; font-size: 14px; color: #242428; cursor: pointer">Show all {{count}} efforts</button>
+        </div>
+      </section>
+
+      <section aria-labelledby="yr-h" style="flex: 1 1 260px; min-width: 0; background: #FFFFFF; border: 1px solid #DFDFE8">
+        <h2 id="yr-h" style="margin: 0; padding: 14px 20px; font-size: 15px; font-weight: 600; border-bottom: 1px solid #DFDFE8">By year</h2>
+        <div style="display: grid; grid-template-columns: 1fr 64px 72px; gap: 8px; padding: 10px 20px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5E5E6A; border-bottom: 1px solid #DFDFE8">
+          <span>Year</span><span style="text-align: right">Efforts</span><span style="text-align: right">Best</span>
+        </div>
+        <sc-for list="{{years}}" as="y" hint-placeholder-count="8">
+          <div style="display: grid; grid-template-columns: 1fr 64px 72px; gap: 8px; padding: 9px 20px; border-bottom: 1px solid #F0F0F5; font-size: 14px">
+            <span>{{y.year}}</span>
+            <span style="text-align: right; font-family: 'Public Sans', sans-serif">{{y.count}}</span>
+            <span style="{{y.bestStyle}}">{{y.best}}</span>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var L = 2400;
+    var raw = [
+      ["2019-05-04",452,"Morning loop"],["2019-06-15",431,"Hill repeats"],["2019-08-21",418,"Evening spin"],
+      ["2020-04-11",440,"Sunday long ride"],["2020-05-30",402,"Morning loop"],["2020-07-19",395,"Hill repeats"],
+      ["2020-09-02",410,"Commute home"],["2021-04-25",388,"Sunday long ride"],["2021-06-13",379,"Hill repeats"],
+      ["2021-08-08",401,"Gravel detour"],["2022-05-22",415,"Morning loop"],["2022-07-03",392,"Evening spin"],
+      ["2023-04-16",420,"Sunday long ride"],["2023-06-25",384,"Hill repeats"],["2023-09-10",372,"Evening spin"],
+      ["2024-05-12",366,"Morning loop"],["2024-06-12",341,"Hill repeats"],["2024-08-18",358,"Sunday long ride"],
+      ["2025-05-04",377,"Gravel detour"],["2025-07-27",362,"Evening spin"],["2026-04-19",381,"Morning loop"],
+      ["2026-06-07",355,"Hill repeats"],["2026-08-30",349,"Sunday long ride"],["2026-10-18",365,"Evening loop"]
+    ];
+    var M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    function fmt(s) { var m = Math.floor(s / 60), r = Math.round(s % 60); return m + ":" + (r < 10 ? "0" : "") + r; }
+    function gap(s) { return s === 0 ? "—" : "+" + fmt(s); }
+    function dfmt(d) { var p = d.split("-"); return parseInt(p[2], 10) + " " + M[parseInt(p[1], 10) - 1] + " " + p[0]; }
+    function kmh(s) { return (L / 1000 / (s / 3600)).toFixed(1); }
+    var byTime = raw.slice().sort(function (a, b) { return a[1] - b[1]; });
+    var pr = byTime[0];
+    var median = byTime[Math.floor(byTime.length / 2)][1];
+    var last = raw[raw.length - 1];
+    var ty = raw.filter(function (e) { return e[0].slice(0, 4) === "2026"; });
+    var tyBest = Math.min.apply(null, ty.map(function (e) { return e[1]; }));
+
+    var badgeBase = "display: inline-block; min-width: 36px; text-align: center; font-size: 12px; font-weight: 600; padding: 2px 6px; ";
+    var rows = byTime.slice(0, 12).map(function (e, i) {
+      var st = badgeBase;
+      var b = String(i + 1);
+      if (i === 0) { b = "PR"; st += "background: #FC4C02; color: #FFFFFF"; }
+      else if (i === 1) { b = "2nd"; st += "border: 1px solid #242428; color: #242428"; }
+      else if (i === 2) { b = "3rd"; st += "border: 1px solid #8A8A96; color: #3E3E48"; }
+      else { st += "color: #5E5E6A; font-weight: 400; font-family: 'Public Sans', sans-serif"; }
+      return { badge: b, badgeStyle: st, date: dfmt(e[0]), ride: e[2], time: fmt(e[1]), kmh: kmh(e[1]), gap: gap(e[1] - pr[1]) };
+    });
+
+    var x0 = Date.UTC(2019, 0, 1), x1 = Date.UTC(2027, 0, 1), yMin = 330, yMax = 465;
+    function left(d) { var p = d.split("-"); return (Date.UTC(+p[0], +p[1] - 1, +p[2]) - x0) / (x1 - x0) * 100; }
+    function top(s) { return (s - yMin) / (yMax - yMin) * 100; }
+    var points = raw.map(function (e) {
+      var isPr = e === pr;
+      var size = isPr ? 14 : 9;
+      var col = isPr ? "background: #FC4C02; box-shadow: 0 0 0 3px #FFFFFF, 0 0 0 4px #FC4C02" : "background: #8A8A96";
+      return { style: "position: absolute; width: " + size + "px; height: " + size + "px; border-radius: 50%; left: " + left(e[0]).toFixed(2) + "%; top: " + top(e[1]).toFixed(2) + "%; transform: translate(-50%, -50%); " + col };
+    });
+    var yTicks = [345, 375, 405, 435, 465].map(function (s) { return { top: top(s).toFixed(2), label: fmt(s) }; });
+    var xTicks = [];
+    for (var y = 2019; y <= 2026; y++) xTicks.push({ left: left(y + "-01-01").toFixed(2), label: String(y) });
+
+    var years = [];
+    for (var yy = 2026; yy >= 2019; yy--) {
+      var es = raw.filter(function (e) { return e[0].slice(0, 4) === String(yy); });
+      if (!es.length) continue;
+      var best = Math.min.apply(null, es.map(function (e) { return e[1]; }));
+      years.push({ year: String(yy), count: String(es.length), best: fmt(best),
+        bestStyle: "text-align: right; font-family: 'Public Sans', sans-serif; " + (best === pr[1] ? "color: #FC4C02; font-weight: 600" : "") });
+    }
+
+    return {
+      count: String(raw.length), first: dfmt(raw[0][0]),
+      prTime: fmt(pr[1]), prDate: dfmt(pr[0]), prKmh: kmh(pr[1]),
+      median: fmt(median), medianGap: gap(median - pr[1]),
+      lastTime: fmt(last[1]), lastDate: dfmt(last[0]), lastGap: gap(last[1] - pr[1]),
+      yearCount: String(ty.length), yearBest: fmt(tyBest),
+      rows: rows, points: points, yTicks: yTicks, xTicks: xTicks, years: years,
+      prLeft: left(pr[0]).toFixed(2), prTop: top(pr[1]).toFixed(2),
+      chartLabel: "Elapsed time for " + raw.length + " efforts from 2019 to 2026; PR " + fmt(pr[1]) + " on " + dfmt(pr[0])
+    };
+  }
+}
+</script>
+</body>
+</html>

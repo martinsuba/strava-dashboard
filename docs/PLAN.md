@@ -66,6 +66,8 @@ T-001 turns it into reusable synthetic fixtures.
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
 ## M2: The site (index, segment, ride pages)
+All M2 UI tasks follow docs/DESIGN.md (tokens, type, layout, screens) and the reference mockups in docs/design/.
+Milestone review compares the screenshots with those mockups.
 ### [ ] T-007: Site data complete: ranks, PR at the time, averages, per-year, determinism  (size M)
 - Goal: full JSON schema from ARCHITECTURE.md, byte-identical rebuilds, no coordinates.
 - REQs: REQ-005
@@ -73,22 +75,25 @@ T-001 turns it into reusable synthetic fixtures.
 - Areas/files: sdash/sitedata.py
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
-### [ ] T-008: Index page  (size S)
-- Goal: segment list + ride list, links, empty state.
+### [ ] T-008: Base layout + design tokens + Index page  (size M)
+- Goal: `tokens.css` and base styles from docs/DESIGN.md, self-hosted Public Sans, header/nav, panel and table
+  components, not-found route; then the Index page (segment list + ride list, links, empty state). T-002's segment page
+  adopts the base layout.
 - REQs: REQ-006
 - Acceptance tests to make pass: tests/acceptance/web/index.spec.ts
-- Areas/files: web/src/pages/index.ts, web/src/lib/
+- Areas/files: web/src/styles/, web/public/fonts/, web/src/pages/index.ts, web/src/lib/
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
 ### [ ] T-009: Segment page complete: ranks, gap to PR, sorting, per-year, trend chart  (size M)
-- Goal: REQ-007 in full with Chart.js.
+- Goal: REQ-007 in full with Chart.js, matching docs/design/segment-page.dc.html.
 - REQs: REQ-007
 - Acceptance tests to make pass: tests/acceptance/web/segment.spec.ts
 - Areas/files: web/src/pages/segment.ts
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
 ### [ ] T-010: Ride page  (size M)
-- Goal: ride summary + matched efforts vs PR/average, PR-at-the-time marking, empty state.
+- Goal: ride summary + matched efforts vs PR/average with the position bar, PR-at-the-time marking, empty state,
+  matching docs/design/ride-page.dc.html.
 - REQs: REQ-008
 - Acceptance tests to make pass: tests/acceptance/web/ride.spec.ts
 - Areas/files: web/src/pages/ride.ts

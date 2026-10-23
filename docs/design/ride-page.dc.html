@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ride page, Logbook orange</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F7F7FA}
+a{color:#FC4C02}a:hover{color:#D63F00}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #F7F7FA; color: #242428; font-family: 'Public Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums; font-size: 15px; line-height: 1.5">
+  <header style="border-bottom: 1px solid #DFDFE8; background: #FFFFFF">
+    <div style="max-width: 1120px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 28px">
+      <a href="#" style="font-weight: 800; font-size: 18px; color: #FC4C02; text-decoration: none; letter-spacing: -0.02em">Segment Log</a>
+      <nav aria-label="Main" style="display: flex; gap: 20px; font-size: 14px">
+        <a href="#" style="color: #5E5E6A; text-decoration: none">Segments</a>
+        <a href="#" style="color: #242428; font-weight: 600; text-decoration: none; border-bottom: 3px solid #FC4C02; padding-bottom: 2px">Rides</a>
+      </nav>
+    </div>
+  </header>
+
+  <main style="max-width: 1120px; margin: 0 auto; padding: 32px 24px 64px; display: flex; flex-direction: column; gap: 28px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <a href="#" style="font-size: 13px; text-decoration: none">← All rides</a>
+      <h1 style="margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.02em">Evening loop</h1>
+      <p style="margin: 0; color: #5E5E6A; font-size: 14px">Sat 18 Oct 2026, 17:05 · Road bike</p>
+    </div>
+
+    <section aria-label="Ride summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); border: 1px solid #DFDFE8; background: #FFFFFF">
+      <div style="padding: 16px 20px; border-right: 1px solid #DFDFE8; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5E5E6A">Distance</span>
+        <span style="font-family: 'Public Sans', sans-serif; font-size: 26px; font-weight: 500">42.6 km</span>
+      </div>
+      <div style="padding: 16px 20px; border-right: 1px solid #DFDFE8; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5E5E6A">Moving time</span>
+        <span style="font-family: 'Public Sans', sans-serif; font-size: 26px; font-weight: 500">1:38:12</span>
+      </div>
+      <div style="padding: 16px 20px; border-right: 1px solid #DFDFE8; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5E5E6A">Elapsed time</span>
+        <span style="font-family: 'Public Sans', sans-serif; font-size: 26px; font-weight: 500">1:46:40</span>
+      </div>
+      <div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5E5E6A">Segments</span>
+        <span style="font-family: 'Public Sans', sans-serif; font-size: 26px; font-weight: 500">4</span>
+        <span style="font-size: 13px; color: #FC4C02; font-weight: 600">1 new PR</span>
+      </div>
+    </section>
+
+    <section aria-labelledby="seg-h" style="background: #FFFFFF; border: 1px solid #DFDFE8">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; padding: 14px 20px; border-bottom: 1px solid #DFDFE8">
+        <h2 id="seg-h" style="margin: 0; font-size: 15px; font-weight: 600">Segments on this ride</h2>
+        <span style="font-size: 13px; color: #5E5E6A">bar: PR on the left, slowest on the right · <span style="color: #8A8A96">|</span> average · <span style="color: #242428">●</span> today</span>
+      </div>
+      <div style="overflow-x: auto">
+        <div style="min-width: 760px">
+          <div style="display: grid; grid-template-columns: minmax(160px, 1.4fr) 72px 72px 72px 80px minmax(160px, 1.2fr) 72px; gap: 14px; padding: 10px 20px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #5E5E6A; border-bottom: 1px solid #DFDFE8">
+            <span>Segment</span><span style="text-align: right">Today</span><span style="text-align: right">PR</span><span style="text-align: right">Average</span><span style="text-align: right">vs PR</span><span>Where today ranks</span><span style="text-align: right">Rank</span>
+          </div>
+          <sc-for list="{{segs}}" as="s" hint-placeholder-count="4">
+            <div style="display: grid; grid-template-columns: minmax(160px, 1.4fr) 72px 72px 72px 80px minmax(160px, 1.2fr) 72px; gap: 14px; padding: 14px 20px; border-bottom: 1px solid #F0F0F5; align-items: center">
+              <span style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+                <a href="#" style="font-size: 14px; font-weight: 500; text-decoration: none">{{s.name}}</a>
+                <sc-if value="{{s.isPr}}" hint-placeholder-val="{{false}}">
+                  <span style="font-size: 11px; font-weight: 600; padding: 1px 6px; background: #FC4C02; color: #FFFFFF">NEW PR</span>
+                </sc-if>
+              </span>
+              <span style="{{s.todayStyle}}">{{s.today}}</span>
+              <span style="text-align: right; font-family: 'Public Sans', sans-serif; color: #5E5E6A">{{s.pr}}</span>
+              <span style="text-align: right; font-family: 'Public Sans', sans-serif; color: #5E5E6A">{{s.avg}}</span>
+              <span style="text-align: right; font-family: 'Public Sans', sans-serif; color: #5E5E6A">{{s.gap}}</span>
+              <span aria-hidden="true" style="position: relative; height: 18px">
+                <span style="position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: #DFDFE8"></span>
+                <span style="position: absolute; left: {{s.avgPos}}%; top: 2px; width: 2px; height: 14px; background: #8A8A96"></span>
+                <span style="{{s.dotStyle}}"></span>
+              </span>
+              <span style="text-align: right; font-family: 'Public Sans', sans-serif; font-size: 14px">{{s.rank}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    function fmt(s) { var m = Math.floor(s / 60), r = Math.round(s % 60); return m + ":" + (r < 10 ? "0" : "") + r; }
+    var data = [
+      { name: "Hill Road climb", t: 365, pr: 341, avg: 398, slow: 452, rank: 8, of: 24 },
+      { name: "Lakeside flat", t: 252, pr: 238, avg: 261, slow: 290, rank: 5, of: 31 },
+      { name: "Quarry descent", t: 101, pr: 101, avg: 112, slow: 128, rank: 1, of: 17 },
+      { name: "Village sprint", t: 48, pr: 44, avg: 47, slow: 55, rank: 31, of: 40 }
+    ];
+    var segs = data.map(function (d) {
+      var pos = function (s) { return ((s - d.pr) / (d.slow - d.pr) * 100).toFixed(1); };
+      var isPr = d.t === d.pr;
+      var dot = isPr ? "#FC4C02" : "#242428";
+      return {
+        name: d.name, isPr: isPr,
+        today: fmt(d.t), pr: fmt(d.pr), avg: fmt(d.avg),
+        gap: isPr ? "—" : "+" + fmt(d.t - d.pr),
+        rank: d.rank + " / " + d.of,
+        avgPos: pos(d.avg),
+        todayStyle: "text-align: right; font-family: 'Public Sans', sans-serif; font-weight: 600; " + (isPr ? "color: #FC4C02" : "color: #242428"),
+        dotStyle: "position: absolute; top: 9px; left: " + pos(d.t) + "%; width: 12px; height: 12px; border-radius: 50%; transform: translate(-50%, -50%); background: " + dot
+      };
+    });
+    return { segs: segs };
+  }
+}
+</script>
+</body>
+</html>
