@@ -1,0 +1,91 @@
+{
+  "generated": "2026-10-18T15:05:00Z",
+  "segments": [
+    {
+      "slug": "hill-road-climb",
+      "name": "Hill Road climb",
+      "efforts": 8,
+      "pr_s": 341,
+      "pr_date": "2024-06-12T16:20:00Z"
+    },
+    {
+      "slug": "lakeside-flat",
+      "name": "Lakeside flat",
+      "efforts": 3,
+      "pr_s": 238,
+      "pr_date": "2025-05-04T10:00:00Z"
+    },
+    {
+      "slug": "quarry-descent",
+      "name": "Quarry descent",
+      "efforts": 0,
+      "pr_s": null,
+      "pr_date": null
+    }
+  ],
+  "rides": [
+    {
+      "id": "3000000104",
+      "date": "2023-09-10T16:45:00Z",
+      "name": "Evening spin",
+      "km": 25.5,
+      "n_efforts": 2
+    },
+    {
+      "id": "3000000108",
+      "date": "2026-10-18T15:05:00Z",
+      "name": "Evening loop",
+      "km": 42.6,
+      "n_efforts": 2
+    },
+    {
+      "id": "3000000101",
+      "date": "2019-05-04T08:10:00Z",
+      "name": "Morning loop",
+      "km": 28.4,
+      "n_efforts": 1
+    },
+    {
+      "id": "3000000109",
+      "date": "2026-09-01T12:00:00Z",
+      "name": "Recovery spin",
+      "km": 18.0,
+      "n_efforts": 0
+    },
+    {
+      "id": "3000000106",
+      "date": "2025-05-04T10:00:00Z",
+      "name": "Gravel detour",
+      "km": 44.1,
+      "n_efforts": 2
+    },
+    {
+      "id": "3000000102",
+      "date": "2020-07-19T09:00:00Z",
+      "name": "Hill repeats",
+      "km": 31.0,
+      "n_efforts": 1
+    },
+    {
+      "id": "3000000107",
+      "date": "2026-06-07T07:15:00Z",
+      "name": "Sunday long ride",
+      "km": 88.3,
+      "n_efforts": 1
+    },
+    {
+      "id": "3000000103",
+      "date": "2021-06-13T07:30:00Z",
+      "name": "Hill repeats",
+      "km": 30.8,
+      "n_efforts": 1
+    },
+    {
+      "id": "3000000105",
+      "date": "2024-06-12T16:20:00Z",
+      "name": "Hill repeats",
+      "km": 31.2,
+      "n_efforts": 1
+    }
+  ]
+}

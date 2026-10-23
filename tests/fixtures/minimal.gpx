@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx creator="StravaGPX" version="1.1" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+ <metadata>
+  <time>2026-05-01T08:00:00Z</time>
+ </metadata>
+ <trk>
+  <name>Synthetic minimal ride</name>
+  <type>1</type>
+  <trkseg>
+   <trkpt lat="-47.2500000" lon="-134.7500000">
+    <ele>12.0</ele>
+    <time>2026-05-01T08:00:00Z</time>
+   </trkpt>
+   <trkpt lat="-47.2495503" lon="-134.7500000">
+    <ele>12.0</ele>
+    <time>2026-05-01T08:00:10Z</time>
+   </trkpt>
+   <trkpt lat="-47.2491007" lon="-134.7500000">
+    <ele>12.0</ele>
+    <time>2026-05-01T08:00:20Z</time>
+   </trkpt>
+   <trkpt lat="-47.2486510" lon="-134.7500000">
+    <ele>12.0</ele>
+    <time>2026-05-01T08:00:30Z</time>
+   </trkpt>
+   <trkpt lat="-47.2482014" lon="-134.7500000">
+    <ele>12.0</ele>
+    <time>2026-05-01T08:00:40Z</time>
+   </trkpt>
+   <trkpt lat="-47.2477517" lon="-134.7500000">
+    <ele>12.0</ele>
+    <time>2026-05-01T08:00:50Z</time>
+   </trkpt>
+   <trkpt lat="-47.2473020" lon="-134.7500000">
+    <ele>12.0</ele>
+    <time>2026-05-01T08:01:00Z</time>
+   </trkpt>
+   <trkpt lat="-47.2468524" lon="-134.7500000">
+    <ele>12.0</ele>
+    <time>2026-05-01T08:01:10Z</time>
+   </trkpt>
+   <trkpt lat="-47.2464027" lon="-134.7500000">
+    <ele>12.0</ele>
+    <time>2026-05-01T08:01:20Z</time>
+   </trkpt>
+   <trkpt lat="-47.2459531" lon="-134.7500000">
+    <ele>12.0</ele>
+    <time>2026-05-01T08:01:30Z</time>
+   </trkpt>
+   <trkpt lat="-47.2455034" lon="-134.7500000">
+    <ele>12.0</ele>
+    <time>2026-05-01T08:01:40Z</time>
+   </trkpt>
+  </trkseg>
+ </trk>
+</gpx>

@@ -1,9 +1,9 @@
 # Status: strava-dashboard
-Phase: plan review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: Plan v1 PR #1 open (design chosen: A2, docs/DESIGN.md)
-Open PRs: #1 Plan v1
+Phase: harness review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: harness PR #2 approved by reviewer (round 2), CI green; waiting for Martin
+Open PRs: #2 Harness (needs `acceptance-change` label + merge by Martin)
 Blockers: –
-Next step: Martin reviews and merges Plan v1 (PR #1); then harness skill
+Next step: Martin labels + merges #2 -> Lead sets branch protection, then follow-up plan PR (plan/2) for doc gaps before M1
 
 ## Decisions log
 - 2026-10-23: project created
@@ -24,3 +24,8 @@ Next step: Martin reviews and merges Plan v1 (PR #1); then harness skill
 - 2026-10-23: design round 2 feedback: A preferred; drop B/C/D; try A with Strava-like colours (A2).
 - 2026-10-23: design chosen: A2 Logbook with Strava orange #FC4C02 for all accents (Martin). Spec docs/DESIGN.md, mockups docs/design/. Light only.
 - 2026-10-23: proposed in DEPLOY.md: data-only refreshes deploy on Martin's request without a separate gate; approved by merging Plan v1.
+- 2026-10-23: Plan v1 merged by Martin (PR #1). Data-only refresh rule in DEPLOY.md approved.
+- 2026-10-23: repo made public (Martin, via GitHub app); auto-merge enabled by Lead.
+- 2026-10-23: harness PR #2: reviewer round 1 changes needed (allowlist override contract, generic CSV leak, web oracle unprotected) -> fixed -> round 2 APPROVE.
+- Follow-ups for plan/2 (before M1): real activities.csv header names in ARCHITECTURE (column names only); efforts shape incl. ride_name; index.json `generated` data-derived; pr_s/pr_date null when no efforts; CLI flags (--data-dir, build-data --out, --web-dir, --remote); smoke script task; ride time display time zone (decide with Martin).
+- Follow-ups for tasks: T-004 reviewer requires unit tests for `evilstrava.com` vs `strava.com` and allowlist `calhost` vs host `localhost`; T-008: one link per ride row (index.spec strict mode); Playwright fixme is not strict -> reviewer checks fixme flips per task.

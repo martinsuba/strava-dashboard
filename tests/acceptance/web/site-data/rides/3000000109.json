@@ -1,0 +1,10 @@
+{
+  "id": "3000000109",
+  "date": "2026-09-01T12:00:00Z",
+  "name": "Recovery spin",
+  "km": 18.0,
+  "elapsed_s": 2760,
+  "moving_s": 2700,
+  "gear": "Road bike",
+  "efforts": []
+}
