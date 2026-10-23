@@ -1,6 +1,6 @@
 # Status: strava-dashboard
 Phase: build review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M1 / T-001 (align synthetic activities.csv header): in progress
+Current task: M1 / T-002 (thin slice: GPX → segment → JSON → segment page): in progress. Done: T-001 (PR #5)
 Open PRs: –
 Blockers: –
 Next step: builder on T-001, then T-002…T-006 (M1); stop at milestone end for Martin's review
@@ -33,3 +33,7 @@ Next step: builder on T-001, then T-002…T-006 (M1); stop at milestone end for 
 - 2026-10-23: display time zone = Europe/Bratislava (Martin) -> D-007, REQ-008 criterion.
 - 2026-10-23: Plan v2: real activities.csv header has 103 columns (Plan v1 said 101): exact header in ARCHITECTURE; T-001 re-scoped to align _synth header (explicit acceptance change); efforts shape incl. ride_name; generated data-derived; null PR fields; CLI flags; smoke script in T-012; T-004 host-matching unit tests; T-010 adds TZ acceptance test.
 - 2026-10-23: Plan v2 merged (PR #3, auto-merge by Martin). Martin: "go M1". Task loop started.
+- 2026-10-23: seeded-bug check: PR #4 (chore/seeded-bug) weakened the REQ-004 stop tolerance 5 s -> 75 s; test-reviewer said CHANGES NEEDED (correct). Closed unmerged, branch kept.
+- 2026-10-23: T-001 merged (PR #5): reviewer + test-reviewer approve, 0 fix rounds.
+- Follow-up (needs a task allowed to edit workflows): CI "Install Playwright browser" step sometimes takes ~11 min (apt deps); fix with the Playwright container image or caching.
+- Note: task progress ticks live in STATUS.md during a milestone; PLAN.md ticks go into the milestone PR (merge condition d forbids PLAN.md in task PRs).
