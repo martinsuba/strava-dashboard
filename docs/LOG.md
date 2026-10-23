@@ -8,3 +8,4 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-23 | plan | asked to provide Strava export download link | n: link only reachable from Martin's email
 2026-10-23 | plan | pasted Strava export email link | n: link only in Martin's email (Lead downloaded it fine from the VPS)
 2026-10-23 | plan | chose segment approach (simple, no map) and stack A | n: owner decisions
+2026-10-23 | plan | confirmed segment interpretation; decided Lead stays on Opus despite plan skill step 7 suggesting `/model sonnet` (conflicts with FRAMEWORK.md "Lead always Opus") -> framework fix later | y: inconsistency in framework docs; fix plan skill step 7 so no question is needed

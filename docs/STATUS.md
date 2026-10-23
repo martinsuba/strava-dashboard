@@ -17,4 +17,6 @@ Next step: Martin reviews and merges the Plan v1 PR; then harness skill
 - 2026-10-23: feasibility spike (throwaway, scratchpad): parse all rides 146 s (fitdecode + gpxpy); gate matcher (30 m start/end gates, length +-10 %, path within 60 m of reference) found 26/32/12 efforts on the 3 Prague cycling segments, best ~31-33 km/h, plausible. Lessons: 2019-era smart recording = ~50 m point spacing (never subsample the ride when checking the path); reference track may be a non-ride activity; elapsed time includes stops (as Strava).
 - 2026-10-23: segments: keep it simple, no map, segments shown by name (Martin). -> segments.yaml in data dir + `sdash segment add` (ride + km) + import from Strava segments.csv (D-004).
 - 2026-10-23: stack A: Python pipeline + Vite/TS static frontend (Martin).
+- 2026-10-23: Martin confirmed "segments by name" = no map anywhere; segment geometry internal via `sdash segment add`.
+- 2026-10-23: framework inconsistency logged: plan skill step 7 suggests `/model sonnet`, FRAMEWORK.md says Lead always Opus. Martin: stay on Opus, fix framework later (retro item).
 - 2026-10-23: proposed in DEPLOY.md: data-only refreshes deploy on Martin's request without a separate gate; approved by merging Plan v1.
