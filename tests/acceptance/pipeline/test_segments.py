@@ -21,7 +21,6 @@ def _load_segments(data_dir: Path) -> list[dict[str, Any]]:
     return data
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-003 not implemented (T-002)")
 def test_req003_slug_derived_from_name_and_stable(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path
 ) -> None:
@@ -65,8 +64,19 @@ PROBLEM_WORDS = {
 }
 
 
-@pytest.mark.parametrize("kind", list(PROBLEM_WORDS))
-@pytest.mark.xfail(strict=True, reason="REQ-003 validation not implemented (T-006)")
+# One xfail mark per case, so each task un-marks exactly the cases it implements.
+KINDS = [
+    pytest.param(
+        kind,
+        marks=pytest.mark.xfail(strict=True, reason="REQ-003 validation not implemented (T-006)"),
+    )
+    if kind != "missing-field"
+    else kind
+    for kind in PROBLEM_WORDS
+]
+
+
+@pytest.mark.parametrize("kind", KINDS)
 def test_req003_invalid_segment_fails_naming_segment_and_problem(
     sdash: SdashRunner, data_dir: Path, kind: str
 ) -> None:

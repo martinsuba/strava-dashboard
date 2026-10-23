@@ -33,7 +33,6 @@ def _ride(activity_id: str, type: str = "Ride", fmt: str = "gpx", **kw) -> Ride:
     )
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-002 not implemented (T-003)")
 def test_req002_only_ride_and_ebike_are_kept(sdash: SdashRunner, data_dir: Path) -> None:
     rides = [
         _ride("1000000011", "Ride"),
@@ -50,9 +49,7 @@ def test_req002_only_ride_and_ebike_are_kept(sdash: SdashRunner, data_dir: Path)
 
 # One xfail mark per format, so each task un-marks exactly the formats it implements.
 FORMATS = [
-    pytest.param(
-        "gpx", marks=pytest.mark.xfail(strict=True, reason="REQ-002 gpx not implemented (T-002)")
-    ),
+    "gpx",
     pytest.param(
         "gpx.gz",
         marks=pytest.mark.xfail(strict=True, reason="REQ-002 gpx.gz not implemented (T-003)"),
@@ -149,7 +146,6 @@ def test_req002_unchanged_ride_read_from_cache(sdash: SdashRunner, data_dir: Pat
     )
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-002 cache not implemented (T-003)")
 def test_req002_changed_ride_is_parsed_again(sdash: SdashRunner, data_dir: Path) -> None:
     ride = _ride("1000000042", fmt="gpx")
     write_raw(data_dir, [ride])

@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
+import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from sdash import __version__
+from sdash import __version__, pipeline
 
 DEFAULT_DATA_DIR = Path("~/data/strava-export")
 
@@ -68,14 +70,74 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _default_web_dir() -> Path:
+    return Path(__file__).resolve().parents[1] / "web"
+
+
+def _cmd_parse(data_dir: Path) -> int:
+    report = pipeline.parse_rides(data_dir)
+    print(f"parsed {report.parsed} rides, {len(report.failed)} failed")
+    for activity_id, reason in report.failed:
+        print(f"failed {activity_id}: {reason}")
+    return 0
+
+
+def _cmd_match(data_dir: Path) -> int:
+    _, results = pipeline.match_segments(data_dir)
+    for r in results:
+        print(f"{r.segment.name}: {len(r.efforts)} efforts")
+    return 0
+
+
+def _cmd_build_data(data_dir: Path, out: Path | None) -> int:
+    target = out or _default_web_dir() / "public" / "data"
+    results = pipeline.build_data(data_dir, target)
+    print(f"wrote {len(results)} segments to {target}")
+    return 0
+
+
+def _cmd_refresh(data_dir: Path, args: argparse.Namespace) -> int:
+    if args.source:
+        raise pipeline.PipelineError("refresh with an import source is not implemented yet")
+    if not args.no_deploy:
+        raise pipeline.PipelineError("deploy is not implemented yet: use --no-deploy")
+    web_dir: Path = args.web_dir or _default_web_dir()
+    _cmd_parse(data_dir)
+    _cmd_match(data_dir)
+    _cmd_build_data(data_dir, web_dir / "public" / "data")
+    npm = shutil.which("npm")
+    if npm is None:
+        raise pipeline.PipelineError("npm not found: cannot build the site")
+    build = subprocess.run([npm, "run", "build"], cwd=web_dir, check=False)
+    if build.returncode != 0:
+        raise pipeline.PipelineError("site build failed")
+    return 0
+
+
+IMPLEMENTED = {"parse", "match", "build-data", "refresh"}
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     command = str(args.command)
     if command == "segment":
         command = f"segment {args.segment_command}"
-    print(f"sdash {command}: not implemented", file=sys.stderr)
-    return 1
+    if command not in IMPLEMENTED:
+        print(f"sdash {command}: not implemented", file=sys.stderr)
+        return 1
+    data_dir: Path = (args.data_dir or default_data_dir()).expanduser()
+    try:
+        if command == "parse":
+            return _cmd_parse(data_dir)
+        if command == "match":
+            return _cmd_match(data_dir)
+        if command == "build-data":
+            return _cmd_build_data(data_dir, args.out)
+        return _cmd_refresh(data_dir, args)
+    except pipeline.PipelineError as exc:
+        print(f"sdash {command}: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
