@@ -1,9 +1,9 @@
 # Status: strava-dashboard
-Phase: plan review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: Plan v2 PR (branch plan/2): doc gaps from harness + time zone
-Open PRs: Plan v2 (Martin merges)
+Phase: build review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: M1 / T-001 (align synthetic activities.csv header): in progress
+Open PRs: –
 Blockers: –
-Next step: Martin merges Plan v2 -> Lead shows M1 task list -> Martin says "go M1"
+Next step: builder on T-001, then T-002…T-006 (M1); stop at milestone end for Martin's review
 
 ## Decisions log
 - 2026-10-23: project created
@@ -32,3 +32,4 @@ Next step: Martin merges Plan v2 -> Lead shows M1 task list -> Martin says "go M
 - 2026-10-23: harness PR #2 merged by Martin (label acceptance-change). Branch protection on main set + verified by Lead (ci + acceptance-guard, no force-push/deletion).
 - 2026-10-23: display time zone = Europe/Bratislava (Martin) -> D-007, REQ-008 criterion.
 - 2026-10-23: Plan v2: real activities.csv header has 103 columns (Plan v1 said 101): exact header in ARCHITECTURE; T-001 re-scoped to align _synth header (explicit acceptance change); efforts shape incl. ride_name; generated data-derived; null PR fields; CLI flags; smoke script in T-012; T-004 host-matching unit tests; T-010 adds TZ acceptance test.
+- 2026-10-23: Plan v2 merged (PR #3, auto-merge by Martin). Martin: "go M1". Task loop started.
