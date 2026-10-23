@@ -1,0 +1,35 @@
+name: acceptance-guard
+# Passes when: no protected path changed; OR label acceptance-change (Martin's override); OR the newest test-review status on
+# the PR head SHA is success (posted by the test-reviewer agent). Changes to this file always need Martin's label.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+permissions:
+  contents: read
+  statuses: read
+jobs:
+  acceptance-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          BASE: ${{ github.base_ref }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          changed=$(git diff --name-only "origin/$BASE...HEAD")
+          prot=$(echo "$changed" | grep -E '^(tests/acceptance/|\.github/workflows/)' || true)
+          if [ -z "$prot" ]; then echo "no protected paths changed"; exit 0; fi
+          if echo ",$LABELS," | grep -q ',acceptance-change,'; then echo "label present"; exit 0; fi
+          if echo "$changed" | grep -qx '.github/workflows/acceptance-guard.yml'; then
+            echo "::error::acceptance-guard.yml changed: Martin must add the acceptance-change label"; exit 1
+          fi
+          state=$(gh api "repos/$REPO/commits/$SHA/statuses" --jq '[.[]|select(.context=="test-review")][0].state // "none"')
+          if [ "$state" = "success" ]; then echo "test-review success"; exit 0; fi
+          echo "::error::Protected paths changed (test-review: $state). Run the test-reviewer or Martin adds acceptance-change."
+          echo "$prot"; exit 1

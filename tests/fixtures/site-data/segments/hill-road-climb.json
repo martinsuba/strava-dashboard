@@ -1,0 +1,139 @@
+{
+  "name": "Hill Road climb",
+  "ref_length_m": 2400,
+  "efforts": [
+    {
+      "segment_slug": "hill-road-climb",
+      "activity_id": "3000000101",
+      "ride_name": "Morning loop",
+      "start_t": 1556958300,
+      "elapsed_s": 456,
+      "distance_m": 2400,
+      "avg_kmh": 18.9,
+      "rank": 8,
+      "gap_to_pr_s": 115,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "hill-road-climb",
+      "activity_id": "3000000102",
+      "ride_name": "Hill repeats",
+      "start_t": 1595150100,
+      "elapsed_s": 395,
+      "distance_m": 2400,
+      "avg_kmh": 21.9,
+      "rank": 7,
+      "gap_to_pr_s": 54,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "hill-road-climb",
+      "activity_id": "3000000103",
+      "ride_name": "Hill repeats",
+      "start_t": 1623570300,
+      "elapsed_s": 379,
+      "distance_m": 2400,
+      "avg_kmh": 22.8,
+      "rank": 6,
+      "gap_to_pr_s": 38,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "hill-road-climb",
+      "activity_id": "3000000104",
+      "ride_name": "Evening spin",
+      "start_t": 1694365200,
+      "elapsed_s": 372,
+      "distance_m": 2400,
+      "avg_kmh": 23.2,
+      "rank": 4,
+      "gap_to_pr_s": 31,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "hill-road-climb",
+      "activity_id": "3000000105",
+      "ride_name": "Hill repeats",
+      "start_t": 1718210100,
+      "elapsed_s": 341,
+      "distance_m": 2400,
+      "avg_kmh": 25.3,
+      "rank": 1,
+      "gap_to_pr_s": 0,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "hill-road-climb",
+      "activity_id": "3000000106",
+      "ride_name": "Gravel detour",
+      "start_t": 1746353700,
+      "elapsed_s": 377,
+      "distance_m": 2400,
+      "avg_kmh": 22.9,
+      "rank": 5,
+      "gap_to_pr_s": 36,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "hill-road-climb",
+      "activity_id": "3000000107",
+      "ride_name": "Sunday long ride",
+      "start_t": 1780817400,
+      "elapsed_s": 355,
+      "distance_m": 2400,
+      "avg_kmh": 24.3,
+      "rank": 2,
+      "gap_to_pr_s": 14,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "hill-road-climb",
+      "activity_id": "3000000108",
+      "ride_name": "Evening loop",
+      "start_t": 1792336800,
+      "elapsed_s": 365,
+      "distance_m": 2400,
+      "avg_kmh": 23.7,
+      "rank": 3,
+      "gap_to_pr_s": 24,
+      "is_pr_at_time": false
+    }
+  ],
+  "per_year": [
+    {
+      "year": 2019,
+      "count": 1,
+      "best_s": 456
+    },
+    {
+      "year": 2020,
+      "count": 1,
+      "best_s": 395
+    },
+    {
+      "year": 2021,
+      "count": 1,
+      "best_s": 379
+    },
+    {
+      "year": 2023,
+      "count": 1,
+      "best_s": 372
+    },
+    {
+      "year": 2024,
+      "count": 1,
+      "best_s": 341
+    },
+    {
+      "year": 2025,
+      "count": 1,
+      "best_s": 377
+    },
+    {
+      "year": 2026,
+      "count": 2,
+      "best_s": 355
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+name: mutation
+# NOT a required check. Runs only on milestone PRs (branch chore/milestone-*); report is a run artifact.
+# Python stack: mutmut on the matcher (sdash/match.py, configured in pyproject.toml [tool.mutmut]).
+# Report only, never blocking. Mutation testing is too heavy for the 4 GB VPS, so it runs here.
+on:
+  pull_request:
+jobs:
+  mutation:
+    if: ${{ startsWith(github.head_ref, 'chore/milestone-') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -e '.[dev]' mutmut==3.8.0
+      - name: Run mutmut on sdash/match.py
+        run: |
+          mkdir -p reports/mutation
+          if [ ! -f sdash/match.py ]; then
+            echo "sdash/match.py does not exist yet; nothing to mutate" | tee reports/mutation/results.txt
+            exit 0
+          fi
+          .venv/bin/mutmut run || true
+          .venv/bin/mutmut results > reports/mutation/results.txt 2>&1 || true
+          .venv/bin/mutmut export-cicd-stats || true
+          cp mutants/mutmut-cicd-stats.json reports/mutation/ 2>/dev/null || true
+          cat reports/mutation/results.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          retention-days: 30

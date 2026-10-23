@@ -1,0 +1,23 @@
+{
+  "id": "3000000105",
+  "date": "2024-06-12T16:20:00Z",
+  "name": "Hill repeats",
+  "km": 31.2,
+  "elapsed_s": 4502,
+  "moving_s": 4210,
+  "gear": "Road bike",
+  "efforts": [
+    {
+      "slug": "hill-road-climb",
+      "name": "Hill Road climb",
+      "elapsed_s": 341,
+      "pr_s": 341,
+      "avg_s": 380,
+      "gap_to_pr_s": 0,
+      "rank": 1,
+      "of": 8,
+      "is_pr": true,
+      "is_pr_at_time": true
+    }
+  ]
+}

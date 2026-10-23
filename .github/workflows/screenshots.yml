@@ -1,0 +1,28 @@
+name: screenshots
+# Web UI projects only. Not a required check. Images are a run artifact; the Lead commits them at milestone end.
+# Captures every screen in docs/PLAN.md "Screens" from the site built with the synthetic
+# tests/fixtures/site-data (tests/screenshots/screenshots.spec.ts) -> screenshots/*.png.
+on:
+  pull_request:
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run screenshots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/
+          retention-days: 14

@@ -1,0 +1,59 @@
+{
+  "name": "Lakeside flat",
+  "ref_length_m": 1800,
+  "efforts": [
+    {
+      "segment_slug": "lakeside-flat",
+      "activity_id": "3000000104",
+      "ride_name": "Evening spin",
+      "start_t": 1694365200,
+      "elapsed_s": 252,
+      "distance_m": 1800,
+      "avg_kmh": 25.7,
+      "rank": 2,
+      "gap_to_pr_s": 14,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "lakeside-flat",
+      "activity_id": "3000000106",
+      "ride_name": "Gravel detour",
+      "start_t": 1746353700,
+      "elapsed_s": 238,
+      "distance_m": 1800,
+      "avg_kmh": 27.2,
+      "rank": 1,
+      "gap_to_pr_s": 0,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "lakeside-flat",
+      "activity_id": "3000000108",
+      "ride_name": "Evening loop",
+      "start_t": 1792336800,
+      "elapsed_s": 260,
+      "distance_m": 1800,
+      "avg_kmh": 24.9,
+      "rank": 3,
+      "gap_to_pr_s": 22,
+      "is_pr_at_time": false
+    }
+  ],
+  "per_year": [
+    {
+      "year": 2023,
+      "count": 1,
+      "best_s": 252
+    },
+    {
+      "year": 2025,
+      "count": 1,
+      "best_s": 238
+    },
+    {
+      "year": 2026,
+      "count": 1,
+      "best_s": 260
+    }
+  ]
+}

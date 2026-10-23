@@ -1,0 +1,35 @@
+{
+  "id": "3000000108",
+  "date": "2026-10-18T15:05:00Z",
+  "name": "Evening loop",
+  "km": 42.6,
+  "elapsed_s": 6400,
+  "moving_s": 5892,
+  "gear": "Road bike",
+  "efforts": [
+    {
+      "slug": "hill-road-climb",
+      "name": "Hill Road climb",
+      "elapsed_s": 365,
+      "pr_s": 341,
+      "avg_s": 380,
+      "gap_to_pr_s": 24,
+      "rank": 3,
+      "of": 8,
+      "is_pr": false,
+      "is_pr_at_time": false
+    },
+    {
+      "slug": "lakeside-flat",
+      "name": "Lakeside flat",
+      "elapsed_s": 260,
+      "pr_s": 238,
+      "avg_s": 250,
+      "gap_to_pr_s": 22,
+      "rank": 3,
+      "of": 3,
+      "is_pr": false,
+      "is_pr_at_time": false
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "3000000101",
+  "date": "2019-05-04T08:10:00Z",
+  "name": "Morning loop",
+  "km": 28.4,
+  "elapsed_s": 3900,
+  "moving_s": 3720,
+  "gear": "Old steel bike",
+  "efforts": [
+    {
+      "slug": "hill-road-climb",
+      "name": "Hill Road climb",
+      "elapsed_s": 456,
+      "pr_s": 341,
+      "avg_s": 380,
+      "gap_to_pr_s": 115,
+      "rank": 8,
+      "of": 8,
+      "is_pr": false,
+      "is_pr_at_time": true
+    }
+  ]
+}
