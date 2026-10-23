@@ -14,3 +14,7 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-23 | plan | design feedback round 2 (keep A, try Strava-like colours) | n: taste decision
 2026-10-23 | plan | picked design A2, all accents Strava orange | n: taste decision
 2026-10-23 | plan gate | merged Plan v1 PR #1 | n: gate decision
+2026-10-23 | harness | (agent) enabled Actions, created label acceptance-change; auto-merge + branch protection refused while repo private on free plan | y: done by agent
+2026-10-23 | harness | decided to make repo public now (needed for auto-merge/branch protection on free plan) | n: owner decision
+2026-10-23 | harness | made repo public himself in the GitHub app: Lead's `gh repo edit --visibility public` was blocked by Claude Code auto-mode classifier [Create Public Surface] | y: Martin wants the Lead able to do this next time -> add a permission rule (framework/settings fix, retro item)
+2026-10-23 | harness | (agent) enabled allow_auto_merge after repo went public | y: done by agent
