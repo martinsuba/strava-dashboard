@@ -4,25 +4,23 @@ Legend: [ ] todo · [~] in progress · [x] done
 Before M1: the **harness** (test-architect) creates the skeleton: `pyproject.toml` + `sdash/` package with a `sdash`
 entry point, `web/` (Vite + TS), ruff/mypy/pytest, eslint/prettier/tsc/vitest, Playwright, CI (`ci` + `acceptance-guard`
 + `screenshots`), a raw-data check (REQ-010), `.gitignore`, docs/TESTS.md, and acceptance tests for REQ-001…REQ-010 written
-from the PRD (skipped/failing until implemented). Acceptance tests use only synthetic fixtures from T-001's generator; the
-harness may add a minimal hand-made GPX fixture to get started.
+from the PRD (skipped/failing until implemented). Acceptance tests use only synthetic inputs (built by the harness in
+`tests/acceptance/pipeline/_synth.py` and `tests/acceptance/web/make_site_data.py`).
 
 The real-data spike was already done during planning (export shape + matcher feasibility, recorded in ARCHITECTURE.md).
-T-001 turns it into reusable synthetic fixtures.
+T-001 aligns the synthetic export with the recorded real header (Plan v2).
 
 ## M1: Pipeline end to end (export → efforts → JSON), proven on fixtures
-### [ ] T-001: Synthetic fixture generator  (size S)
-- Goal: `tests/fixtures/make_fixtures.py` generates a synthetic export that mirrors the real format: `activities.csv`
-  with the real 101-column header (incl. duplicated names) and date format, rides as `.fit`, `.fit.gz`, `.gpx`, `.gpx.gz`,
-  one sparse (~50 m spacing) ride, one Run and one Virtual Ride, one corrupt file, a `segments.csv`, a `media/` folder and
-  personal files (`messages.json`, `contacts.csv`) with dummy content, zipped as `export.zip`. Tracks at made-up places,
-  designed for the REQ-004 cases (normal pass, detour, reverse, two laps, out-and-back, sparse). Outputs committed.
-- REQs: REQ-001, REQ-002, REQ-004 (enables their tests), REQ-010
-- Acceptance tests to make pass: none directly; fixtures load in the existing acceptance tests
-- Areas/files: tests/fixtures/
-- Definition of done: generator + generated files committed, deterministic (re-run = no diff), a unit test checks the
-  CSV header matches ARCHITECTURE.md, CI green, review clean
-- Notes: FIT writing: use `fit-tool` (pip) or a minimal hand-written encoder; justify in the PR. No real data.
+### [ ] T-001: Align synthetic activities.csv header with the real export  (size S)
+- Goal: `_synth.ACTIVITIES_HEADER` equals the exact 103-column header recorded in docs/ARCHITECTURE.md (harness used 99
+  publicly documented names). A unit test parses the header block from ARCHITECTURE.md and compares it with
+  `ACTIVITIES_HEADER`. Duplicate-column handling (first occurrence wins) still holds.
+- REQs: REQ-002, REQ-010
+- Acceptance tests to make pass: none newly; all currently passing acceptance tests stay passing, xfails stay xfail.
+- Areas/files: tests/acceptance/pipeline/_synth.py (**explicitly allowed acceptance change**: header list only; needs
+  test-reviewer), tests/unit/
+- Definition of done: header matches, unit test added, CI green, review + test-review clean
+- Notes: column names only come from ARCHITECTURE.md; never read ~/data.
 
 ### [ ] T-002: Thin slice: GPX ride → one segment → JSON → segment page  (size M)
 - Goal: thinnest working path: read `activities.csv`, parse GPX rides, load `segments.yaml`, simple gate matcher
@@ -46,6 +44,8 @@ T-001 turns it into reusable synthetic fixtures.
 - REQs: REQ-001
 - Acceptance tests to make pass: tests/acceptance/pipeline/test_import*.py (URL tests use a local https test server or
   a mocked transport, never the network)
+- Also: unit tests for host matching: `evilstrava.com` must not match `strava.com`; allowlist `calhost` must not match
+  host `localhost`.
 - Areas/files: sdash/importer.py, sdash/cli.py
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 - Notes: security-relevant. The reviewer checks the extraction and URL handling explicitly.
@@ -82,6 +82,7 @@ Milestone review compares the screenshots with those mockups.
 - REQs: REQ-006
 - Acceptance tests to make pass: tests/acceptance/web/index.spec.ts
 - Areas/files: web/src/styles/, web/public/fonts/, web/src/pages/index.ts, web/src/lib/
+- Notes: exactly one link per ride row (index.spec uses a strict `getByRole("link")`).
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
 ### [ ] T-009: Segment page complete: ranks, gap to PR, sorting, per-year, trend chart  (size M)
@@ -93,7 +94,9 @@ Milestone review compares the screenshots with those mockups.
 
 ### [ ] T-010: Ride page  (size M)
 - Goal: ride summary + matched efforts vs PR/average with the position bar, PR-at-the-time marking, empty state,
-  matching docs/design/ride-page.dc.html.
+  matching docs/design/ride-page.dc.html. Dates/times in Europe/Bratislava (D-007).
+- Also: **explicitly allowed acceptance change**: add the REQ-008 time-zone criterion test to
+  tests/acceptance/web/ride.spec.ts (+ a summer 15:05Z ride in make_site_data.py if none exists); needs test-reviewer.
 - REQs: REQ-008
 - Acceptance tests to make pass: tests/acceptance/web/ride.spec.ts
 - Areas/files: web/src/pages/ride.ts
@@ -113,7 +116,8 @@ Milestone review compares the screenshots with those mockups.
   `--remote` configurable so tests push to a local bare repo.
 - REQs: REQ-009
 - Acceptance tests to make pass: tests/acceptance/pipeline/test_deploy*.py (local bare repo only)
-- Areas/files: sdash/deploy.py, docs/DEPLOY.md
+- Areas/files: sdash/deploy.py, docs/DEPLOY.md, web/ (`npm run smoke -- --base <url>`: Playwright smoke against a live
+  URL used by DEPLOY.md: index, one segment page, one ride page load without errors)
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean. The first real deploy
   happens in the deploy phase, not in this task.
 

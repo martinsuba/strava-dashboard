@@ -38,7 +38,7 @@ web/dist/  ──guard──► sdash deploy ──► gh-pages branch ──►
 ## Components and responsibilities
 | Component | Path | Responsibility |
 |---|---|---|
-| CLI | `sdash/cli.py` | subcommands `import`, `parse`, `match`, `build-data`, `segment add`, `segment import-strava`, `deploy`, `refresh` |
+| CLI | `sdash/cli.py` | subcommands `import`, `parse`, `match`, `build-data`, `segment add`, `segment import-strava`, `deploy`, `refresh`; global `--data-dir`; `build-data --out`; `deploy`/`refresh` take `--web-dir` and `--remote`; exact contract in docs/TESTS.md "Contracts" |
 | Import | `sdash/importer.py` | https download (allowed hosts, size cap), safe zip extraction with allowlist, delete zip |
 | Activities | `sdash/activities.py` | read `activities.csv` (duplicate headers, date format), filter cycling |
 | Parsers | `sdash/tracks.py` | FIT / GPX / TCX (+ .gz) → `Track` (t, lat, lon, cumdist); cache read/write |
@@ -65,8 +65,12 @@ Data dir: `SDASH_DATA_DIR`, default `~/data/strava-export/` (`raw/`, `cache/`, `
 - **Effort**: `segment_slug`, `activity_id`, `start_t`, `elapsed_s`, `distance_m`, `avg_kmh`, `rank`, `gap_to_pr_s`,
   `is_pr_at_time`.
 - **Site JSON**:
-  - `index.json`: `{generated, segments: [{slug, name, efforts, pr_s, pr_date}], rides: [{id, date, name, km, n_efforts}]}`
-  - `segments/<slug>.json`: `{name, ref_length_m, efforts: [...], per_year: [{year, count, best_s}]}`
+  - `index.json`: `{generated, segments: [{slug, name, efforts, pr_s, pr_date}], rides: [{id, date, name, km, n_efforts}]}`.
+    `generated` = start time of the newest ride (data-derived, never the clock, so rebuilds are byte-identical).
+    For a segment with no efforts, `pr_s` and `pr_date` are `null`. All timestamps are UTC ISO 8601 (`…Z`).
+  - `segments/<slug>.json`: `{name, ref_length_m, efforts: [{segment_slug, activity_id, ride_name, start_t, elapsed_s,
+    distance_m, avg_kmh, rank, gap_to_pr_s, is_pr_at_time}], per_year: [{year, count, best_s}]}` (`ride_name` so the page
+    needs no second fetch, D-005)
   - `rides/<id>.json`: `{id, date, name, km, elapsed_s, moving_s, gear, efforts: [{slug, name, elapsed_s, pr_s, avg_s, gap_to_pr_s, rank, of, is_pr, is_pr_at_time}]}`
 
 ## External services / APIs
@@ -78,7 +82,7 @@ Data dir: `SDASH_DATA_DIR`, default `~/data/strava-export/` (`raw/`, `cache/`, `
   files (messages, contacts, logins, followers, profile…), plus `segments.csv`, `starred_segments.csv`, `bikes.csv`, `routes/`.
   No unsafe paths were present, but the importer must still check.
 - Extraction allowlist: `activities.csv`, `activities/`, `segments.csv`, `starred_segments.csv`, `bikes.csv`, `components.csv`.
-- `activities.csv`: 1,714 rows, 101 columns, **duplicated headers** (`Elapsed Time`, `Distance`, `Max Heart Rate`,
+- `activities.csv`: 1,714 rows, 103 columns, **duplicated headers** (`Elapsed Time`, `Distance`, `Max Heart Rate`,
   `Relative Effort`, `Commute` appear twice; first occurrence = the summary values). `Activity Date` like
   `Oct 20, 2026, 3:45:46 AM` (UTC). `Filename` like `activities/<file-id>.fit.gz` (file ID ≠ activity ID).
   Types: Ride 661, Run 467, Weight Training 366, Walk 95, Hike 77, Virtual Ride 20, E-Bike Ride 1, …
@@ -90,7 +94,28 @@ Data dir: `SDASH_DATA_DIR`, default `~/data/strava-export/` (`raw/`, `cache/`, `
   - No file contains segment or lap-segment messages.
 - `segments.csv`: `Segment Name, Activity ID, Starting Latitude, Starting Longitude, Ending Latitude, Ending Longitude`
   (5 rows; 3 cycling segments in Prague, 2 drawn on a hike). `starred_segments.csv`: date + Strava segment ID only (unusable).
-- Fixtures: synthetic only (T-001), mirroring these formats at made-up coordinates.
+- Exact `activities.csv` header (column names only, in order, 103 columns; duplicates at positions 5/15 `Elapsed Time`,
+  6/17 `Distance`, 7/30 `Max Heart Rate`, 8/37 `Relative Effort`, 9/50 `Commute`, 0-based):
+  ```
+  Activity ID, Activity Date, Activity Name, Activity Type, Activity Description, Elapsed Time, Distance,
+  Max Heart Rate, Relative Effort, Commute, Activity Private Note, Activity Gear, Filename, Athlete Weight,
+  Bike Weight, Elapsed Time, Moving Time, Distance, Max Speed, Average Speed, Elevation Gain, Elevation Loss,
+  Elevation Low, Elevation High, Max Grade, Average Grade, Average Positive Grade, Average Negative Grade,
+  Max Cadence, Average Cadence, Max Heart Rate, Average Heart Rate, Max Watts, Average Watts, Calories,
+  Max Temperature, Average Temperature, Relative Effort, Total Work, Number of Runs, Uphill Time,
+  Downhill Time, Other Time, Perceived Exertion, Type, Start Time, Weighted Average Power, Power Count,
+  Prefer Perceived Exertion, Perceived Relative Effort, Commute, Total Weight Lifted, From Upload,
+  Grade Adjusted Distance, Weather Observation Time, Weather Condition, Weather Temperature,
+  Apparent Temperature, Dewpoint, Humidity, Weather Pressure, Wind Speed, Wind Gust, Wind Bearing,
+  Precipitation Intensity, Sunrise Time, Sunset Time, Moon Phase, Bike, Gear, Precipitation Probability,
+  Precipitation Type, Cloud Cover, Weather Visibility, UV Index, Weather Ozone, Jump Count, Total Grit,
+  Average Flow, Flagged, Average Elapsed Speed, Dirt Distance, Newly Explored Distance,
+  Newly Explored Dirt Distance, Activity Count, Total Steps, Carbon Saved, Pool Length, Training Load,
+  Intensity, Average Grade Adjusted Pace, Timer Time, Total Cycles, Recovery, With Pet, Competition, Long Run,
+  For a Cause, With Kid, Downhill Distance, Total Sets, Total Reps, Media
+  ```
+- Fixtures: synthetic only, built by `tests/acceptance/pipeline/_synth.py` (pipeline) and
+  `tests/acceptance/web/make_site_data.py` (site JSON), at made-up coordinates (open South Pacific box).
 
 ### Spike result: matcher feasibility (2026-10-23, throwaway script)
 Parsing all rides took 146 s. With the REQ-004 rules, the 3 Prague segments matched 26, 32 and 12 efforts; the best was
@@ -142,3 +167,10 @@ Context: Martin wanted to see designs before code. · Options: A Logbook (light 
 verdicts), C/D light scoreboard variants, A2 = A with Strava-style orange. · Decision: A2, with all accents in `#FC4C02`
 (Martin, 2026-10-23). · Consequences: docs/DESIGN.md is the spec for M2. Orange text has ~3:1 contrast, so it is used only
 for large or bold text and never as the only signal. No verdict labels in the MVP.
+
+### D-007: Display time zone Europe/Bratislava
+Context: the export stores UTC; Martin rides in Bratislava. · Options: UTC; viewer's browser zone; fixed
+Europe/Bratislava. · Decision: fixed `Europe/Bratislava` for every date and time shown (Martin, 2026-10-23), so the site
+looks the same for any viewer; data stays UTC. · Consequences: formatting uses `Intl.DateTimeFormat` with
+`timeZone: 'Europe/Bratislava'` (DST handled); a ride at 15:05Z in summer shows 17:05; dates near midnight follow
+Bratislava. Rides abroad also show Bratislava time (accepted).

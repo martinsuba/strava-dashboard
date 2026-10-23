@@ -19,3 +19,6 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-23 | harness | made repo public himself in the GitHub app: Lead's `gh repo edit --visibility public` was blocked by Claude Code auto-mode classifier [Create Public Surface] | y: Martin wants the Lead able to do this next time -> add a permission rule (framework/settings fix, retro item)
 2026-10-23 | harness | (agent) enabled allow_auto_merge after repo went public | y: done by agent
 2026-10-23 | harness | (none needed) reviewer round 1 issues fixed by test-architect, round 2 approve | y: done by agents
+2026-10-23 | harness gate | added acceptance-change label and merged harness PR #2 | n: gate decision (label is the human approval of protected tests)
+2026-10-23 | harness | (agent) set + verified branch protection on main | y: done by agent
+2026-10-23 | plan v2 | decided display time zone Europe/Bratislava | n: owner preference

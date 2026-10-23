@@ -1,9 +1,9 @@
 # Status: strava-dashboard
-Phase: harness review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: harness PR #2 approved by reviewer (round 2), CI green; waiting for Martin
-Open PRs: #2 Harness (needs `acceptance-change` label + merge by Martin)
+Phase: plan review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: Plan v2 PR (branch plan/2): doc gaps from harness + time zone
+Open PRs: Plan v2 (Martin merges)
 Blockers: –
-Next step: Martin labels + merges #2 -> Lead sets branch protection, then follow-up plan PR (plan/2) for doc gaps before M1
+Next step: Martin merges Plan v2 -> Lead shows M1 task list -> Martin says "go M1"
 
 ## Decisions log
 - 2026-10-23: project created
@@ -29,3 +29,6 @@ Next step: Martin labels + merges #2 -> Lead sets branch protection, then follow
 - 2026-10-23: harness PR #2: reviewer round 1 changes needed (allowlist override contract, generic CSV leak, web oracle unprotected) -> fixed -> round 2 APPROVE.
 - Follow-ups for plan/2 (before M1): real activities.csv header names in ARCHITECTURE (column names only); efforts shape incl. ride_name; index.json `generated` data-derived; pr_s/pr_date null when no efforts; CLI flags (--data-dir, build-data --out, --web-dir, --remote); smoke script task; ride time display time zone (decide with Martin).
 - Follow-ups for tasks: T-004 reviewer requires unit tests for `evilstrava.com` vs `strava.com` and allowlist `calhost` vs host `localhost`; T-008: one link per ride row (index.spec strict mode); Playwright fixme is not strict -> reviewer checks fixme flips per task.
+- 2026-10-23: harness PR #2 merged by Martin (label acceptance-change). Branch protection on main set + verified by Lead (ci + acceptance-guard, no force-push/deletion).
+- 2026-10-23: display time zone = Europe/Bratislava (Martin) -> D-007, REQ-008 criterion.
+- 2026-10-23: Plan v2: real activities.csv header has 103 columns (Plan v1 said 101): exact header in ARCHITECTURE; T-001 re-scoped to align _synth header (explicit acceptance change); efforts shape incl. ride_name; generated data-derived; null PR fields; CLI flags; smoke script in T-012; T-004 host-matching unit tests; T-010 adds TZ acceptance test.
