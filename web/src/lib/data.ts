@@ -1,5 +1,5 @@
 // Site data lives next to the app: <base>/data/... (copied into web/public/data by sdash build-data,
-// or from tests/fixtures/site-data for tests). Schema: docs/ARCHITECTURE.md "Site JSON".
+// or from tests/acceptance/web/site-data for tests). Schema: docs/ARCHITECTURE.md "Site JSON".
 
 export class NotFoundError extends Error {}
 

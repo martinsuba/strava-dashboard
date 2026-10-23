@@ -76,6 +76,9 @@ LEAKS: dict[str, str | bytes] = {
     "leak.tcx": "<TrainingCenterDatabase/>",
     "leak.tcx.gz": b"\x1f\x8b synthetic",
     "data/activities.csv": "Activity ID\n1\n",
+    "export.csv": "Name,Value\nsynthetic,1\n",
+    "data/segments.csv": "Segment Name,Activity ID\nSynthetic,1\n",
+    "data/rides/leak.csv.gz": b"\x1f\x8b synthetic",
     "data/rides/leak.json": json.dumps({"id": "1", "lat": -47.25, "lon": -134.75}),
     "data/segments/leak.json": json.dumps({"name": "x", "start": [-47.25, -134.75]}),
 }

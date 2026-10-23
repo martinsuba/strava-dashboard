@@ -99,6 +99,19 @@ def test_scenarios_satisfy_their_givens() -> None:
     assert g_start <= 30 and g_end <= 30 and worst <= 60, "loop detour must pass gates and path"
     assert length / ref_len - 1 > 0.10, "loop detour must fail only the length rule"
 
+    for offset, lo, hi in ((45, 40, 50), (20, 15, 25)):
+        ride = [_ll(p) for p in sc.start_gate_offset(offset).points or []]
+        closest = min(haversine_m(p, start) for p in ride)
+        assert lo <= closest <= hi, f"offset {offset}: closest approach to start {closest:.1f} m"
+        assert min(haversine_m(p, end) for p in ride) <= 5
+        assert max(_min_dist_to_path(p, ride) for p in ref[::10]) <= 60
+        g_start, g_end, length, worst = ridden(ride)
+        assert abs(length / ref_len - 1) <= 0.10 and worst <= 60
+
+    g_start, g_end, length, worst = ridden([_ll(p) for p in sc.near_detour().points or []])
+    assert g_start <= 30 and g_end <= 30 and abs(length / ref_len - 1) <= 0.10
+    assert 70 <= worst <= 90, f"near detour farthest reference point {worst:.1f} m"
+
     sparse = [_ll(p) for p in sc.sparse().points or []]
     gaps = [haversine_m(a, b) for a, b in itertools.pairwise(sparse)]
     assert min(gaps) >= 45 and max(gaps) <= 55

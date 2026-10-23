@@ -1,4 +1,4 @@
-// REQ-006: Index page. Data: tests/fixtures/site-data (synthetic). UI contract (docs/TESTS.md):
+// REQ-006: Index page. Data: tests/acceptance/web/site-data (synthetic). UI contract (docs/TESTS.md):
 // the two lists are tables named "Segments" and "Rides" (caption or aria-labelledby the panel
 // heading); times m:ss, dates "12 Jun 2024" (UTC), as in docs/DESIGN.md.
 import { expect, test } from "@playwright/test";
@@ -26,25 +26,27 @@ test.describe("REQ-006 index page", { tag: "@REQ-006" }, () => {
     async ({ page }) => {
       await open(page, "/");
       const rows = page.getByRole("table", { name: "Rides" }).locator("tbody tr");
-      const newestFirst: [string, string][] = [
-        ["18 Oct 2026", "Evening loop"],
-        ["1 Sept 2026|1 Sep 2026", "Recovery spin"],
-        ["7 Jun 2026", "Sunday long ride"],
-        ["4 May 2025", "Gravel detour"],
-        ["12 Jun 2024", "Hill repeats"],
-        ["10 Sept 2023|10 Sep 2023", "Evening spin"],
-        ["13 Jun 2021", "Hill repeats"],
-        ["19 Jul 2020", "Hill repeats"],
-        ["4 May 2019", "Morning loop"],
+      // [date, name, km, segments matched], newest first (values from site-data/index.json)
+      const newestFirst: [string, string, string, string][] = [
+        ["18 Oct 2026", "Evening loop", "42.6", "2"],
+        ["1 Sept? 2026", "Recovery spin", "18.0", "0"],
+        ["7 Jun 2026", "Sunday long ride", "88.3", "1"],
+        ["4 May 2025", "Gravel detour", "44.1", "2"],
+        ["12 Jun 2024", "Hill repeats", "31.2", "1"],
+        ["10 Sept? 2023", "Evening spin", "25.5", "2"],
+        ["13 Jun 2021", "Hill repeats", "30.8", "1"],
+        ["19 Jul 2020", "Hill repeats", "31.0", "1"],
+        ["4 May 2019", "Morning loop", "28.4", "1"],
       ];
       await expect(rows).toHaveCount(newestFirst.length);
-      for (const [i, [date, name]] of newestFirst.entries()) {
-        await expect(rows.nth(i)).toContainText(new RegExp(date));
-        await expect(rows.nth(i)).toContainText(name);
+      for (const [i, [date, name, km, matched]] of newestFirst.entries()) {
+        const row = rows.nth(i);
+        await expect(cellsMatching(row, new RegExp(`^\\s*(\\w{3} )?${date}\\s*$`))).toHaveCount(1);
+        await expect(row.getByRole("link")).toHaveText(name);
+        const kmCell = new RegExp(`^\\s*${km.replace(".", "\\.")}(\\s*km)?\\s*$`);
+        await expect(cellsMatching(row, kmCell)).toHaveCount(1);
+        await expect(row.getByRole("cell").last()).toHaveText(exactly(matched));
       }
-      await expect(rows.nth(0)).toContainText("42.6");
-      await expect(rows.nth(0).getByRole("cell").last()).toHaveText(/^\s*2\s*$/);
-      await expect(rows.nth(1).getByRole("cell").last()).toHaveText(/^\s*0\s*$/);
     },
   );
 

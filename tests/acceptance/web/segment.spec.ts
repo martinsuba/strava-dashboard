@@ -1,4 +1,4 @@
-// REQ-007: Segment page. Data: tests/fixtures/site-data/segments/hill-road-climb.json (8 efforts)
+// REQ-007: Segment page. Data: tests/acceptance/web/site-data/segments/hill-road-climb.json (8 efforts)
 // and quarry-descent.json (none). UI contract (docs/TESTS.md): tables named "All efforts" and
 // "By year"; the trend chart is a <canvas> with an aria-label containing "PR m:ss".
 import { expect, test } from "@playwright/test";

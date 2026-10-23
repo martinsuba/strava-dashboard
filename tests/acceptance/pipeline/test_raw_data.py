@@ -3,12 +3,16 @@ scripts/check_raw_data.py, the CI step), so these tests pass from the start."""
 
 from __future__ import annotations
 
+import csv
 import gzip
+import io
 import json
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 import fitdecode
 import gpxpy
@@ -97,56 +101,107 @@ def test_req010_repo_currently_clean() -> None:
 
 
 # ---- fixtures are synthetic ----------------------------------------------------------------
-def _positions(path: Path) -> list[tuple[float, float]]:
-    data = path.read_bytes()
-    if path.name.endswith(".gz"):
+TRACK_SUFFIXES = (".gpx", ".fit", ".tcx")
+
+
+def _positions(name: str, data: bytes) -> list[tuple[float, float]]:
+    """All coordinates in a fixture file (gpx/fit/tcx, optionally .gz; segments.csv; zip members)."""
+    if name.endswith(".gz"):
         data = gzip.decompress(data)
-    name = path.name.removesuffix(".gz")
+        name = name.removesuffix(".gz")
+    base = name.rsplit("/", 1)[-1]
+    if name.endswith(".zip"):
+        out: list[tuple[float, float]] = []
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            for member in zf.namelist():
+                inner = member.removesuffix(".gz")
+                relevant = inner.endswith(TRACK_SUFFIXES) or inner.endswith("segments.csv")
+                if relevant and "corrupt" not in member.lower():
+                    out += _positions(member, zf.read(member))
+        return out
     if name.endswith(".gpx"):
         gpx = gpxpy.parse(data.decode())
         return [(p.latitude, p.longitude) for t in gpx.tracks for s in t.segments for p in s.points]
     if name.endswith(".fit"):
         out = []
-        import io
-
-        with fitdecode.FitReader(io.BytesIO(data), check_crc=fitdecode.CrcCheck.DISABLED) as fit:
+        with fitdecode.FitReader(io.BytesIO(data)) as fit:
             for frame in fit:
                 if isinstance(frame, fitdecode.FitDataMessage) and frame.name == "record":
-                    lat, lon = (
-                        frame.get_value("position_lat", fallback=None),
-                        frame.get_value("position_long", fallback=None),
-                    )
+                    lat = frame.get_value("position_lat", fallback=None)
+                    lon = frame.get_value("position_long", fallback=None)
                     if lat is not None and lon is not None:
                         out.append((lat * 180 / 2**31, lon * 180 / 2**31))
+        return out
+    if name.endswith(".tcx"):
+        root = ElementTree.fromstring(data.strip())
+        out = []
+        for pos in root.iter():
+            if pos.tag.endswith("Position"):
+                vals = {c.tag.rsplit("}", 1)[-1]: float(c.text or "nan") for c in pos}
+                out.append((vals["LatitudeDegrees"], vals["LongitudeDegrees"]))
+        return out
+    if base == "segments.csv":
+        rows = csv.DictReader(io.StringIO(data.decode()))
+        out = []
+        for r in rows:
+            out.append((float(r["Starting Latitude"]), float(r["Starting Longitude"])))
+            out.append((float(r["Ending Latitude"]), float(r["Ending Longitude"])))
         return out
     return []
 
 
-def test_req010_fixture_tracks_lie_in_the_synthetic_area() -> None:
-    """Every track under tests/fixtures/ must lie in SYNTH_BOX (open South Pacific): no real places."""
+def _outside_box(name: str, data: bytes) -> list[str]:
+    (la0, la1), (lo0, lo1) = SYNTH_BOX["lat"], SYNTH_BOX["lon"]
+    return [
+        f"{name}: ({lat}, {lon}) outside the synthetic area"
+        for lat, lon in _positions(name, data)
+        if not (la0 <= lat <= la1 and lo0 <= lon <= lo1)
+    ]
+
+
+def _fixture_files() -> list[Path]:
     fixtures = REPO / "tests" / "fixtures"
-    tracks = [
+    return [
         p
         for p in fixtures.rglob("*")
-        if p.is_file() and p.name.removesuffix(".gz").endswith((".gpx", ".fit"))
+        if p.is_file()
+        and (
+            p.name.removesuffix(".gz").endswith((*TRACK_SUFFIXES, ".zip"))
+            or p.name == "segments.csv"
+        )
     ]
-    assert tracks, "expected at least the harness's minimal GPX fixture"
-    for path in tracks:
-        try:
-            positions = _positions(path)
-        except Exception:  # deliberately corrupt fixture files carry no positions
+
+
+def test_req010_fixture_tracks_lie_in_the_synthetic_area() -> None:
+    """Every coordinate in tests/fixtures/ (tracks, segments.csv, inside zips) lies in SYNTH_BOX
+    (open South Pacific). Only files named *corrupt* may fail to parse; any other parse error fails."""
+    files = _fixture_files()
+    assert files, "expected at least the harness's minimal GPX fixture"
+    problems: list[str] = []
+    for path in files:
+        if "corrupt" in path.name.lower():
             continue
-        for lat, lon in positions:
-            assert SYNTH_BOX["lat"][0] <= lat <= SYNTH_BOX["lat"][1], (
-                f"{path}: lat {lat} outside the synthetic area"
+        try:
+            problems += _outside_box(path.name, path.read_bytes())
+        except Exception as exc:
+            problems.append(
+                f"{path}: cannot be parsed ({exc!r}); name deliberately broken files *corrupt*"
             )
-            assert SYNTH_BOX["lon"][0] <= lon <= SYNTH_BOX["lon"][1], (
-                f"{path}: lon {lon} outside the synthetic area"
-            )
+    assert not problems, "\n".join(problems[:20])
+
+
+def test_req010_area_check_flags_real_places() -> None:
+    """Self-check: the area check above really rejects a point on land (central Europe)."""
+    from _synth import Point, encode_track, segments_csv
+
+    pts = [Point(1_700_000_000, 50.08, 14.42, 0.0)]
+    for fmt in ("gpx", "fit.gz", "tcx"):
+        assert _outside_box(f"x.{fmt}", encode_track(pts, fmt)), fmt
+    assert _outside_box("segments.csv", segments_csv([("x", "1", 50.08, 14.42, -47.0, -134.0)]))
 
 
 def test_req010_site_data_fixture_has_no_coordinates() -> None:
-    site = REPO / "tests" / "fixtures" / "site-data"
+    site = REPO / "tests" / "acceptance" / "web" / "site-data"
     files = list(site.rglob("*.json"))
     assert files
     for p in files:

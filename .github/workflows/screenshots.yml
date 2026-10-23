@@ -1,7 +1,7 @@
 name: screenshots
 # Web UI projects only. Not a required check. Images are a run artifact; the Lead commits them at milestone end.
 # Captures every screen in docs/PLAN.md "Screens" from the site built with the synthetic
-# tests/fixtures/site-data (tests/screenshots/screenshots.spec.ts) -> screenshots/*.png.
+# tests/acceptance/web/site-data (tests/screenshots/screenshots.spec.ts) -> screenshots/*.png.
 on:
   pull_request:
 jobs:

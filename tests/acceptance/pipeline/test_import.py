@@ -2,8 +2,9 @@
 
 URL tests never use the network: they run a local HTTP(S) server on 127.0.0.1 in a thread.
 HTTPS uses a throwaway CA generated with the `openssl` CLI and passed to sdash via
-SSL_CERT_FILE / REQUESTS_CA_BUNDLE / CURL_CA_BUNDLE, and SDASH_ALLOWED_HOSTS=localhost replaces the
-production host allowlist (*.strava.com, *.amazonaws.com) for the test only. See docs/TESTS.md.
+SSL_CERT_FILE / REQUESTS_CA_BUNDLE / CURL_CA_BUNDLE. The test-only env SDASH_ALLOWED_HOSTS replaces
+ONLY the production host list (strava.com, amazonaws.com); https-only, the size cap and the host check
+on every redirect still apply, and sdash warns on stderr when it is set. See docs/TESTS.md.
 """
 
 from __future__ import annotations
@@ -153,7 +154,8 @@ def test_req001_non_https_url_rejected_without_request(
             if scheme == "file"
             else f"{scheme}://127.0.0.1:{server.port}/export.zip?token=x"
         )
-        result = sdash("import", url)
+        # The override is set to the very host used: https-only must still hold.
+        result = sdash("import", url, env={"SDASH_ALLOWED_HOSTS": "127.0.0.1,localhost"})
     finally:
         server.close()
     assert result.returncode != 0, f"{scheme} URL accepted"
@@ -202,8 +204,16 @@ def _make_ca_and_cert(d: Path) -> tuple[Path, Path, Path]:
 
 
 @contextmanager
-def https_export_server(tmp_path: Path, payload: bytes) -> Iterator[tuple[str, list[str], Path]]:
-    """Serves the email-link shape: /ls/click?token=... -> 302 -> /bucket/export.zip?X-Amz-Signature=..."""
+def https_export_server(
+    tmp_path: Path,
+    payload: bytes,
+    *,
+    first_host: str = "localhost",
+    redirect_host: str = "localhost",
+) -> Iterator[tuple[str, list[str], Path]]:
+    """Serves the email-link shape: /ls/click?token=... -> 302 -> /bucket/export.zip?X-Amz-Signature=...
+    Both hosts resolve to the same 127.0.0.1 server; the certificate is valid for both, so only
+    the host allowlist can stop a request."""
     ca, cert, key = _make_ca_and_cert(tmp_path)
     requests: list[str] = []
 
@@ -214,7 +224,7 @@ def https_export_server(tmp_path: Path, payload: bytes) -> Iterator[tuple[str, l
                 self.send_response(302)
                 self.send_header(
                     "Location",
-                    f"https://localhost:{port}/bucket/export.zip?X-Amz-Signature={SECRET}",
+                    f"https://{redirect_host}:{port}/bucket/export.zip?X-Amz-Signature={SECRET}",
                 )
                 self.end_headers()
             elif self.path.startswith("/bucket/export.zip"):
@@ -237,18 +247,18 @@ def https_export_server(tmp_path: Path, payload: bytes) -> Iterator[tuple[str, l
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     try:
-        yield f"https://localhost:{port}/ls/click?upn={SECRET}", requests, ca
+        yield f"https://{first_host}:{port}/ls/click?upn={SECRET}", requests, ca
     finally:
         httpd.shutdown()
         thread.join()
 
 
-def _https_env(ca: Path) -> dict[str, str]:
+def _https_env(ca: Path, allowed: str = "localhost") -> dict[str, str]:
     return {
         "SSL_CERT_FILE": str(ca),
         "REQUESTS_CA_BUNDLE": str(ca),
         "CURL_CA_BUNDLE": str(ca),
-        "SDASH_ALLOWED_HOSTS": "localhost",
+        "SDASH_ALLOWED_HOSTS": allowed,
     }
 
 
@@ -270,6 +280,53 @@ def test_req001_downloaded_zip_deleted_after_import(
     assert not zips, f"downloaded zip not deleted: {zips}"
     reports = "".join(p.read_text(errors="replace") for p in _all_files(data_dir / "reports"))
     assert SECRET not in result.output + reports, "the export link (a credential) was logged"
+    assert "SDASH_ALLOWED_HOSTS" in result.stderr, "the host-allowlist override must warn on stderr"
+
+
+def _payload(tmp_path: Path) -> bytes:
+    served = write_zip(tmp_path / "served.zip", export_files([sc.reference_ride()]))
+    payload = served.read_bytes()
+    served.unlink()
+    return payload
+
+
+@pytest.mark.xfail(strict=True, reason=NOT_DONE)
+def test_req001_redirect_to_disallowed_host_rejected(
+    sdash: SdashRunner, data_dir: Path, tmp_path: Path
+) -> None:
+    """Allowlist = localhost; the link redirects to 127.0.0.1 (same server, valid certificate):
+    the redirect target is not allowed, so the zip must not be fetched."""
+    with https_export_server(tmp_path, _payload(tmp_path), redirect_host="127.0.0.1") as (
+        url,
+        requests,
+        ca,
+    ):
+        result = sdash("import", url, env=_https_env(ca, "localhost"))
+    assert result.returncode != 0, "followed a redirect to a host outside the allowlist"
+    assert "not implemented" not in result.output
+    assert not any(r.startswith("/bucket/") for r in requests), f"zip was fetched: {requests}"
+    assert not (data_dir / "raw" / "activities.csv").exists()
+    reports = "".join(p.read_text(errors="replace") for p in _all_files(data_dir / "reports"))
+    assert SECRET not in result.output + reports, "the export link (a credential) was logged"
+
+
+@pytest.mark.xfail(strict=True, reason=NOT_DONE)
+def test_req001_allowlist_suffix_needs_dot_boundary(
+    sdash: SdashRunner, data_dir: Path, tmp_path: Path
+) -> None:
+    """Host matching is exact or on a dot boundary: `evilstrava.com` must not match `strava.com`.
+    Without DNS we use the same shape with IP text: allowlist `7.0.0.1`, host `127.0.0.1`
+    (`127.0.0.1` ends with `7.0.0.1` but not with `.7.0.0.1`)."""
+    with https_export_server(tmp_path, _payload(tmp_path), first_host="127.0.0.1") as (
+        url,
+        requests,
+        ca,
+    ):
+        result = sdash("import", url, env=_https_env(ca, "7.0.0.1"))
+    assert result.returncode != 0, "host matched an allowlist entry without a dot boundary"
+    assert "not implemented" not in result.output
+    assert requests == [], f"request sent to a host outside the allowlist: {requests}"
+    assert not (data_dir / "raw" / "activities.csv").exists()
 
 
 @pytest.mark.xfail(strict=True, reason=NOT_DONE)

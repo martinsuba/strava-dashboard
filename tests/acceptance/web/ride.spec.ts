@@ -1,4 +1,4 @@
-// REQ-008: Activity (ride) page. Data: tests/fixtures/site-data/rides/*.json. UI contract
+// REQ-008: Activity (ride) page. Data: tests/acceptance/web/site-data/rides/*.json. UI contract
 // (docs/TESTS.md): matched efforts are in a table named "Segments on this ride"; a PR mark is text
 // containing the word "PR" inside a cell (e.g. the "NEW PR" chip); unmarked rows have no such cell.
 // Assertions are per cell: a row's text concatenates its cells without spaces.

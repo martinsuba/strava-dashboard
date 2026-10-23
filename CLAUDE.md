@@ -18,7 +18,7 @@ State: docs/STATUS.md (read it first). Plan: docs/PRD.md, docs/ARCHITECTURE.md, 
   (auto-format: `.venv/bin/ruff format .` · `npm --prefix web run format`)
 - Unit tests: `.venv/bin/pytest tests/unit` · `npm --prefix web test`
 - Acceptance tests: `.venv/bin/pytest tests/acceptance/pipeline` · `npm --prefix web run test:acceptance`
-  (copies tests/fixtures/site-data into web/public/data, builds, runs Playwright on port 4318)
+  (copies tests/acceptance/web/site-data into web/public/data, builds, runs Playwright on port 4318)
 - Run not-yet-implemented acceptance tests anyway: `.venv/bin/pytest --runxfail ...` · `ACCEPTANCE_RUN_ALL=1 npm --prefix web run test:acceptance`
 - Raw-data check (REQ-010): `python3 scripts/check_raw_data.py`
 - Screenshots: `npm --prefix web run screenshots` → `screenshots/`
@@ -31,6 +31,8 @@ State: docs/STATUS.md (read it first). Plan: docs/PRD.md, docs/ARCHITECTURE.md, 
   strict xfail turns an unexpected pass into a CI failure. Never weaken or delete an acceptance test to get green.
 - Test names carry the REQ ID (`test_req004_...`, `"REQ-007: ..."` + tag `@REQ-007`); docs/TESTS.md maps REQ → tests
   and documents the CLI/UI contracts the tests rely on.
+- Real data lives in ~/data/strava-export/ (outside the repo). Never commit or publish raw files, coordinates or
+  Strava export links (the link is a credential).
 - All test data is synthetic: generated tracks in the made-up area lat −48…−46, lon −136…−133 (open ocean), made-up
   names and IDs. Never read or copy anything from `~/data/strava-export/` into the repo or tests.
 - Raw ride/export files (`*.fit`, `*.gpx`, `*.tcx`, `*.zip`, `activities.csv`, + `.gz`) are allowed only under

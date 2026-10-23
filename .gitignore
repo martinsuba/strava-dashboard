@@ -15,7 +15,7 @@ web/test-results/
 web/playwright-report/
 web/blob-report/
 
-# Site data is derived at runtime (sdash build-data) or copied from tests/fixtures/site-data for tests
+# Site data is derived at runtime (sdash build-data) or copied from tests/acceptance/web/site-data for tests
 web/public/data/
 
 # Reports (mutation testing etc.)

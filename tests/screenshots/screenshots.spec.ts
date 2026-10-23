@@ -1,8 +1,8 @@
 // Screenshots of every screen in docs/PLAN.md "Screens", from the fixture-built site
-// (tests/fixtures/site-data, synthetic). Not an acceptance test: it never fails on content, it only
+// (tests/acceptance/web/site-data, synthetic). Not an acceptance test: it never fails on content, it only
 // captures. Output: screenshots/<screen>-<viewport>-<scheme>.png at the repo root.
-// The design is light only (docs/DESIGN.md); dark captures check that a dark OS setting does not
-// break the page.
+// The design is light only (docs/DESIGN.md), so only the light scheme is captured; the file name
+// keeps the <scheme> part for the framework naming.
 import { test, type Page, type Route } from "@playwright/test";
 import path from "node:path";
 
@@ -12,7 +12,7 @@ const VIEWPORTS = {
   mobile: { width: 390, height: 844 },
   desktop: { width: 1280, height: 800 },
 } as const;
-const SCHEMES = ["light", "dark"] as const;
+const SCHEMES = ["light"] as const;
 
 type Screen = {
   name: string;

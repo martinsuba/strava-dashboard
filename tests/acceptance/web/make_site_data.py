@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Generate tests/fixtures/site-data/: a synthetic site-data set in the exact JSON shape of
+"""Generate tests/acceptance/web/site-data/: a synthetic site-data set in the exact JSON shape of
 docs/ARCHITECTURE.md "Site JSON" (index.json, segments/<slug>.json, rides/<id>.json).
 
 All names, IDs, dates and times are made up. No coordinates. Deterministic: re-running produces
 byte-identical files. The web acceptance tests (tests/acceptance/web/) assert on these values, so
 changing this data changes what those tests mean: such a change needs a test-review.
 
-Run: python3 tests/fixtures/make_site_data.py
+Run: python3 tests/acceptance/web/make_site_data.py
 """
 
 from __future__ import annotations

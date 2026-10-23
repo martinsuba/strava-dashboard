@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { defineConfig, devices } = require("@playwright/test") as typeof import("@playwright/test");
 
-// Runs against the *built* site (`vite preview`), with tests/fixtures/site-data copied into
+// Runs against the *built* site (`vite preview`), with tests/acceptance/web/site-data copied into
 // public/data first: `npm run test:acceptance` / `npm run screenshots` do copy + build + test.
 // Own port (4173 is vite's default and the staging preview in docs/DEPLOY.md). Override: PW_PORT.
 const PORT = Number(process.env.PW_PORT ?? 4318);

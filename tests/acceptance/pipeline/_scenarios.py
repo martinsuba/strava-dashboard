@@ -81,6 +81,18 @@ def loop_detour() -> Ride:
     return ride("1000000002", [(0, -500), A, *loop, B, (0, 2500)], day=1)
 
 
+def start_gate_offset(offset_m: float) -> Ride:
+    """Approaches A on a road `offset_m` east, joins the segment line 200 m north of A, then rides
+    to B. Closest approach to A is ~offset_m * 0.976 (45 -> ~44 m: misses the 30 m gate;
+    20 -> ~19.5 m: inside it). Everything else (end gate, path, length) passes."""
+    return ride("1000000002", [(offset_m, -500), (offset_m, 0), (0, 200), (0, 2500)], day=1)
+
+
+def near_detour() -> Ride:
+    """Like detour() but only ~80 m off the reference path at its farthest (via (80, 1000))."""
+    return ride("1000000002", [(0, -500), A, (80, 1000), B, (0, 2500)], day=1)
+
+
 def reverse() -> Ride:
     return ride("1000000002", [(0, 2500), (0, -500)], day=1)
 
