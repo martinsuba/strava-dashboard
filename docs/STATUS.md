@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M1 / T-005 (full matcher rules): in progress. Done: T-001 (#5), T-002 (#6), T-003 (#7), T-004 (#8)
+Current task: M1 / T-006 (segment file validation, segment add, segment import-strava): in progress. Done: T-001 (#5), T-002 (#6), T-003 (#7), T-004 (#8), T-005 (#9)
 Open PRs: –
 Blockers: –
-Next step: builder on T-005, then T-006; then M1 milestone PR for Martin
+Next step: builder on T-006 (last M1 task); then M1 milestone PR for Martin
 
 ## Decisions log
 - 2026-10-23: project created
@@ -43,11 +43,12 @@ Next step: builder on T-005, then T-006; then M1 milestone PR for Martin
 - Milestone PR todo: TESTS.md status column (16 tests now passing after T-002), PLAN.md ticks.
 - 2026-10-23: paused on Martin's note "approaching claude limit". Task loop stopped mid-T-003.
 - 2026-10-24: resumed (Martin: "continue").
+- 2026-10-24: T-005 merged (PR #9): 1 fix round (reviewer found lost laps when start == end and wrong reference length when ref passes start twice -> fixed; matcher 2x faster).
 - 2026-10-24: T-004 merged (PR #8): 0 fix rounds; reviewer ran 89 hostile zip/URL cases, all handled.
 - 2026-10-24: T-003 merged (PR #7): 1 fix round (reviewer fuzzing found malformed-FIT crash -> fixed; 5000-mutation re-fuzz clean). Test-reviewer approved marker removals.
 
 ## Follow-ups (open)
-- T-005: when a (start,end) pair fails direction/path/length, move to the next start pass instead of consuming the end pass; add the A->B, B->A, A->B ride as a unit test (T-002 reviewer).
+- T-005 reviewer non-blocking: `is_reference = act in extra` -> set of IDs (pipeline.py); test_pipeline imports private `_reference`. Matcher bench (synthetic worst case 660 rides × 4000 pts × 5 segments): 43 s, 444 MB.
 - T-003 reviewer non-blocking (candidate fix/ task or fold into T-005/T-007): N1 include exception type name in FIT failure reasons (tracks.py:174); N2 `_num_list` must reject JSON Infinity (tracks.py:226/239, match crashes on hand-corrupted cache); N3 drop dead `p.latitude is None` check, test lat-less trkpt -> reported failure; N4 DTD test `match="DTD"` + UTF-32 case; N5 drop vacuous `except ValueError: return` in fuzz test (test_tracks.py:290); N6 `_refuse_dtd` decodes up to 5x (ok for TCX).
 - T-004 reviewer non-blocking: name the entry on file/dir clash (importer.py:238); cap number of zip entries; overall download deadline (slow drip); chmod existing data dir 0700; clean stale .raw-old-*/.raw-staging-*/.download-* after a kill; opt-in redacted debug traceback (cli.py:142); note in ARCHITECTURE that proxies are ignored. Real link hosts (email.strava.com -> s3.amazonaws.com, seen 2026-10-23) match the allowlist.
 - CI: "Install Playwright browser" sometimes ~11 min (needs a task allowed to edit workflows).
