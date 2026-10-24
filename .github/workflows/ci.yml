@@ -68,7 +68,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ env.ImageOS }}-${{ steps.pw.outputs.version }}
       - name: Install Playwright browser
         # Browser binaries come from the cache; the (slow, apt-based) system deps are installed only
         # when chromium cannot launch without them.
@@ -77,8 +77,8 @@ jobs:
           if [ "${{ steps.pw-cache.outputs.cache-hit }}" != "true" ]; then
             npx playwright install chromium
           fi
-          if ! node -e "require('@playwright/test').chromium.launch().then(b => b.close())" 2>/dev/null; then
-            echo "chromium cannot launch; installing system deps"
+          if ! node -e "require('@playwright/test').chromium.launch().then(b => b.close())"; then
+            echo "chromium cannot launch (error above); installing system deps"
             npx playwright install-deps chromium
             node -e "require('@playwright/test').chromium.launch().then(b => b.close())"
           fi

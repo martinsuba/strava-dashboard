@@ -6,6 +6,8 @@ name: mutation
 on:
   pull_request:
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   mutation:
     if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'chore/milestone-') }}
@@ -24,6 +26,7 @@ jobs:
           python -m venv .venv
           .venv/bin/pip install -e '.[dev]' mutmut==3.8.0
       - name: Run mutmut on sdash/match.py
+        shell: bash
         run: |
           mkdir -p reports/mutation
           if [ ! -f sdash/match.py ]; then
@@ -36,16 +39,26 @@ jobs:
           .venv/bin/mutmut export-cicd-stats
           cp mutants/mutmut-cicd-stats.json reports/mutation/
           cat reports/mutation/results.txt
-          python3 - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
-          import json, sys
+          python3 - <<'PY'
+          import json, os, sys
           s = json.load(open("reports/mutation/mutmut-cicd-stats.json"))
           checked = s["killed"] + s["survived"] + s["timeout"] + s["suspicious"] + s["segfault"]
+          other = s["no_tests"] + s["skipped"]
+          not_checked = max(s["total"] - checked - other, 0)
           score = 100 * (s["killed"] + s["timeout"]) / checked if checked else 0.0
-          print("### Mutation score (sdash/match.py)")
-          print(f"score {score:.1f}% | killed {s['killed']} | survived {s['survived']} | timeout {s['timeout']} | total {s['total']}")
+          lines = [
+              "### Mutation score (sdash/match.py)",
+              f"score {score:.1f}% | killed {s['killed']} | survived {s['survived']} | timeout {s['timeout']} | total {s['total']}",
+              f"no tests {s['no_tests']} | skipped {s['skipped']} | suspicious {s['suspicious']} | segfault {s['segfault']} | not checked {not_checked}",
+          ]
           if checked == 0:
-              print("ERROR: mutmut checked 0 mutants (all not checked)")
-              sys.exit(1)
+              lines.append("ERROR: mutmut checked 0 mutants (all not checked)")
+          text = "\n".join(lines)
+          print(text)
+          # No pipe: the exit code below must reach the step result.
+          with open(os.environ.get("GITHUB_STEP_SUMMARY", os.devnull), "a") as f:
+              f.write(text + "\n")
+          sys.exit(1 if checked == 0 else 0)
           PY
       - uses: actions/upload-artifact@v4
         if: always()
