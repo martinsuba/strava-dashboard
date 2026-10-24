@@ -284,11 +284,7 @@ def test_gpx_rejects_invalid_latitude_points(tmp_path: Path, bad: str) -> None:
         "</trkseg></trk></gpx>",
         encoding="utf-8",
     )
-    try:
-        track = parse_track(p)
-    except ValueError:
-        return  # gpxpy itself refuses it
-    assert len(track.t) == 2
+    assert len(parse_track(p).t) == 2
 
 
 @pytest.mark.parametrize(
@@ -306,7 +302,7 @@ def test_tcx_rejects_invalid_coordinates(tmp_path: Path, lat: str, lon: str) -> 
     assert parse_track(p).t == []
 
 
-@pytest.mark.parametrize("encoding", ["utf-16", "utf-16-le", "utf-16-be", "utf-8"])
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-16-le", "utf-16-be", "utf-32", "utf-8"])
 @pytest.mark.parametrize(
     "decl", ["<!DOCTYPE a [<!ENTITY b 'c'>]>", "<!doctype a>", "<!entity b 'c'>"]
 )
@@ -314,7 +310,7 @@ def test_tcx_dtd_refused_in_any_encoding(tmp_path: Path, encoding: str, decl: st
     text = f'<?xml version="1.0"?>{decl}<a>&b;</a>'
     path = tmp_path / "x.tcx"
     path.write_bytes(text.encode(encoding))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="DTD"):
         parse_track(path)
 
 
@@ -405,3 +401,47 @@ def test_tcx_without_any_xml_is_still_an_error(tmp_path: Path) -> None:
     path.write_bytes(b"just some text")
     with pytest.raises(ValueError, match="TCX"):
         parse_track(path)
+
+
+# --- T-014: hardening -----------------------------------------------------------------------------
+
+
+def test_fit_failure_reason_names_the_exception_type(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class Reader:
+        def __init__(self, *a: object, **k: object) -> None:
+            raise KeyError("boom")
+
+    monkeypatch.setattr(tracks.fitdecode, "FitReader", Reader)
+    path = tmp_path / "x.fit"
+    path.write_bytes(b"x")
+    with pytest.raises(ValueError, match=r"cannot read FIT x\.fit: KeyError"):
+        parse_track(path)
+
+
+def test_gpx_trackpoint_without_latitude_is_a_reported_failure(tmp_path: Path) -> None:
+    p = tmp_path / "a.gpx"
+    p.write_text(
+        '<gpx version="1.1" creator="x" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>'
+        '<trkpt lon="-134.0"><time>2026-05-01T08:00:00Z</time></trkpt>'
+        "</trkseg></trk></gpx>",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match=r"cannot read GPX a\.gpx"):
+        parse_track(p)
+
+
+@pytest.mark.parametrize("bad", ["Infinity", "-Infinity", "NaN"])
+@pytest.mark.parametrize("key", ["t", "lat", "d"])
+def test_cache_with_non_finite_numbers_is_stale_and_unreadable(
+    tmp_path: Path, bad: str, key: str
+) -> None:
+    fields = {"t": "1", "lat": "-47.0", "lon": "-134.0", "d": "0.0"}
+    fields[key] = bad
+    body = ",".join(f'"{k}":[{v}]' for k, v in fields.items())
+    path = tmp_path / "1.json.gz"
+    path.write_bytes(gzip.compress(("{" + body + ',"src_size":1,"src_mtime_ns":1}').encode()))
+    assert tracks.read_cache_if_fresh(path, (1, 1)) is None
+    with pytest.raises(ValueError, match="corrupt cache"):
+        read_cache(path)

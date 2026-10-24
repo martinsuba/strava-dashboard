@@ -94,7 +94,7 @@ def _parse_gpx(data: bytes, name: str) -> Track:
     for track in gpx.tracks:
         for segment in track.segments:
             for p in segment.points:
-                if p.time is None or p.latitude is None or p.longitude is None:
+                if p.time is None:
                     continue
                 when = p.time if p.time.tzinfo is not None else p.time.replace(tzinfo=UTC)
                 b.add(when.timestamp(), float(p.latitude), float(p.longitude))
@@ -190,7 +190,7 @@ def _parse_fit(data: bytes, name: str) -> Track:
                         ts = ts.replace(tzinfo=UTC)
                     b.add(ts.timestamp(), lat * _SEMICIRCLE_TO_DEG, lon * _SEMICIRCLE_TO_DEG)
     except Exception as exc:  # fitdecode/struct/assert errors: any failure means a bad file
-        raise ValueError(f"cannot read FIT {name}: {exc}") from exc
+        raise ValueError(f"cannot read FIT {name}: {type(exc).__name__}: {exc}") from exc
     return b.track()
 
 
@@ -248,7 +248,13 @@ def _num_list(raw: dict[str, object], key: str) -> list[float]:
         isinstance(x, int | float) and not isinstance(x, bool) for x in v
     ):
         raise ValueError(f"field {key!r} is not a list of numbers")
-    return [float(x) for x in v]
+    try:
+        out = [float(x) for x in v]
+    except OverflowError:  # an integer too large for a float
+        raise ValueError(f"field {key!r} contains a number that is too large") from None
+    if not all(math.isfinite(x) for x in out):
+        raise ValueError(f"field {key!r} contains NaN or Infinity")
+    return out
 
 
 def _track_of(raw: dict[str, object]) -> Track:
