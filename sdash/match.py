@@ -8,7 +8,8 @@ ride path is the distance to the nearest ride *segment*, so sparse tracks still 
 = time at the end pass - time at the start pass, so stops are included.
 
 When a (start, end) pair fails, the next end pass is tried for the same start and then the next
-start pass, so a failed pair never consumes a pass that a later pair needs. Pairs ridden over less than 2 x GATE_M are skipped (gate jitter). Efforts never overlap.
+start pass, so a failed pair never consumes a pass that a later pair needs. Pairs ridden over less
+than 2 x GATE_M are skipped (gate jitter). Efforts never overlap.
 Without a `Reference`, only the gates and the order are checked.
 """
 

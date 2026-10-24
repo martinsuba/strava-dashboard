@@ -47,3 +47,51 @@ def test_import_strava_exit_codes(tmp_path: Path) -> None:
     assert main(["--data-dir", str(tmp_path), "segment", "import-strava"]) == 0
     csv_path.write_text(header + "Bad,1,95,0,1,1\nOk,2,0,0,1,1\n")  # invalid and nothing added
     assert main(["--data-dir", str(tmp_path), "segment", "import-strava"]) == 1
+
+
+# --- T-013: exit code 2 = segment-level warnings --------------------------------------------------
+
+
+def _data_with_bad_and_good_segment(tmp_path: Path) -> Path:
+    from test_pipeline import _add_data, _seg_yaml
+
+    data = _add_data(tmp_path)
+    broken = '- name: "Broken"\n  ref_activity: "5"\n  start: [-47.0, -134.0]\n'
+    (data / "segments.yaml").write_text(broken + _seg_yaml("Good", "5"))
+    return data
+
+
+def test_match_exits_2_with_warning_and_still_matches(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data = _data_with_bad_and_good_segment(tmp_path)
+    assert main(["--data-dir", str(data), "match"]) == 2
+    out = capsys.readouterr().out
+    assert "Good: 1 efforts" in out
+    assert "warning" in out and "Broken" in out and "end" in out
+
+
+def test_build_data_exits_2_and_writes_the_valid_segments(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data = _data_with_bad_and_good_segment(tmp_path)
+    out_dir = tmp_path / "site"
+    assert main(["--data-dir", str(data), "build-data", "--out", str(out_dir)]) == 2
+    assert [p.name for p in (out_dir / "segments").glob("*.json")] == ["good.json"]
+    assert "Broken" in capsys.readouterr().out
+
+
+def test_match_without_problems_exits_0(tmp_path: Path) -> None:
+    from test_pipeline import _add_data, _seg_yaml
+
+    data = _add_data(tmp_path)
+    (data / "segments.yaml").write_text(_seg_yaml("Good", "5"))
+    assert main(["--data-dir", str(data), "match"]) == 0
+
+
+def test_unreadable_segments_yaml_exits_1(tmp_path: Path) -> None:
+    from test_pipeline import _add_data
+
+    data = _add_data(tmp_path)
+    (data / "segments.yaml").write_text("- name: [unclosed\n")
+    assert main(["--data-dir", str(data), "match"]) == 1

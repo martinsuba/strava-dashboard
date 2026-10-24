@@ -13,7 +13,7 @@ from sdash.segments import (
     Segment,
     SegmentError,
     check_unique,
-    load_segments,
+    load_segments_lenient,
     load_segments_or_empty,
     segment_from_entry,
     write_segments,
@@ -85,21 +85,29 @@ def ride_file(data_dir: Path, filename: str) -> Path:
     return path
 
 
-def reference_only_activities(data_dir: Path, rides: list[Activity]) -> list[Activity]:
-    """Non-cycling activities used as a segment's reference (e.g. a hike): they get parsed too."""
+def reference_only_activities(
+    data_dir: Path, rides: list[Activity]
+) -> tuple[list[Activity], list[tuple[str, str]]]:
+    """Non-cycling activities used as a segment's reference (e.g. a hike): they get parsed too.
+
+    Also returns (id, reason) for wanted reference rows that activities.csv holds but that cannot
+    be read; those are never dropped silently.
+    """
     try:
-        segments = load_segments(data_dir / "segments.yaml")
+        segments, _ = load_segments_lenient(data_dir / "segments.yaml")
     except SegmentError:
-        return []  # reported by `match`, which validates segments.yaml
+        return [], []  # reported by `match`, which reads segments.yaml
     wanted = {seg.ref_activity for seg in segments if valid_activity_id(seg.ref_activity)}
     wanted -= {a.id for a in rides}
     if not wanted:
-        return []
+        return [], []
+    errors: list[tuple[str, str]] = []
     try:
-        rows = read_activities(data_dir / "raw" / "activities.csv", errors=[])
-    except ValueError:
-        return []
-    return [a for a in rows if a.id in wanted and valid_activity_id(a.id)]
+        rows = read_activities(data_dir / "raw" / "activities.csv", errors=errors)
+    except ValueError as exc:
+        raise PipelineError(str(exc)) from exc
+    found = [a for a in rows if a.id in wanted and valid_activity_id(a.id)]
+    return found, [(i, reason) for i, reason in errors if i in wanted]
 
 
 def parse_rides(data_dir: Path) -> ParseReport:
@@ -109,7 +117,8 @@ def parse_rides(data_dir: Path) -> ParseReport:
     """
     parsed = 0
     activities, failed = cycling_rides(data_dir)
-    extra = reference_only_activities(data_dir, activities)
+    extra, reference_errors = reference_only_activities(data_dir, activities)
+    failed += reference_errors
     references = 0
     for act in activities + extra:
         is_reference = act in extra
@@ -160,22 +169,28 @@ def _reference(segment: Segment, ref: Track | None) -> Reference:
     reference = reference_from(ref, segment.start, segment.end)
     if reference is None:
         raise PipelineError(
-            f"segment {segment.name!r}: reference activity {segment.ref_activity} "
-            "does not pass both start and end"
-        )
-    if reference.length_m < 2 * GATE_M:
-        raise PipelineError(
-            f"segment {segment.name!r}: reference activity {segment.ref_activity} gives a "
-            f"segment of only {reference.length_m:.0f} m (start and end are too close or the "
-            "track jitters at the gate)"
+            f"segment {segment.name!r}: reference activity {segment.ref_activity} does not pass "
+            f"both start and end (at least {2 * GATE_M:.0f} m apart)"
         )
     return reference
 
 
-def match_segments(data_dir: Path) -> tuple[list[Activity], list[SegmentResult]]:
-    """Validate segments.yaml and find efforts in every cached cycling ride."""
+@dataclass(frozen=True)
+class MatchReport:
+    activities: list[Activity]
+    results: list[SegmentResult]  # valid segments only
+    problems: list[str]  # segment-level problems; each names the segment and is skipped (exit 2)
+
+
+def match_segments(data_dir: Path) -> MatchReport:
+    """Read segments.yaml and find efforts in every cached cycling ride.
+
+    A segment-level problem (invalid fields, duplicate name, unusable reference) is collected in
+    `problems` and that segment skipped; the others are matched. An unreadable segments.yaml
+    raises PipelineError.
+    """
     try:
-        segments = load_segments(data_dir / "segments.yaml")
+        segments, problems = load_segments_lenient(data_dir / "segments.yaml")
     except SegmentError as exc:
         raise PipelineError(str(exc)) from exc
     activities = cycling_activities(data_dir)
@@ -187,16 +202,16 @@ def match_segments(data_dir: Path) -> tuple[list[Activity], list[SegmentResult]]
     ref_cache: dict[str, Track | None] = {}
     results: list[SegmentResult] = []
     for seg in segments:
-        if not valid_activity_id(seg.ref_activity):
-            raise PipelineError(
-                f"segment {seg.name!r}: ref_activity {seg.ref_activity!r} must be an activity ID"
-            )
         if seg.ref_activity not in ref_cache:
             path = cache_path(data_dir, seg.ref_activity)
             ref_cache[seg.ref_activity] = tracks.get(seg.ref_activity) or (
                 _read_cache(path) if path.is_file() else None
             )
-        reference = _reference(seg, ref_cache[seg.ref_activity])
+        try:
+            reference = _reference(seg, ref_cache[seg.ref_activity])
+        except PipelineError as exc:
+            problems.append(str(exc))
+            continue
         efforts = [
             e
             for act in activities
@@ -204,13 +219,13 @@ def match_segments(data_dir: Path) -> tuple[list[Activity], list[SegmentResult]]
             for e in find_efforts(tracks[act.id], seg.start, seg.end, act.id, reference=reference)
         ]
         results.append(SegmentResult(seg, reference.length_m, efforts))
-    return activities, results
+    return MatchReport(activities, results, problems)
 
 
-def build_data(data_dir: Path, out: Path) -> list[SegmentResult]:
-    activities, results = match_segments(data_dir)
-    write_site_data(out, activities, results)
-    return results
+def build_data(data_dir: Path, out: Path) -> MatchReport:
+    report = match_segments(data_dir)
+    write_site_data(out, report.activities, report.results)
+    return report
 
 
 def _ride_track(data_dir: Path, activity_id: str) -> Track:

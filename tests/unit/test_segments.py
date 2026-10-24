@@ -13,6 +13,7 @@ from sdash.segments import (
     dump_segments,
     import_strava_csv,
     load_segments,
+    load_segments_lenient,
     segment_from_entry,
     slugify,
     write_segments,
@@ -337,3 +338,59 @@ def test_import_row_with_control_character_is_invalid_and_file_still_loads(tmp_p
     report = import_strava_csv(csv_path, target)
     assert report.added == 1 and [r for r, _ in report.invalid] == [2]
     assert [s.name for s in load_segments(target)] == ["Old", "Fine"]
+
+
+# --- T-013: segment-level problems are collected, not fatal --------------------------------------
+
+
+def _write_yaml(path: Path, *blocks: str) -> Path:
+    path.write_text("\n".join(blocks) + "\n", encoding="utf-8")
+    return path
+
+
+GOOD = '- name: "Good"\n  ref_activity: "1"\n  start: [-47.0, -134.0]\n  end: [-46.99, -134.0]'
+NO_END = '- name: "No end"\n  ref_activity: "1"\n  start: [-47.0, -134.0]'
+BAD_LAT = '- name: "Bad lat"\n  ref_activity: "1"\n  start: [95.0, -134.0]\n  end: [-46.9, -134.0]'
+DUP = GOOD.replace("[-46.99, -134.0]", "[-46.5, -134.0]")
+
+
+def test_lenient_load_keeps_valid_segments_and_reports_the_rest(tmp_path: Path) -> None:
+    path = _write_yaml(tmp_path / "segments.yaml", NO_END, GOOD, BAD_LAT)
+    segments, problems = load_segments_lenient(path)
+    assert [s.name for s in segments] == ["Good"]
+    assert len(problems) == 2
+    assert "No end" in problems[0] and "end" in problems[0]
+    assert "Bad lat" in problems[1] and "range" in problems[1]
+
+
+def test_lenient_load_keeps_the_first_of_duplicate_names(tmp_path: Path) -> None:
+    path = _write_yaml(tmp_path / "segments.yaml", GOOD, DUP)
+    segments, problems = load_segments_lenient(path)
+    assert [s.name for s in segments] == ["Good"]
+    assert segments[0].end == (-46.99, -134.0), "the first occurrence is kept"
+    assert len(problems) == 1 and "Good" in problems[0] and "duplicate" in problems[0]
+
+
+def test_lenient_load_skips_a_later_slug_collision(tmp_path: Path) -> None:
+    other = GOOD.replace('"Good"', '"good!"')
+    segments, problems = load_segments_lenient(_write_yaml(tmp_path / "s.yaml", GOOD, other))
+    assert [s.name for s in segments] == ["Good"]
+    assert len(problems) == 1 and "good!" in problems[0] and "slug" in problems[0]
+
+
+def test_lenient_load_is_still_strict_about_the_file(tmp_path: Path) -> None:
+    with pytest.raises(SegmentError, match="not found"):
+        load_segments_lenient(tmp_path / "missing.yaml")
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("- name: [unclosed\n")
+    with pytest.raises(SegmentError, match="invalid YAML"):
+        load_segments_lenient(bad)
+    bad.write_text("name: not a list\n")
+    with pytest.raises(SegmentError, match="list"):
+        load_segments_lenient(bad)
+
+
+def test_lenient_load_of_a_non_mapping_entry(tmp_path: Path) -> None:
+    segments, problems = load_segments_lenient(_write_yaml(tmp_path / "s.yaml", "- 5", GOOD))
+    assert [s.name for s in segments] == ["Good"]
+    assert len(problems) == 1 and "#1" in problems[0]

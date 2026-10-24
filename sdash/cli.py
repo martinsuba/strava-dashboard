@@ -89,18 +89,29 @@ def _cmd_parse(data_dir: Path) -> int:
     return 0
 
 
-def _cmd_match(data_dir: Path) -> int:
-    _, results = pipeline.match_segments(data_dir)
-    for r in results:
+EXIT_WARNINGS = 2  # segment-level problems: reported, those segments skipped, the rest done
+
+
+def _print_report(report: pipeline.MatchReport) -> int:
+    """Per-segment effort lines, then one warning per skipped segment. Returns the exit code."""
+    for r in report.results:
         print(f"{r.segment.name}: {len(r.efforts)} efforts")
-    return 0
+    for problem in report.problems:
+        print(f"warning: {problem} (segment skipped)")
+    return EXIT_WARNINGS if report.problems else 0
+
+
+def _cmd_match(data_dir: Path) -> int:
+    return _print_report(pipeline.match_segments(data_dir))
 
 
 def _cmd_build_data(data_dir: Path, out: Path | None) -> int:
     target = out or _default_web_dir() / "public" / "data"
-    results = pipeline.build_data(data_dir, target)
-    print(f"wrote {len(results)} segments to {target}")
-    return 0
+    report = pipeline.build_data(data_dir, target)
+    print(f"wrote {len(report.results)} segments to {target}")
+    for problem in report.problems:
+        print(f"warning: {problem} (segment skipped)")
+    return EXIT_WARNINGS if report.problems else 0
 
 
 def _cmd_refresh(data_dir: Path, args: argparse.Namespace) -> int:
@@ -110,15 +121,17 @@ def _cmd_refresh(data_dir: Path, args: argparse.Namespace) -> int:
         raise pipeline.PipelineError("deploy is not implemented yet: use --no-deploy")
     web_dir: Path = args.web_dir or _default_web_dir()
     _cmd_parse(data_dir)
-    _cmd_match(data_dir)
-    _cmd_build_data(data_dir, web_dir / "public" / "data")
+    target = web_dir / "public" / "data"
+    report = pipeline.build_data(data_dir, target)
+    status = _print_report(report)  # 2 when segments were skipped: still builds (and deploys)
+    print(f"wrote {len(report.results)} segments to {target}")
     npm = shutil.which("npm")
     if npm is None:
         raise pipeline.PipelineError("npm not found: cannot build the site")
     build = subprocess.run([npm, "run", "build"], cwd=web_dir, check=False)
     if build.returncode != 0:
         raise pipeline.PipelineError("site build failed")
-    return 0
+    return status
 
 
 def _cmd_segment_add(data_dir: Path, args: argparse.Namespace) -> int:
