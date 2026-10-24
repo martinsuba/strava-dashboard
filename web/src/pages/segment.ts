@@ -1,4 +1,5 @@
 import { cell, dataTable, panel, tableRow } from "../lib/components";
+import { onLeave } from "../lib/cleanup";
 import { fetchJson, NotFoundError } from "../lib/data";
 import { h } from "../lib/dom";
 import { formatDate, formatDuration, formatKm } from "../lib/format";
@@ -26,8 +27,6 @@ import { renderNotFound } from "./not-found";
 export type { Effort, SegmentData } from "../lib/segment-data";
 
 const EFFORTS_SHOWN = 12;
-
-let destroyChart: (() => void) | null = null;
 
 function backLink(): HTMLElement {
   return h(
@@ -103,7 +102,9 @@ function effortRow(e: Effort): HTMLElement {
   return tableRow([
     cell(badge(e.rank)),
     cell(formatDate(e.start_t)),
-    cell(h("a", { href: rideHref(e.activity_id) }, e.ride_name), { className: "cell-name" }),
+    cell(h("a", { href: rideHref(e.activity_id), title: e.ride_name }, e.ride_name), {
+      className: "cell-ride",
+    }),
     cell(formatDuration(e.elapsed_s), { numeric: true }),
     cell(formatKm(e.avg_kmh), { numeric: true, className: "muted" }),
     cell(formatGap(e.gap_to_pr_s), { numeric: true, className: "muted" }),
@@ -224,8 +225,8 @@ export function renderSegmentData(root: HTMLElement, data: SegmentData, year?: n
   );
   // Chart.js is a separate chunk, loaded only on this page; the table and summary show meanwhile.
   void import("../lib/segment-chart").then(({ mountSegmentChart }) => {
-    if (chart.canvas.isConnected)
-      destroyChart = mountSegmentChart(chart.canvas, model, data.efforts);
+    // main.ts runs the registered cleanup when the route changes.
+    if (chart.canvas.isConnected) onLeave(mountSegmentChart(chart.canvas, model, data.efforts));
   });
 }
 
@@ -240,9 +241,6 @@ async function generatedYear(): Promise<number | undefined> {
 }
 
 export function renderSegment(root: HTMLElement, slug: string): void {
-  // Synchronous: a lazy import here could resolve after the new chart is mounted and destroy it.
-  destroyChart?.();
-  destroyChart = null;
   const status = (text: string): void =>
     root.replaceChildren(
       h("h1", {}, "Segment"),

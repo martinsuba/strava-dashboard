@@ -150,3 +150,21 @@
   font-size: 15px;
   font-weight: 600;
 }
+
+.cell-ride {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 479px) {
+  /* Narrow screens: one-line ride names and no km/h column, so Gap stays visible without scrolling. */
+  .cell-ride {
+    max-width: 80px;
+  }
+
+  .panel--efforts th:nth-child(5),
+  .panel--efforts td:nth-child(5) {
+    display: none;
+  }
+}

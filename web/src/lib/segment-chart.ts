@@ -10,7 +10,7 @@ import {
   type Plugin,
 } from "chart.js";
 import { formatDate, formatDuration } from "./format";
-import { chartLabel, type ChartModel, type Effort } from "./segment-data";
+import { chartLabel, visibleYears, type ChartModel, type Effort } from "./segment-data";
 
 Chart.register(ScatterController, LinearScale, PointElement, Tooltip);
 
@@ -40,7 +40,7 @@ function prLabelPlugin(model: ChartModel): Plugin<"scatter"> {
       const left = x > chartArea.left + (chartArea.right - chartArea.left) * 0.75;
       ctx.save();
       ctx.fillStyle = ORANGE;
-      ctx.font = `600 13px ${FONT}`;
+      ctx.font = `600 14px ${FONT}`;
       ctx.textBaseline = "middle";
       ctx.textAlign = left ? "right" : "left";
       ctx.fillText(`PR ${formatDuration(model.pr.y)}`, x + (left ? -14 : 14), y);
@@ -96,7 +96,9 @@ export function mountSegmentChart(
           border: { color: AXIS },
           grid: { display: false },
           afterBuildTicks(scale) {
-            scale.ticks = model.years.map((y) => ({ value: Date.UTC(y, 0, 1), label: String(y) }));
+            scale.ticks = visibleYears(model.years, scale.maxWidth || scale.chart.width).map(
+              (y) => ({ value: Date.UTC(y, 0, 1), label: String(y) }),
+            );
           },
           ticks: {
             ...tick,

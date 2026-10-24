@@ -59,6 +59,11 @@ export function medianSeconds(efforts: readonly Effort[]): number {
   return Math.round(t.length % 2 === 1 ? (t[mid] ?? 0) : ((t[mid - 1] ?? 0) + (t[mid] ?? 0)) / 2);
 }
 
+/** The fastest effort (the PR), or undefined without efforts. */
+export function prOf(efforts: readonly Effort[]): Effort | undefined {
+  return sortEfforts(efforts, "fastest")[0];
+}
+
 export interface Summary {
   pr: Effort;
   medianS: number;
@@ -96,13 +101,21 @@ export function metaLine(data: SegmentData): string {
 
 /** aria-label of the chart canvas (contract: contains "PR m:ss"). */
 export function chartLabel(efforts: readonly Effort[]): string {
-  const s = summarize(efforts, 0);
+  const pr = prOf(efforts);
+  const latest = sortEfforts(efforts, "newest")[0];
   const oldest = sortEfforts(efforts, "newest").at(-1);
-  if (!s || !oldest) return "No efforts";
+  if (!pr || !latest || !oldest) return "No efforts";
   const from = yearOf(oldest.start_t);
-  const to = yearOf(s.latest.start_t);
+  const to = yearOf(latest.start_t);
   const range = from === to ? `in ${from}` : `from ${from} to ${to}`;
-  return `Elapsed time for ${efforts.length} ${efforts.length === 1 ? "effort" : "efforts"} ${range}; PR ${formatDuration(s.pr.elapsed_s)} on ${formatDate(s.pr.start_t)}`;
+  return `Elapsed time for ${efforts.length} ${efforts.length === 1 ? "effort" : "efforts"} ${range}; PR ${formatDuration(pr.elapsed_s)} on ${formatDate(pr.start_t)}`;
+}
+
+/** Year ticks thinned to fit `width` px (about 44 px per label); always keeps the first year. */
+export function visibleYears(years: readonly number[], width: number): number[] {
+  const fit = Math.max(2, Math.floor(width / 44));
+  const stride = Math.max(1, Math.ceil(years.length / fit));
+  return years.filter((_, i) => i % stride === 0);
 }
 
 export interface ChartPoint {
@@ -126,8 +139,8 @@ const STEPS = [5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
 
 /** Chart data: efforts as points, the PR separate; axis ranges padded to round steps (~5 y ticks). */
 export function chartModel(efforts: readonly Effort[]): ChartModel | null {
-  const s = summarize(efforts, 0);
-  if (!s) return null;
+  const pr = prOf(efforts);
+  if (!pr) return null;
   const toPoint = (e: Effort): ChartPoint => ({
     x: e.start_t * 1000,
     y: e.elapsed_s,
@@ -144,10 +157,10 @@ export function chartModel(efforts: readonly Effort[]): ChartModel | null {
   const lastYear = yearOf(Math.max(...efforts.map((e) => e.start_t)));
   const years: number[] = [];
   for (let y = firstYear; y <= lastYear + 1; y++) years.push(y);
-  const prIndex = efforts.indexOf(s.pr);
+  const prIndex = efforts.indexOf(pr);
   return {
     efforts: efforts.filter((_, i) => i !== prIndex).map(toPoint),
-    pr: toPoint(s.pr),
+    pr: toPoint(pr),
     xMin: Date.UTC(firstYear, 0, 1),
     xMax: Date.UTC(lastYear + 1, 0, 1),
     yMin,

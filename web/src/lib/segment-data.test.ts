@@ -5,6 +5,8 @@ import {
   formatGap,
   medianSeconds,
   metaLine,
+  prOf,
+  visibleYears,
   rankLabel,
   sortEfforts,
   summarize,
@@ -118,5 +120,23 @@ describe("chartModel", () => {
   });
   it("is null without efforts", () => {
     expect(chartModel([])).toBeNull();
+  });
+});
+
+describe("prOf", () => {
+  it("is the fastest effort, undefined when empty", () => {
+    expect(prOf(efforts)?.activity_id).toBe("b");
+    expect(prOf([])).toBeUndefined();
+  });
+});
+
+describe("visibleYears", () => {
+  const years = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027];
+  it("keeps all years when they fit", () => {
+    expect(visibleYears(years, 600)).toEqual(years);
+  });
+  it("thins out years on a narrow plot", () => {
+    expect(visibleYears(years, 280)).toEqual([2019, 2021, 2023, 2025, 2027]);
+    expect(visibleYears(years, 100)).toEqual([2019, 2024]);
   });
 });

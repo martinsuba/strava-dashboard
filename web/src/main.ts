@@ -3,6 +3,7 @@ import { renderIndex } from "./pages/index";
 import { renderNotFound } from "./pages/not-found";
 import { renderRide } from "./pages/ride";
 import { renderSegment } from "./pages/segment";
+import { runCleanups } from "./lib/cleanup";
 import { parseRoute, type Route } from "./lib/router";
 
 /** Segments is current on the index and segment pages, Rides on the rides shortcut and ride pages. */
@@ -18,6 +19,7 @@ function markActiveNav(page: Route["page"]): void {
 function render(): void {
   const root = document.getElementById("app");
   if (!root) return;
+  runCleanups();
   const route = parseRoute(window.location.hash);
   switch (route.page) {
     case "index":
