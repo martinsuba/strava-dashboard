@@ -39,7 +39,7 @@ const WEEKDAY_TIME = new Intl.DateTimeFormat("en-GB", {
   hourCycle: "h23",
 });
 
-/** UTC ISO 8601 timestamp as "Sat 18 Oct 2026, 17:05" in Europe/Bratislava, whatever the viewer's zone. */
+/** UTC ISO 8601 timestamp as "Sun 18 Oct 2026, 17:05" in Europe/Bratislava, whatever the viewer's zone. */
 export function formatDateTime(when: string): string {
   const parts = Object.fromEntries(
     WEEKDAY_TIME.formatToParts(new Date(when)).map((p) => [p.type, p.value]),

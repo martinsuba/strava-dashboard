@@ -10,7 +10,7 @@ import {
   type RideData,
   type RideEffort,
 } from "../lib/ride-data";
-import { segmentHref } from "../lib/router";
+import { isCurrentRoute, segmentHref } from "../lib/router";
 import { formatGap } from "../lib/segment-data";
 import { renderNotFound } from "./not-found";
 
@@ -86,14 +86,14 @@ function effortRow(e: RideEffort): HTMLElement {
 }
 
 function segmentsPanel(efforts: RideEffort[]): HTMLElement {
+  const item = (...content: (Node | string)[]): HTMLElement =>
+    h("span", { class: "legend__item" }, ...content);
   const legend = h(
     "span",
-    { class: "chart-hint" },
-    "bar: PR on the left, slower to the right · ",
-    h("span", { class: "legend-tick", "aria-hidden": "true" }, "|"),
-    " average · ",
-    h("span", { "aria-hidden": "true" }, "●"),
-    " today",
+    { class: "chart-hint legend" },
+    item("bar: PR on the left, slower to the right"),
+    item(h("span", { class: "legend-tick", "aria-hidden": "true" }, "|"), " average"),
+    item(h("span", { "aria-hidden": "true" }, "●"), " today"),
   );
   const body =
     efforts.length === 0
@@ -111,7 +111,12 @@ function segmentsPanel(efforts: RideEffort[]): HTMLElement {
           ],
           efforts.map(effortRow),
         );
-  const node = panel("ride-seg-h", "Segments on this ride", [body], legend);
+  const node = panel(
+    "ride-seg-h",
+    "Segments on this ride",
+    [body],
+    efforts.length > 0 ? legend : undefined,
+  );
   node.classList.add("panel--ride-segments");
   return node;
 }
@@ -136,9 +141,10 @@ export function renderRide(root: HTMLElement, id: string): void {
   fetchJson<RideData>(`rides/${id}.json`).then(
     (data) => {
       // A newer navigation may have replaced the page meanwhile.
-      if (window.location.hash.endsWith(`/ride/${id}`)) renderRideData(root, data);
+      if (isCurrentRoute(window.location.hash, { page: "ride", id })) renderRideData(root, data);
     },
     (err: unknown) => {
+      if (!isCurrentRoute(window.location.hash, { page: "ride", id })) return;
       if (err instanceof NotFoundError) renderNotFound(root);
       else
         root.replaceChildren(

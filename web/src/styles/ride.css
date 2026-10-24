@@ -98,6 +98,7 @@
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   vertical-align: bottom;
 }
 
@@ -105,4 +106,14 @@
   .seg-cell a {
     max-width: 120px;
   }
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+
+.legend__item {
+  white-space: nowrap;
 }

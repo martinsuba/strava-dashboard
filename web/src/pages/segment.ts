@@ -4,7 +4,7 @@ import { fetchJson, NotFoundError } from "../lib/data";
 import { h } from "../lib/dom";
 import { formatDate, formatDuration, formatKm } from "../lib/format";
 import type { IndexData } from "../lib/index-data";
-import { rideHref } from "../lib/router";
+import { isCurrentRoute, rideHref } from "../lib/router";
 import {
   chartLabel,
   chartModel,
@@ -251,9 +251,11 @@ export function renderSegment(root: HTMLElement, slug: string): void {
   Promise.all([fetchJson<SegmentData>(`segments/${slug}.json`), generatedYear()]).then(
     ([data, year]) => {
       // A newer navigation may have replaced the page meanwhile.
-      if (window.location.hash.endsWith(`/segment/${slug}`)) renderSegmentData(root, data, year);
+      if (isCurrentRoute(window.location.hash, { page: "segment", slug }))
+        renderSegmentData(root, data, year);
     },
     (err: unknown) => {
+      if (!isCurrentRoute(window.location.hash, { page: "segment", slug })) return;
       if (err instanceof NotFoundError) renderNotFound(root);
       else
         status(
