@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from sdash.pipeline import PipelineError, match_segments, parse_rides
+from sdash.pipeline import PipelineError, _reference, match_segments, parse_rides
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "minimal.gpx"
 HEADER = (
@@ -235,3 +235,43 @@ def test_match_with_corrupt_cache_gives_pipeline_error(tmp_path: Path) -> None:
     )
     with pytest.raises(PipelineError, match="cache"):
         match_segments(data)
+
+
+def _segments(data: Path, ref: str) -> None:
+    (data / "segments.yaml").write_text(
+        f'- name: Ref seg\n  ref_activity: "{ref}"\n  start: [-47.0, -134.0]\n  end: [-46.99, -134.0]\n'
+    )
+
+
+def test_non_ride_reference_activity_is_parsed(tmp_path: Path) -> None:
+    data = _data(tmp_path, _row("5", "activities/ok.gpx"), _row("8", "activities/ok.gpx", "Hike"))
+    _segments(data, "8")
+    report = parse_rides(data)
+    assert report.parsed == 1 and report.references == 1 and report.failed == []
+    assert (data / "cache" / "8.json.gz").is_file()
+
+
+def test_non_ride_reference_is_not_parsed_when_unused(tmp_path: Path) -> None:
+    data = _data(tmp_path, _row("5", "activities/ok.gpx"), _row("8", "activities/ok.gpx", "Hike"))
+    _segments(data, "5")
+    parse_rides(data)
+    assert not (data / "cache" / "8.json.gz").exists()
+
+
+def test_non_ride_reference_with_path_outside_raw_is_reported(tmp_path: Path) -> None:
+    data = _data(tmp_path, _row("8", "../../outside.gpx", "Hike"))
+    _segments(data, "8")
+    report = parse_rides(data)
+    assert report.parsed == 0 and report.failed[0][0] == "8"
+
+
+def test_degenerate_reference_is_rejected_naming_the_segment() -> None:
+    from sdash.segments import Segment
+    from sdash.tracks import Track
+
+    # start == end; the track jitters between 20 m and 31 m from the gate: passes 23 m apart
+    lat = [-47.0 + m / 111_195.0 for m in (20, 31, 31, 20, 31)]
+    track = Track(t=[0, 10, 11, 20, 30], lat=lat, lon=[-134.0] * 5, d=[0.0, 11.0, 12.0, 23.0, 34.0])
+    seg = Segment("Wobble", "wobble", "5", (-47.0, -134.0), (-47.0, -134.0))
+    with pytest.raises(PipelineError, match=r"Wobble.*only"):
+        _reference(seg, track)

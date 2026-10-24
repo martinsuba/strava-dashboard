@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from sdash.activities import Activity, read_activities
-from sdash.match import find_efforts
+from sdash.match import GATE_M, Reference, find_efforts, reference_from
 from sdash.segments import Segment, SegmentError, load_segments
 from sdash.sitedata import SegmentResult, write_site_data
 from sdash.tracks import (
@@ -28,6 +28,7 @@ class PipelineError(Exception):
 class ParseReport:
     parsed: int
     failed: list[tuple[str, str]]  # (activity id, reason)
+    references: int = 0  # parsed non-ride reference tracks (not counted in `parsed`)
 
 
 _ACTIVITY_ID = re.compile(r"[0-9]+")
@@ -75,11 +76,34 @@ def ride_file(data_dir: Path, filename: str) -> Path:
     return path
 
 
+def reference_only_activities(data_dir: Path, rides: list[Activity]) -> list[Activity]:
+    """Non-cycling activities used as a segment's reference (e.g. a hike): they get parsed too."""
+    try:
+        segments = load_segments(data_dir / "segments.yaml")
+    except SegmentError:
+        return []  # reported by `match`, which validates segments.yaml
+    wanted = {seg.ref_activity for seg in segments if valid_activity_id(seg.ref_activity)}
+    wanted -= {a.id for a in rides}
+    if not wanted:
+        return []
+    try:
+        rows = read_activities(data_dir / "raw" / "activities.csv", errors=[])
+    except ValueError:
+        return []
+    return [a for a in rows if a.id in wanted and valid_activity_id(a.id)]
+
+
 def parse_rides(data_dir: Path) -> ParseReport:
-    """Parse every cycling ride into cache/<id>.json.gz; a broken file is reported, not fatal."""
+    """Parse every cycling ride (and non-ride segment reference) into cache/<id>.json.gz.
+
+    A broken file is reported, not fatal.
+    """
     parsed = 0
     activities, failed = cycling_rides(data_dir)
-    for act in activities:
+    extra = reference_only_activities(data_dir, activities)
+    references = 0
+    for act in activities + extra:
+        is_reference = act in extra
         if not act.filename:
             failed.append((act.id, "no file in activities.csv"))
             continue
@@ -88,7 +112,11 @@ def parse_rides(data_dir: Path) -> ParseReport:
             path = ride_file(data_dir, act.filename)
             stamp = source_stamp(path)
             if read_cache_if_fresh(cache, stamp) is not None:
-                parsed += 1  # unchanged (same size + mtime): not parsed again
+                # unchanged (same size + mtime): not parsed again
+                if is_reference:
+                    references += 1
+                else:
+                    parsed += 1
                 continue
             track = parse_track(path)
         except Exception as exc:  # one bad ride file must never abort the run
@@ -100,8 +128,11 @@ def parse_rides(data_dir: Path) -> ParseReport:
             failed.append((act.id, "no positions in file"))
             continue
         write_cache(cache, track, stamp)
-        parsed += 1
-    return ParseReport(parsed, failed)
+        if is_reference:
+            references += 1
+        else:
+            parsed += 1
+    return ParseReport(parsed, failed, references)
 
 
 def _read_cache(path: Path) -> Track:
@@ -111,19 +142,25 @@ def _read_cache(path: Path) -> Track:
         raise PipelineError(f"{exc}: run `sdash parse` again") from exc
 
 
-def _ref_length(segment: Segment, ref: Track | None) -> float:
+def _reference(segment: Segment, ref: Track | None) -> Reference:
     if ref is None:
         raise PipelineError(
             f"segment {segment.name!r}: reference activity {segment.ref_activity} "
             "has no parsed track"
         )
-    efforts = find_efforts(ref, segment.start, segment.end)
-    if not efforts:
+    reference = reference_from(ref, segment.start, segment.end)
+    if reference is None:
         raise PipelineError(
             f"segment {segment.name!r}: reference activity {segment.ref_activity} "
             "does not pass both start and end"
         )
-    return float(efforts[0].distance_m)
+    if reference.length_m < 2 * GATE_M:
+        raise PipelineError(
+            f"segment {segment.name!r}: reference activity {segment.ref_activity} gives a "
+            f"segment of only {reference.length_m:.0f} m (start and end are too close or the "
+            "track jitters at the gate)"
+        )
+    return reference
 
 
 def match_segments(data_dir: Path) -> tuple[list[Activity], list[SegmentResult]]:
@@ -150,14 +187,14 @@ def match_segments(data_dir: Path) -> tuple[list[Activity], list[SegmentResult]]
             ref_cache[seg.ref_activity] = tracks.get(seg.ref_activity) or (
                 _read_cache(path) if path.is_file() else None
             )
-        length = _ref_length(seg, ref_cache[seg.ref_activity])
+        reference = _reference(seg, ref_cache[seg.ref_activity])
         efforts = [
             e
             for act in activities
             if act.id in tracks
-            for e in find_efforts(tracks[act.id], seg.start, seg.end, act.id)
+            for e in find_efforts(tracks[act.id], seg.start, seg.end, act.id, reference=reference)
         ]
-        results.append(SegmentResult(seg, length, efforts))
+        results.append(SegmentResult(seg, reference.length_m, efforts))
     return activities, results
 
 

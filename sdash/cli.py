@@ -82,7 +82,8 @@ def _cmd_import(data_dir: Path, source: str) -> int:
 
 def _cmd_parse(data_dir: Path) -> int:
     report = pipeline.parse_rides(data_dir)
-    print(f"parsed {report.parsed} rides, {len(report.failed)} failed")
+    extra = f", {report.references} reference tracks" if report.references else ""
+    print(f"parsed {report.parsed} rides{extra}, {len(report.failed)} failed")
     for activity_id, reason in report.failed:
         print(f"failed {activity_id}: {reason}")
     return 0
