@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ridesNewestFirst, type IndexRide } from "./index-data";
+import { ridesNewestFirst, splitRides, type IndexRide } from "./index-data";
 
 const ride = (id: string, date: string): IndexRide => ({
   id,
@@ -30,5 +30,25 @@ describe("ridesNewestFirst", () => {
 
   it("handles an empty list", () => {
     expect(ridesNewestFirst([])).toEqual([]);
+  });
+});
+
+describe("splitRides", () => {
+  const many = Array.from({ length: 53 }, (_, i) =>
+    ride(String(i), new Date(Date.UTC(2020, 0, 1 + i)).toISOString()),
+  );
+
+  it("shows the newest 50 and offers all 53", () => {
+    const split = splitRides(many, 50);
+    expect(split.shown).toHaveLength(50);
+    expect(split.rest).toHaveLength(3);
+    expect(split.shown[0]?.id).toBe("52");
+    expect(split.rest[2]?.id).toBe("0");
+    expect(split.showAllLabel).toBe("Show all 53 rides");
+  });
+
+  it("has no button at or under the limit", () => {
+    expect(splitRides(many.slice(0, 50), 50).showAllLabel).toBeNull();
+    expect(splitRides([], 50)).toEqual({ shown: [], rest: [], showAllLabel: null });
   });
 });

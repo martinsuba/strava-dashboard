@@ -140,7 +140,23 @@ main:focus {
 }
 
 .back-link {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+#rides {
+  scroll-margin-top: 16px;
 }
 
 .meta {

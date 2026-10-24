@@ -2,12 +2,7 @@ import { cell, dataTable, emptyState, panel, tableRow } from "../lib/components"
 import { fetchJson } from "../lib/data";
 import { h } from "../lib/dom";
 import { formatDate, formatDuration, formatKm } from "../lib/format";
-import {
-  ridesNewestFirst,
-  type IndexData,
-  type IndexRide,
-  type IndexSegment,
-} from "../lib/index-data";
+import { splitRides, type IndexData, type IndexRide, type IndexSegment } from "../lib/index-data";
 import { parseRoute, rideHref, segmentHref } from "../lib/router";
 
 // Index page (REQ-006, docs/DESIGN.md "Index"): segment list and ride list.
@@ -27,7 +22,12 @@ function segmentRow(s: IndexSegment): HTMLElement {
             h("span", { class: "pr-time" }, formatDuration(s.pr_s ?? 0)),
             h("span", { class: "pr-tag" }, "PR"),
           )
-        : h("span", { class: "muted", "aria-label": "no PR yet" }, "—"),
+        : h(
+            "span",
+            { class: "muted" },
+            h("span", { "aria-hidden": "true" }, "—"),
+            h("span", { class: "visually-hidden" }, "no PR yet"),
+          ),
       { numeric: true },
     ),
     cell(s.pr_date ? formatDate(s.pr_date) : h("span", { class: "muted" }, "—")),
@@ -35,7 +35,7 @@ function segmentRow(s: IndexSegment): HTMLElement {
 }
 
 function segmentsPanel(segments: IndexSegment[]): HTMLElement {
-  const sorted = [...segments].sort((a, b) => a.name.localeCompare(b.name, "en"));
+  const sorted = [...segments].sort((a, b) => a.name.localeCompare(b.name, "sk"));
   if (sorted.length === 0) {
     return panel("segments-h", "Segments", [
       emptyState(
@@ -77,28 +77,24 @@ function ridesPanel(rides: IndexRide[]): HTMLElement {
   if (rides.length === 0) {
     return panel("rides-h", "Rides", [emptyState(h("p", {}, "No rides yet."))]);
   }
-  const sorted = ridesNewestFirst(rides);
+  const { shown, rest, showAllLabel } = splitRides(rides, RIDES_SHOWN);
   const table = dataTable(
     "rides-h",
     [
       { label: "Date" },
       { label: "Name" },
       { label: "km", numeric: true },
-      { label: "Segments", numeric: true },
+      { label: "Matched", numeric: true },
     ],
-    sorted.slice(0, RIDES_SHOWN).map(rideRow),
+    shown.map(rideRow),
   );
   const body: (Node | null)[] = [table];
-  if (sorted.length > RIDES_SHOWN) {
-    const button = h(
-      "button",
-      { type: "button", class: "button" },
-      `Show all ${sorted.length} rides`,
-    );
+  if (showAllLabel) {
+    const button = h("button", { type: "button", class: "button" }, showAllLabel);
     button.addEventListener("click", () => {
       const tbody = table.querySelector("tbody");
       if (!tbody) return;
-      const extra = sorted.slice(RIDES_SHOWN).map(rideRow);
+      const extra = rest.map(rideRow);
       tbody.append(...extra);
       button.parentElement?.remove();
       extra[0]?.querySelector("a")?.focus();
@@ -111,7 +107,6 @@ function ridesPanel(rides: IndexRide[]): HTMLElement {
 export function renderIndexData(root: HTMLElement, data: IndexData, focusRides = false): void {
   const rides = ridesPanel(data.rides);
   rides.id = "rides";
-  rides.style.scrollMarginTop = "16px";
   root.replaceChildren(h("h1", {}, "Segments"), segmentsPanel(data.segments), rides);
   if (focusRides) rides.scrollIntoView();
 }

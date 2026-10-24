@@ -27,7 +27,7 @@ web/dist/  ──guard──► sdash deploy ──► gh-pages branch ──►
   Packaging: `pyproject.toml`, plain `venv` + `pip install -e .[dev]` (no uv on the VPS).
   Quality: `ruff` (lint + format), `mypy` (strict on `sdash/`), `pytest`.
 - **Frontend: Vite + TypeScript, no framework** (three read-only pages), `Chart.js` for charts, hash routing
-  (`#/segment/<slug>`, `#/ride/<id>`) so GitHub Pages needs no 404 tricks. Vite `base: '/strava-dashboard/'`.
+  (`#/`, `#/rides` (index scrolled to the rides list), `#/segment/<slug>`, `#/ride/<id>`) so GitHub Pages needs no 404 tricks. Vite `base: '/strava-dashboard/'`.
   Quality: `eslint`, `prettier`, `tsc --noEmit`, `vitest` for formatting/helpers.
   Visual design: docs/DESIGN.md (light "Logbook" layout, Strava-style orange, Public Sans self-hosted).
 - **Acceptance tests:** `pytest` running the `sdash` CLI as a subprocess on synthetic fixtures (tests/acceptance/pipeline/),
