@@ -13,6 +13,7 @@ Rules enforced here:
 
 from __future__ import annotations
 
+import contextlib
 import http.client
 import os
 import re
@@ -21,6 +22,7 @@ import ssl
 import stat
 import sys
 import tempfile
+import time
 import urllib.parse
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -28,6 +30,8 @@ from pathlib import Path, PurePosixPath
 from sdash.pipeline import PipelineError
 
 MAX_BYTES = 3 * 1000**3  # download cap and total uncompressed cap ("3 GB")
+MAX_ENTRIES = 100_000  # zip entries (Strava's own export has a few thousand)
+DEADLINE_S = 30 * 60.0  # wall-clock limit for the whole download, redirects included
 MAX_REDIRECTS = 5
 TIMEOUT_S = 30.0
 CHUNK = 1 << 20
@@ -123,6 +127,7 @@ def _ssl_context() -> ssl.SSLContext:
 def download(url: str, dest_dir: Path, hosts: tuple[str, ...] | None = None) -> Path:
     """Download to a private (0600) temp file in dest_dir. The caller must delete it."""
     hosts = allowed_hosts() if hosts is None else hosts
+    deadline = time.monotonic() + DEADLINE_S
     current = url
     ctx = _ssl_context()
     for _hop in range(MAX_REDIRECTS + 1):
@@ -146,17 +151,19 @@ def download(url: str, dest_dir: Path, hosts: tuple[str, ...] | None = None) -> 
                 raise ImportFailed(
                     f"download failed: host {_norm_host(host)!r} answered HTTP {resp.status}"
                 )
-            return _stream_to_file(resp, dest_dir, host)
+            return _stream_to_file(resp, dest_dir, host, deadline)
         finally:
             conn.close()
     raise ImportFailed(f"too many redirects (more than {MAX_REDIRECTS})")
 
 
-def _stream_to_file(resp: http.client.HTTPResponse, dest_dir: Path, host: str) -> Path:
+def _stream_to_file(
+    resp: http.client.HTTPResponse, dest_dir: Path, host: str, deadline: float
+) -> Path:
     declared = resp.getheader("Content-Length")
     if declared and declared.isdigit() and int(declared) > MAX_BYTES:
         raise ImportFailed(f"download size exceeds the limit of {MAX_BYTES} bytes")
-    dest_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    _private_dir(dest_dir)
     fd, name = tempfile.mkstemp(prefix=".download-", suffix=".zip.tmp", dir=dest_dir)
     path = Path(name)
     try:
@@ -171,6 +178,10 @@ def _stream_to_file(resp: http.client.HTTPResponse, dest_dir: Path, host: str) -
                     ) from None
                 if not chunk:
                     break
+                if time.monotonic() > deadline:
+                    raise ImportFailed(
+                        f"download took longer than {DEADLINE_S / 60:.0f} minutes: aborted"
+                    )
                 total += len(chunk)
                 if total > MAX_BYTES:
                     raise ImportFailed(f"download size exceeds the limit of {MAX_BYTES} bytes")
@@ -179,6 +190,30 @@ def _stream_to_file(resp: http.client.HTTPResponse, dest_dir: Path, host: str) -
         path.unlink(missing_ok=True)
         raise
     return path
+
+
+def _private_dir(path: Path) -> None:
+    """Create the data dir (0700), or tighten an existing one: it holds the account export."""
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with contextlib.suppress(OSError):  # not ours to change: the import itself fails or proceeds
+        path.chmod(0o700)
+
+
+_STALE = re.compile(r"\.(raw-staging-|raw-old-)[A-Za-z0-9_]+|\.download-[A-Za-z0-9_]+\.zip\.tmp")
+
+
+def clean_stale(data_dir: Path) -> None:
+    """Remove leftovers of an interrupted import: only this module's own temp names, directly in
+    data_dir (`.raw-staging-*`, `.raw-old-*`, `.download-*.zip.tmp`); nothing else is touched."""
+    if not data_dir.is_dir():
+        return
+    for entry in data_dir.iterdir():
+        if not _STALE.fullmatch(entry.name):
+            continue
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.rmtree(entry, ignore_errors=True)
+        else:
+            entry.unlink(missing_ok=True)
 
 
 # ---- zip handling -------------------------------------------------------------------------
@@ -199,6 +234,10 @@ def _validate_name(name: str) -> None:
 
 
 def _validate_entries(infos: list[zipfile.ZipInfo]) -> None:
+    if len(infos) > MAX_ENTRIES:
+        raise ImportFailed(
+            f"export has too many entries ({len(infos)}; the limit is {MAX_ENTRIES})"
+        )
     seen: set[str] = set()
     total = 0
     for info in infos:
@@ -225,6 +264,10 @@ def is_allowed_entry(name: str) -> bool:
     return name.startswith(prefix) and not name.endswith("/") and len(name) > len(prefix)
 
 
+def _is_clash(exc: BaseException) -> bool:
+    return isinstance(exc, (FileExistsError, IsADirectoryError, NotADirectoryError))
+
+
 def _extract(zf: zipfile.ZipFile, infos: list[zipfile.ZipInfo], staging: Path) -> int:
     budget = MAX_BYTES
     count = 0
@@ -235,9 +278,9 @@ def _extract(zf: zipfile.ZipFile, infos: list[zipfile.ZipInfo], staging: Path) -
         target = (staging / info.filename).resolve()
         if root not in target.parents:
             raise ImportFailed(f"unsafe zip entry {info.filename!r}: escapes the target")
-        target.parent.mkdir(parents=True, exist_ok=True)
         written = 0
         try:
+            target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(info) as src, open(target, "xb") as out:
                 while chunk := src.read(CHUNK):
                     written += len(chunk)
@@ -249,8 +292,9 @@ def _extract(zf: zipfile.ZipFile, infos: list[zipfile.ZipInfo], staging: Path) -
                         )
                     out.write(chunk)
         except (zipfile.BadZipFile, OSError, EOFError, RuntimeError, NotImplementedError) as exc:
+            clash = " (a file and a directory share this path)" if _is_clash(exc) else ""
             raise ImportFailed(
-                f"cannot extract zip entry {info.filename!r}: {type(exc).__name__}"
+                f"cannot extract zip entry {info.filename!r}: {type(exc).__name__}{clash}"
             ) from None
         count += 1
     return count
@@ -267,7 +311,7 @@ def import_zip(zip_path: Path, data_dir: Path) -> int:
         _validate_entries(infos)  # nothing is written before this passes
         if not any(i.filename == "activities.csv" for i in infos):
             raise ImportFailed("not a Strava export: activities.csv is missing")
-        data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        _private_dir(data_dir)
         staging = Path(tempfile.mkdtemp(prefix=".raw-staging-", dir=data_dir))
         old: Path | None = None
         try:
@@ -296,6 +340,7 @@ def import_source(source: str, data_dir: Path) -> int:
     if "://" in source:
         hosts = allowed_hosts()
         _check_url(source, hosts)  # https/host check before touching the disk or network
+        clean_stale(data_dir)  # before the download starts: its own temp file must survive
         zip_path = download(source, data_dir, hosts)
         try:
             return import_zip(zip_path, data_dir)
@@ -305,4 +350,5 @@ def import_source(source: str, data_dir: Path) -> int:
     if not path.is_file():
         shown = "" if "?" in source else f": {source}"
         raise ImportFailed(f"zip file not found{shown}")
+    clean_stale(data_dir)
     return import_zip(path, data_dir)

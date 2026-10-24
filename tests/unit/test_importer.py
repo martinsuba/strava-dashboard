@@ -281,3 +281,100 @@ def test_url_never_in_output(
         cap = capsys.readouterr()
         assert "SECRETX" not in cap.out + cap.err
         assert "upn" not in cap.out + cap.err
+
+
+# --- T-014: hardening -----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "order", [("activities/a", "activities/a/b"), ("activities/a/b", "activities/a")]
+)
+def test_file_directory_clash_names_the_entry(tmp_path: Path, order: tuple[str, str]) -> None:
+    zpath = make_zip(
+        tmp_path / "z.zip", {"activities.csv": b"id\n", order[0]: b"1", order[1]: b"2"}
+    )
+    with pytest.raises(ImportFailed, match=r"activities/a"):
+        importer.import_zip(zpath, tmp_path / "data")
+    assert not (tmp_path / "data" / "raw").exists()
+
+
+def test_entry_count_is_capped_before_anything_is_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(importer, "MAX_ENTRIES", 2)
+    zpath = make_zip(tmp_path / "z.zip", {**GOOD, "activities/2.gpx": b"x"})
+    with pytest.raises(ImportFailed, match=r"too many entries"):
+        importer.import_zip(zpath, tmp_path / "data")
+    assert not (tmp_path / "data").exists()
+    zpath = make_zip(tmp_path / "ok.zip", GOOD)
+    assert importer.import_zip(zpath, tmp_path / "data") == 2
+
+
+def test_existing_data_dir_is_made_private(tmp_path: Path) -> None:
+    data = tmp_path / "data"
+    data.mkdir(mode=0o755)
+    data.chmod(0o755)
+    importer.import_zip(make_zip(tmp_path / "z.zip", GOOD), data)
+    assert stat.S_IMODE(data.stat().st_mode) == 0o700
+
+
+def test_stale_importer_leftovers_are_removed_on_start_and_nothing_else(tmp_path: Path) -> None:
+    data = tmp_path / "data"
+    (data / ".raw-staging-abc" / "activities").mkdir(parents=True)
+    (data / ".raw-staging-abc" / "activities" / "x").write_bytes(b"x")
+    (data / ".raw-old-xyz").mkdir()
+    (data / ".download-q1.zip.tmp").write_bytes(b"partial")
+    keep = [".download-other.txt", ".raw-staging", "raw-old-x", "segments.yaml", "cache", ".rawx"]
+    for name in keep:
+        (data / name).write_bytes(b"k")
+    (data / "other").mkdir()
+    (data / "other" / ".raw-old-inner").mkdir()
+    importer.import_source(str(make_zip(tmp_path / "z.zip", GOOD)), data)
+    left = sorted(p.name for p in data.iterdir())
+    assert left == sorted([*keep, "other", "raw"])
+    assert (data / "other" / ".raw-old-inner").is_dir()
+
+
+class _SlowResp:
+    status = 200
+
+    def __init__(self, clock: list[float]) -> None:
+        self.clock = clock
+
+    def getheader(self, name: str) -> str | None:
+        return None
+
+    def read(self, n: int) -> bytes:
+        self.clock[0] += 10.0  # every chunk "takes" ten seconds
+        return b"x" * 16
+
+
+def test_download_deadline_aborts_and_deletes_the_temp_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(importer.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(importer, "DEADLINE_S", 35.0)
+    with pytest.raises(ImportFailed, match=r"took longer than"):
+        importer._stream_to_file(_SlowResp(clock), tmp_path, "strava.com", clock[0] + 35.0)  # type: ignore[arg-type]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_download_computes_the_deadline_from_the_constant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    clock = [0.0]
+    monkeypatch.setattr(importer.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(importer, "DEADLINE_S", 25.0)
+
+    class Conn:
+        def __init__(self, *a: object, **k: object) -> None: ...
+        def request(self, *a: object, **k: object) -> None: ...
+        def close(self) -> None: ...
+        def getresponse(self) -> _SlowResp:
+            return _SlowResp(clock)
+
+    monkeypatch.setattr(importer.http.client, "HTTPSConnection", Conn)
+    with pytest.raises(ImportFailed, match=r"took longer than"):
+        importer.download("https://strava.com/a?t=SECRETX", tmp_path)
+    assert list(tmp_path.iterdir()) == []
