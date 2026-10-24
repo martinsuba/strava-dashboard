@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M2 / T-008 (base layout + design tokens + Index page): in progress. Done in M2: T-013, T-014, T-015, T-007 (#13, #14, #15, #17)
+Current task: M2 / T-009 (segment page complete): in progress. Done in M2: T-013, T-014, T-015, T-007, T-008 (#13, #14, #15, #17, #18)
 Open PRs: –
 Blockers: –
-Next step: builder on T-008, then T-009, T-010; stop at M2 end
+Next step: builder on T-009, then T-010; stop at M2 end
 
 ## Decisions log
 - 2026-10-23: project created
@@ -79,3 +79,6 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - For the M2 review (Martin decides): elapsed-time averages are skewed by long stops (southbound avg 25:56 vs typical ~16-17 min, one effort with a 1.5 h stop). Suggest: show the median instead of the mean on the Ride page ("vs average") as well.
 - GitHub Actions glitch: stuck "in_progress" runs block the per-branch concurrency group (ci.yml cancel-in-progress); fix = cancel/force-cancel the stuck run. Seen twice on 2026-10-24.
 - T-007 reviewer non-blocking: duplicate activity IDs in activities.csv -> duplicate index rows / overwritten ride file (pre-existing).
+- 2026-10-24: T-008 merged (PR #18): 1 fix round (orange back-link 13 px < 14 px rule). Public Sans self-hosted (OFL, latin-ext), no third-party requests; `#/rides` route added; Rides column "Matched".
+- For the M2 review (Martin decides): index shows h1 "Segments" and panel h2 "Segments" (per DESIGN, looks redundant).
+- Known (pre-existing, preview only): under `vite preview` a missing segment JSON returns index.html 200 -> "Could not load" instead of Not found; GitHub Pages returns a real 404.
