@@ -388,3 +388,26 @@ def test_add_segment_refuses_degenerate_reference(tmp_path: Path) -> None:
     with pytest.raises(PipelineError, match="only"):
         add_segment(data, "Tiny", "5", 1.0, 1.02)  # 20 m: shorter than two gates
     assert not (data / "segments.yaml").exists()
+
+
+def test_add_segment_rejects_control_character_name_and_keeps_file(tmp_path: Path) -> None:
+    from sdash.pipeline import add_segment
+
+    data = _add_data(tmp_path)
+    add_segment(data, "Good", "5", 0.5, 2.0)
+    before = (data / "segments.yaml").read_text()
+    with pytest.raises(PipelineError, match="control or invalid"):
+        add_segment(data, "Del\x7fhill", "5", 0.5, 2.0)
+    assert (data / "segments.yaml").read_text() == before
+
+
+def test_add_segment_empty_name_and_single_point_track(tmp_path: Path) -> None:
+    from sdash.pipeline import add_segment
+
+    data = _add_data(tmp_path)
+    with pytest.raises(PipelineError, match="new segment: name must be a non-empty"):
+        add_segment(data, "", "5", 0.5, 2.0)
+    one = Track(t=[0], lat=[-47.0], lon=[-134.0], d=[0.0])
+    data2 = _add_data(tmp_path / "two", one)
+    with pytest.raises(PipelineError, match="fewer than 2"):
+        add_segment(data2, "X", "5", 0.0, 0.1)

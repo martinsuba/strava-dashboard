@@ -52,9 +52,34 @@ STRAVA_HEADER = (
 )
 
 
+MAX_NAME_LEN = 120
+_BAD_CATEGORIES = {"Cc", "Cs", "Co", "Cn", "Zl", "Zp"}
+
+
+def _short(text: str | int, limit: int = 80) -> str:
+    """repr of `text`, cut to `limit` characters so error messages stay small."""
+    text = str(text)
+    return repr(text if len(text) <= limit else text[:limit] + "\u2026")
+
+
 def _label(entry: dict[str, Any], index: int) -> str:
     name = entry.get("name")
-    return f"segment {name!r}" if isinstance(name, str) and name.strip() else f"segment #{index}"
+    if isinstance(name, str) and name.strip():
+        return f"segment {_short(name)}"
+    return f"segment #{index}" if index else "new segment"
+
+
+def _check_name(name: object, label: str) -> str:
+    if not isinstance(name, str) or not name.strip():
+        raise SegmentError(f"{label}: name must be a non-empty text")
+    if len(name) > MAX_NAME_LEN:
+        raise SegmentError(f"{label}: name is longer than {MAX_NAME_LEN} characters")
+    for ch in name:
+        if unicodedata.category(ch) in _BAD_CATEGORIES:
+            raise SegmentError(
+                f"{label}: name contains a control or invalid character U+{ord(ch):04X}"
+            )
+    return name
 
 
 def _number(value: object) -> float | None:
@@ -90,16 +115,19 @@ def segment_from_entry(entry: object, index: int = 0) -> Segment:
         raise SegmentError(
             f"{label}: unknown field {', '.join(unknown)} (allowed: {', '.join(FIELDS)})"
         )
-    name = entry["name"]
-    if not isinstance(name, str) or not name.strip():
-        raise SegmentError(f"{label}: name must be a non-empty text")
+    name = _check_name(entry["name"], label)
     ref = entry["ref_activity"]
     if (
         isinstance(ref, bool)
         or not isinstance(ref, (int, str))
         or not re.fullmatch(r"[0-9]+", str(ref))
     ):
-        raise SegmentError(f"{label}: ref_activity {ref!r} must be an activity ID (digits only)")
+        shown = (
+            _short(ref)
+            if isinstance(ref, (str, int)) and not isinstance(ref, bool)
+            else type(ref).__name__
+        )
+        raise SegmentError(f"{label}: ref_activity {shown} must be an activity ID (digits only)")
     return Segment(
         name=name,
         slug=slugify(name),
@@ -115,11 +143,11 @@ def check_unique(segments: list[Segment]) -> None:
     slugs: dict[str, str] = {}
     for seg in segments:
         if seg.name in names:
-            raise SegmentError(f"segment {seg.name!r}: duplicate name")
+            raise SegmentError(f"segment {_short(seg.name)}: duplicate name")
         if seg.slug in slugs:
             raise SegmentError(
-                f"segment {seg.name!r}: slug {seg.slug!r} collides with segment "
-                f"{slugs[seg.slug]!r}: rename one of them"
+                f"segment {_short(seg.name)}: slug {seg.slug!r} collides with segment "
+                f"{_short(slugs[seg.slug])}: rename one of them"
             )
         names[seg.name] = seg.name
         slugs[seg.slug] = seg.name
@@ -162,10 +190,21 @@ def dump_segments(segments: list[Segment]) -> str:
 def write_segments(path: Path, segments: list[Segment]) -> None:
     """Validate, then replace `path` atomically (temp file + os.replace); old file kept on error."""
     check_unique(segments)
+    text = dump_segments(segments)
+    try:
+        again = [segment_from_entry(e, i) for i, e in enumerate(yaml.safe_load(text) or [], 1)]
+    except (yaml.YAMLError, SegmentError) as exc:
+        raise SegmentError(
+            f"{path.name}: refusing to write a file that cannot be read back: {exc}"
+        ) from exc
+    if again != segments:
+        raise SegmentError(
+            f"{path.name}: refusing to write a file that does not read back the same"
+        )
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
     try:
-        tmp.write_text(dump_segments(segments), encoding="utf-8")
+        tmp.write_text(text, encoding="utf-8")
         os.replace(tmp, path)
     finally:
         tmp.unlink(missing_ok=True)
@@ -209,8 +248,8 @@ def import_strava_csv(csv_path: Path, segments_path: Path) -> ImportReport:
                         continue
                     if seg.slug in known_slugs:
                         raise SegmentError(
-                            f"segment {seg.name!r}: slug {seg.slug!r} collides with segment "
-                            f"{known_slugs[seg.slug]!r}"
+                            f"segment {_short(seg.name)}: slug {seg.slug!r} collides with segment "
+                            f"{_short(known_slugs[seg.slug])}"
                         )
                 except SegmentError as exc:
                     invalid.append((row_no, str(exc)))

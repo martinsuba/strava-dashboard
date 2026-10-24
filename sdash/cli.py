@@ -140,7 +140,7 @@ def _cmd_segment_import_strava(data_dir: Path) -> int:
     )
     for row, reason in report.invalid:
         print(f"invalid row {row}: {reason}", file=sys.stderr)
-    return 0
+    return 1 if report.invalid and not report.added else 0
 
 
 IMPLEMENTED = {

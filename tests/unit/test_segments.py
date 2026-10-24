@@ -13,6 +13,7 @@ from sdash.segments import (
     dump_segments,
     import_strava_csv,
     load_segments,
+    segment_from_entry,
     slugify,
     write_segments,
 )
@@ -266,3 +267,73 @@ def test_import_refuses_when_existing_file_is_invalid(tmp_path: Path) -> None:
     target = _yaml(tmp_path, _entry(start=[95.0, 0.0]))
     with pytest.raises(SegmentError, match="range"):
         import_strava_csv(_csv(tmp_path, "N,6,-47.0,-134.0,-46.9,-134.0"), target)
+
+
+# --- T-006 fix round 1 -------------------------------------------------------------------------
+
+BAD_CHARS = [
+    chr(c) for c in (0x7F, 0x85, 0x9F, 0xFFFE, 0xFFFF, 0x00, 0x0A, 0x2028, 0x2029, 0xD800, 0xE000)
+]
+
+
+@pytest.mark.parametrize("ch", BAD_CHARS)
+def test_names_with_control_or_invalid_characters_are_rejected(ch: str) -> None:
+    entry = {"name": f"Del{ch}hill", "ref_activity": "1", "start": [0.0, 0.0], "end": [1.0, 1.0]}
+    with pytest.raises(SegmentError, match=r"Del.*name contains"):
+        segment_from_entry(entry)
+
+
+def test_name_length_cap_and_empty_new_segment_message() -> None:
+    entry: dict[str, object] = {
+        "name": "x" * 121,
+        "ref_activity": "1",
+        "start": [0, 0],
+        "end": [1, 1],
+    }
+    with pytest.raises(SegmentError, match="longer than 120"):
+        segment_from_entry(entry)
+    entry["name"] = "x" * 120
+    segment_from_entry(entry)
+    entry["name"] = ""
+    with pytest.raises(SegmentError, match=r"new segment: name must be a non-empty"):
+        segment_from_entry(entry)
+
+
+def test_write_refuses_text_that_does_not_round_trip(tmp_path: Path) -> None:
+    p = _yaml(tmp_path, _entry())
+    before = p.read_text()
+    bad = Segment("Del\x7fhill", "delhill", "1", (0.0, 0.0), (1.0, 1.0))
+    with pytest.raises(SegmentError, match=r"read back|cannot be read"):
+        write_segments(p, [bad])
+    assert p.read_text() == before
+
+
+def test_alias_bomb_in_ref_activity_fails_fast_with_short_message(tmp_path: Path) -> None:
+    levels = ["a: &a0 [x, x, x, x, x, x, x, x, x]"]
+    for i in range(1, 9):
+        levels.append(f"b{i}: &a{i} [" + ", ".join([f"*a{i - 1}"] * 9) + "]")
+    anchors = "\n".join("    " + line for line in levels)
+    text = (
+        '- name: "Bomb"\n  ref_activity:\n' + anchors.replace("    a:", "    a:") + "\n"
+        "  start: [0, 0]\n  end: [1, 1]\n"
+    )
+    # flow sequences nest ref_activity as a mapping of aliased lists (a type that is not int/str)
+    with pytest.raises(SegmentError) as err:
+        load_segments(_yaml(tmp_path, text))
+    assert len(str(err.value)) < 300 and "Bomb" in str(err.value)
+
+
+def test_long_strings_in_messages_are_capped(tmp_path: Path) -> None:
+    with pytest.raises(SegmentError) as err:
+        load_segments(_yaml(tmp_path, _entry(ref_activity="z" * 5000)))
+    assert len(str(err.value)) < 300
+
+
+def test_import_row_with_control_character_is_invalid_and_file_still_loads(tmp_path: Path) -> None:
+    target = _yaml(tmp_path, _entry(name="Old"))
+    csv_path = _csv(
+        tmp_path, "Del\x7fhill,6,-47.0,-134.0,-46.9,-134.0", "Fine,7,-47.0,-134.0,-46.9,-134.0"
+    )
+    report = import_strava_csv(csv_path, target)
+    assert report.added == 1 and [r for r, _ in report.invalid] == [2]
+    assert [s.name for s in load_segments(target)] == ["Old", "Fine"]

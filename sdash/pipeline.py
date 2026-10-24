@@ -264,7 +264,9 @@ def add_segment(
         track = _ride_track(data_dir, activity_id)
     except ValueError as exc:
         raise PipelineError(str(exc)) from exc
-    total_km = track.d[-1] / 1000 if track.d else 0.0
+    if len(track.d) < 2:
+        raise PipelineError(f"activity {activity_id} has fewer than 2 track points")
+    total_km = track.d[-1] / 1000
     if to_km * 1000 > track.d[-1] + 1e-6:
         raise PipelineError(
             f"--to-km {to_km} is beyond the end of activity {activity_id} ({total_km:.3f} km)"
