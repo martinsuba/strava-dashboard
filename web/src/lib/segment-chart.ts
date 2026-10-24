@@ -1,0 +1,139 @@
+// "Time by date" scatter chart (docs/DESIGN.md "Segment page"). Chart.js with only the parts used:
+// scatter controller, two linear scales, points, tooltip. x = epoch ms (year ticks formatted here,
+// so no date adapter), y = elapsed seconds, reversed so that faster is higher.
+import {
+  Chart,
+  LinearScale,
+  PointElement,
+  ScatterController,
+  Tooltip,
+  type Plugin,
+} from "chart.js";
+import { formatDate, formatDuration } from "./format";
+import { chartLabel, type ChartModel, type Effort } from "./segment-data";
+
+Chart.register(ScatterController, LinearScale, PointElement, Tooltip);
+
+const ORANGE = "#FC4C02";
+const EFFORT = "#8A8A96";
+const MUTED = "#5E5E6A";
+const GRID = "#ECECF2";
+const AXIS = "#C4C4CF";
+const FONT = '"Public Sans", system-ui, sans-serif';
+
+let current: Chart | null = null;
+
+export function disposeSegmentChart(): void {
+  current?.destroy();
+  current = null;
+}
+
+/** Draws "PR m:ss" next to the PR point (right of it, or left when it is near the right edge). */
+function prLabelPlugin(model: ChartModel): Plugin<"scatter"> {
+  return {
+    id: "prLabel",
+    afterDatasetsDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      const x = scales["x"]?.getPixelForValue(model.pr.x);
+      const y = scales["y"]?.getPixelForValue(model.pr.y);
+      if (x === undefined || y === undefined) return;
+      const left = x > chartArea.left + (chartArea.right - chartArea.left) * 0.75;
+      ctx.save();
+      ctx.fillStyle = ORANGE;
+      ctx.font = `600 13px ${FONT}`;
+      ctx.textBaseline = "middle";
+      ctx.textAlign = left ? "right" : "left";
+      ctx.fillText(`PR ${formatDuration(model.pr.y)}`, x + (left ? -14 : 14), y);
+      ctx.restore();
+    },
+  };
+}
+
+export function mountSegmentChart(
+  canvas: HTMLCanvasElement,
+  model: ChartModel,
+  efforts: Effort[],
+): void {
+  disposeSegmentChart();
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute("aria-label", chartLabel(efforts));
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const tick = { color: MUTED, font: { family: FONT, size: 11 } };
+  current = new Chart(canvas, {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          label: "Efforts",
+          data: model.efforts,
+          backgroundColor: EFFORT,
+          borderWidth: 0,
+          pointRadius: 4.5,
+          pointHoverRadius: 6,
+        },
+        {
+          label: "PR",
+          data: [model.pr],
+          backgroundColor: ORANGE,
+          borderColor: "#FFFFFF",
+          borderWidth: 3,
+          pointRadius: 8,
+          pointHoverRadius: 9,
+          pointHoverBorderWidth: 3,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: reduced ? false : { duration: 300 },
+      layout: { padding: { right: 12, top: 8 } },
+      scales: {
+        x: {
+          type: "linear",
+          min: model.xMin,
+          max: model.xMax,
+          border: { color: AXIS },
+          grid: { display: false },
+          afterBuildTicks(scale) {
+            scale.ticks = model.years.map((y) => ({ value: Date.UTC(y, 0, 1), label: String(y) }));
+          },
+          ticks: {
+            ...tick,
+            maxRotation: 0,
+            autoSkip: true,
+            callback: (v) => String(new Date(Number(v)).getUTCFullYear()),
+          },
+        },
+        y: {
+          type: "linear",
+          reverse: true,
+          min: model.yMin,
+          max: model.yMax,
+          border: { color: AXIS },
+          grid: { color: GRID },
+          ticks: {
+            ...tick,
+            stepSize: model.yStep,
+            callback: (v) => formatDuration(Number(v)),
+          },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          displayColors: false,
+          callbacks: {
+            title: (items) => (items[0] ? formatDate((items[0].parsed.x ?? 0) / 1000) : ""),
+            label: (item) => {
+              const p = item.raw as { y: number; ride: string };
+              return `${formatDuration(p.y)} · ${p.ride}`;
+            },
+          },
+        },
+      },
+    },
+    plugins: [prLabelPlugin(model)],
+  });
+  void document.fonts?.ready?.then(() => current?.update("none"));
+}
