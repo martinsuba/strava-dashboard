@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDuration, formatKm } from "./format";
+import { formatDate, formatDateTime, formatDuration, formatKm } from "./format";
 
 describe("formatDuration", () => {
   it("uses m:ss under an hour", () => {
@@ -39,5 +39,16 @@ describe("formatKm", () => {
     expect(formatKm(42.6)).toBe("42.6");
     expect(formatKm(18)).toBe("18.0");
     expect(formatKm(88.349)).toBe("88.3");
+  });
+});
+
+describe("formatDateTime", () => {
+  it("shows Europe/Bratislava wall time with weekday", () => {
+    expect(formatDateTime("2026-10-18T15:05:00Z")).toBe("Sun 18 Oct 2026, 17:05");
+    expect(formatDateTime("2026-01-07T22:30:00Z")).toBe("Wed 7 Jan 2026, 23:30");
+  });
+
+  it("rolls over to the next local day", () => {
+    expect(formatDateTime("2026-06-07T22:30:00Z")).toBe("Mon 8 Jun 2026, 00:30");
   });
 });

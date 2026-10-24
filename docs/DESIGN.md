@@ -52,7 +52,7 @@ say "PR" in text.
 5. Empty state: "No efforts on this segment yet." in place of chart and tables.
 
 ### Ride page (`#/ride/<id>`), see `docs/design/ride-page.dc.html`
-1. Back link "← All rides", h1 ride name, meta "Sat 18 Oct 2026, 17:05 · <gear>". All dates and times are shown in
+1. Back link "← All rides", h1 ride name, meta "Sun 18 Oct 2026, 17:05 · <gear>". All dates and times are shown in
    Europe/Bratislava time (D-007), never the viewer's zone.
 2. Summary strip: Distance · Moving time · Elapsed time · Segments (with "N new PR" in orange when > 0).
 3. Panel **Segments on this ride**, one row per effort: Segment (link, "NEW PR" chip if PR at the time) · Today ·

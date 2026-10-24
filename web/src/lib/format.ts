@@ -30,3 +30,19 @@ export function formatDate(when: string | number): string {
 export function formatKm(km: number): string {
   return km.toFixed(1);
 }
+
+const WEEKDAY_TIME = new Intl.DateTimeFormat("en-GB", {
+  timeZone: DISPLAY_TIME_ZONE,
+  weekday: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** UTC ISO 8601 timestamp as "Sun 18 Oct 2026, 17:05" in Europe/Bratislava, whatever the viewer's zone. */
+export function formatDateTime(when: string): string {
+  const parts = Object.fromEntries(
+    WEEKDAY_TIME.formatToParts(new Date(when)).map((p) => [p.type, p.value]),
+  );
+  return `${parts["weekday"]} ${formatDate(when)}, ${parts["hour"]}:${parts["minute"]}`;
+}

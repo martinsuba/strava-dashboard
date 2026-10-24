@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseRoute, rideHref, segmentHref } from "./router";
+import { isCurrentRoute, parseRoute, rideHref, segmentHref } from "./router";
 
 describe("parseRoute", () => {
   it("maps empty and root hashes to the index", () => {
@@ -32,5 +32,28 @@ describe("parseRoute", () => {
       slug: "lakeside-flat",
     });
     expect(parseRoute(rideHref("42"))).toEqual({ page: "ride", id: "42" });
+  });
+});
+
+describe("isCurrentRoute", () => {
+  it("accepts the same ride with trailing slash or percent-encoding", () => {
+    const ride = { page: "ride", id: "3000000106" } as const;
+    expect(isCurrentRoute("#/ride/3000000106", ride)).toBe(true);
+    expect(isCurrentRoute("#/ride/3000000106/", ride)).toBe(true);
+    expect(isCurrentRoute("#/ride/%33000000106", ride)).toBe(true);
+  });
+
+  it("accepts the same segment with a trailing slash", () => {
+    expect(isCurrentRoute("#/segment/hill-road/", { page: "segment", slug: "hill-road" })).toBe(
+      true,
+    );
+  });
+
+  it("rejects another page or another id", () => {
+    const ride = { page: "ride", id: "1" } as const;
+    expect(isCurrentRoute("#/ride/2", ride)).toBe(false);
+    expect(isCurrentRoute("#/segment/s", ride)).toBe(false);
+    expect(isCurrentRoute("#/", ride)).toBe(false);
+    expect(isCurrentRoute("#/ride/1", { page: "segment", slug: "s" })).toBe(false);
   });
 });

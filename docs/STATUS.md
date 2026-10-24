@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M2 / T-009 (segment page): in progress (builder resumed). Done in M2: T-013, T-014, T-015, T-007, T-008
+Current task: M2 / T-010 (ride page, last M2 task): in progress. Done in M2: T-013, T-014, T-015, T-007, T-008, T-009 (#13, #14, #15, #17, #18, #19)
 Open PRs: –
 Blockers: –
-Next step: T-009 builder finishes -> review/test-review/merge; then T-010; then M2 milestone PR
+Next step: builder on T-010; then M2 milestone PR (review, screenshots, mutation, TESTS/PLAN ticks) and stop for Martin
 
 ## Decisions log
 - 2026-10-23: project created
@@ -84,3 +84,5 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - Known (pre-existing, preview only): under `vite preview` a missing segment JSON returns index.html 200 -> "Could not load" instead of Not found; GitHub Pages returns a real 404.
 - 2026-10-24: paused by Martin (tokens nearly used up). T-009 builder stopped mid-task; its working-tree changes (if any) are left uncommitted on task/T-009-segment-page, not reviewed.
 - 2026-10-24: resumed (Martin: "continue"); T-009 builder resumed on its uncommitted work.
+- 2026-10-24: T-009 merged (PR #19): 2 fix rounds (CI: chart destroyed right after drawing by a late lazy-import dispose -> synchronous per-route cleanup; then reviewer non-blocking items incl. 13 px orange chart label). Chart.js lazy-loaded (main 5.3 kB gz, chart chunk 50.5 kB gz).
+- T-009 follow-ups (non-blocking): at exactly 375 px the efforts table still scrolls ~23 px inside its box; mobile ride names truncated to 80 px (Martin to judge at M2 review); cleanup.test.ts "does nothing without hooks" case is vacuous.

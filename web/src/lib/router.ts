@@ -37,3 +37,15 @@ export function segmentHref(slug: string): string {
 export function rideHref(id: string): string {
   return `#/ride/${encodeURIComponent(id)}`;
 }
+
+/** True while `hash` still routes to the page being rendered (trailing slash / percent-encoding safe). */
+export function isCurrentRoute(
+  hash: string,
+  expected: { page: "segment"; slug: string } | { page: "ride"; id: string },
+): boolean {
+  const route = parseRoute(hash);
+  if (route.page !== expected.page) return false;
+  return route.page === "segment"
+    ? expected.page === "segment" && route.slug === expected.slug
+    : route.page === "ride" && expected.page === "ride" && route.id === expected.id;
+}
