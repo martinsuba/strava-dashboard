@@ -156,10 +156,6 @@ def _csv_ride(
     return Ride(act, _track(), fmt="gpx")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="REQ-002 activities.csv reading not implemented (T-002/T-003, needs rides/<id>.json from T-007)",
-)
 def test_req002_activities_csv_dates_and_duplicate_columns(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path
 ) -> None:
