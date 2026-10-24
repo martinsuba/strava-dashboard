@@ -82,6 +82,21 @@ def test_req004_out_and_back_not_zero_length(sdash, data_dir, tmp_path) -> None:
     assert found[0]["distance_m"] > 1500
 
 
+def test_req004_out_and_back_reference_that_jitters_at_the_gate(sdash, data_dir, tmp_path) -> None:
+    """Real-data case (Plan v3): the reference starts inside the gate and leaves/re-enters it within
+    seconds (second gate pass ~37 m later). That tiny pair is skipped; the next end pass (back at
+    the gate after the 2 km out-and-back) defines the segment."""
+    seg = sc.segment(start=sc.A, end=sc.A)
+    jitter = [sc.A, (32, 0), (32, 1), (28, 0), (28, 1000), (28, 0)]
+    ref = sc.ride(sc.REF_ID, jitter, name="Synthetic jittery reference", spacing_m=1.0)
+    efforts = _match(sdash, data_dir, tmp_path, [ref, sc.out_and_back_ride()], seg)
+    found = efforts.get(TEST_RIDE, [])
+    assert len(found) == 1, found
+    assert abs(found[0]["elapsed_s"] - 400) <= 10, "matched the jitter, not the out-and-back"
+    assert found[0]["distance_m"] > 1500
+    assert len(efforts.get(sc.REF_ID, [])) == 1, "the reference ride itself matches once (sanity)"
+
+
 def test_req004_non_ride_reference_activity_used(sdash, data_dir, tmp_path) -> None:
     ride = sc.ride(TEST_RIDE, [(0, -500), (0, 2500)], day=1)
     efforts = _match(sdash, data_dir, tmp_path, [sc.hike_reference(), ride], sc.segment())

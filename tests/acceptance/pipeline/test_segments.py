@@ -81,6 +81,70 @@ def test_req003_invalid_segment_fails_naming_segment_and_problem(
     assert re.search(PROBLEM_WORDS[kind], result.output, re.IGNORECASE), result.output
 
 
+def _built_slugs(out: Path) -> set[str]:
+    return {p.name.removesuffix(".json") for p in (out / "segments").glob("*.json")}
+
+
+@pytest.mark.parametrize("kind", KINDS)
+def test_req003_bad_segment_is_skipped_and_the_good_one_is_built_exit_2(
+    sdash: SdashRunner, data_dir: Path, tmp_path: Path, kind: str
+) -> None:
+    """Plan v3: a segment-level problem is a warning (exit 2); every valid segment is built."""
+    write_raw(data_dir, [sc.reference_ride()])
+    (data_dir / "segments.yaml").write_text(segments_yaml(_broken(kind)))
+    sdash("parse").ok()
+    matched = sdash("match")
+    assert matched.returncode == 2, f"match: expected exit 2 ({kind}):\n{matched.output}"
+    assert "Good segment" in matched.stdout, "the valid segment must still be matched"
+    assert "Broken segment" in matched.output and re.search(
+        PROBLEM_WORDS[kind], matched.output, re.IGNORECASE
+    ), matched.output
+
+    out = tmp_path / "site-data"
+    built = sdash("build-data", "--out", out)
+    assert built.returncode == 2, f"build-data: expected exit 2 ({kind}):\n{built.output}"
+    assert "Broken segment" in built.output, built.output
+    # the second "Broken segment" of the duplicate-name case is skipped, the first one is kept
+    expected = {"good-segment", "broken-segment"} if kind == "duplicate-name" else {"good-segment"}
+    assert _built_slugs(out) == expected
+    names = [s["name"] for s in load_json(out / "index.json")["segments"]]
+    assert sorted(names) == sorted(
+        ["Good segment", "Broken segment"] if kind == "duplicate-name" else ["Good segment"]
+    )
+
+
+def test_req003_segment_with_unusable_reference_is_skipped_exit_2(
+    sdash: SdashRunner, data_dir: Path, tmp_path: Path
+) -> None:
+    write_raw(data_dir, [sc.reference_ride()])
+    no_ref = sc.segment(name="Broken segment", ref="1000000099")  # not in activities.csv
+    (data_dir / "segments.yaml").write_text(
+        segments_yaml([no_ref, sc.segment(name="Good segment")])
+    )
+    sdash("parse").ok()
+    result = sdash("match")
+    assert result.returncode == 2, result.output
+    assert "Good segment: 1 efforts" in result.stdout, result.output
+    assert re.search(r"Broken segment.*reference", result.output, re.IGNORECASE), result.output
+    out = tmp_path / "site-data"
+    assert sdash("build-data", "--out", out).returncode == 2
+    assert _built_slugs(out) == {"good-segment"}
+
+
+def test_req003_unreadable_segments_yaml_is_a_hard_failure_exit_1(
+    sdash: SdashRunner, data_dir: Path, tmp_path: Path
+) -> None:
+    write_raw(data_dir, [sc.reference_ride()])
+    (data_dir / "segments.yaml").write_text("- name: [unclosed\n  ref_activity: ???\n")
+    sdash("parse").ok()
+    out = tmp_path / "site-data"
+    for args in (("match",), ("build-data", "--out", out)):
+        result = sdash(*args)
+        assert result.returncode == 1, f"{args[0]}: expected exit 1:\n{result.output}"
+        assert "segments.yaml" in result.stderr, result.output
+    assert not _built_slugs(out), "nothing may be built from an unreadable segments.yaml"
+
+
 def test_req003_segment_add_from_ride_and_km(sdash: SdashRunner, data_dir: Path) -> None:
     ride = sc.ride("1000000061", [(0, 0), (0, 5000)], spacing_m=10.0)
     write_raw(data_dir, [sc.reference_ride(), ride])

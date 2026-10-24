@@ -105,24 +105,78 @@ def test_req009_no_deploy_stops_after_local_build(
     assert site_repo.remote_branches() == {"main"}, "--no-deploy pushed something"
 
 
-@pytest.mark.parametrize("failure", ["invalid-segments", "broken-zip", "site-build-fails"])
+@pytest.mark.parametrize("failure", ["unreadable-yaml", "broken-zip", "site-build-fails"])
 @pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req009_any_failed_step_deploys_nothing(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path, site_repo: SiteRepo, failure: str
 ) -> None:
-    segs = [sc.segment()]
     source = _zip(tmp_path)
-    if failure == "invalid-segments":
-        segs = [sc.segment(), sc.segment()]  # duplicate name
+    yaml_text = segments_yaml([sc.segment()])
+    if failure == "unreadable-yaml":  # a segment-level problem is only a warning; this is not
+        yaml_text = "- name: [unclosed\n  ref_activity: ???\n"
     elif failure == "broken-zip":
         source.write_bytes(b"this is not a zip archive")
     elif failure == "site-build-fails":
         (site_repo.web / "src" / "main.ts").write_text("export const broken = ;\n")
-    (data_dir / "segments.yaml").write_text(segments_yaml(segs))
+    (data_dir / "segments.yaml").write_text(yaml_text)
     result = sdash("refresh", source, "--web-dir", site_repo.web, "--remote", site_repo.remote)
     assert result.returncode != 0, f"refresh succeeded despite {failure}"
     assert "not implemented" not in result.output
     assert site_repo.remote_branches() == {"main"}, f"deployed despite {failure}"
+
+
+def _bad_and_good_segments() -> list[dict]:
+    return [sc.segment(name="Broken segment", ref="1000000099"), sc.segment()]  # no such reference
+
+
+@pytest.mark.xfail(strict=True, reason=NOT_DONE)
+def test_req009_invalid_segment_exits_2_and_still_deploys_the_valid_one(
+    sdash: SdashRunner, data_dir: Path, tmp_path: Path, site_repo: SiteRepo
+) -> None:
+    """Plan v3: a segment-level problem is a warning (exit 2); the rest is built and deployed."""
+    (data_dir / "segments.yaml").write_text(segments_yaml(_bad_and_good_segments()))
+    result = sdash(
+        "refresh", _zip(tmp_path), "--web-dir", site_repo.web, "--remote", site_repo.remote
+    )
+    assert result.returncode == 2, f"expected exit 2:\n{result.output}"
+    assert "not implemented" not in result.output
+    assert any(
+        "Broken segment" in ln and "reference" in ln.lower() for ln in result.output.splitlines()
+    ), f"the warning must name the segment and the problem:\n{result.output}"
+    assert "gh-pages" in site_repo.remote_branches(), "valid segments must still be deployed"
+    files = site_repo.remote_files("gh-pages")
+    assert "data/segments/synthetic-climb.json" in files, files
+    assert not any("broken-segment" in f for f in files), files
+
+
+def test_req009_invalid_segment_exits_2_and_builds_the_valid_one(
+    sdash: SdashRunner, data_dir: Path, site_repo: SiteRepo
+) -> None:
+    """Same rule without deploying (works before deploy lands): exit 2, valid segment built."""
+    write_raw(data_dir, _rides())
+    (data_dir / "segments.yaml").write_text(segments_yaml(_bad_and_good_segments()))
+    result = sdash("refresh", "--no-deploy", "--web-dir", site_repo.web)
+    assert result.returncode == 2, f"expected exit 2:\n{result.output}"
+    assert any(
+        "Broken segment" in ln and "reference" in ln.lower() for ln in result.output.splitlines()
+    ), f"the warning must name the segment and the problem:\n{result.output}"
+    dist_data = site_repo.web / "dist" / "data"
+    assert (dist_data / "segments" / "synthetic-climb.json").is_file()
+    assert not (dist_data / "segments" / "broken-segment.json").exists()
+    index = load_json(dist_data / "index.json")
+    assert [s["name"] for s in index["segments"]] == [sc.SEGMENT_NAME]
+    assert (site_repo.web / "dist" / "index.html").is_file()
+
+
+def test_req009_unreadable_segments_yaml_fails_with_exit_1_and_builds_nothing(
+    sdash: SdashRunner, data_dir: Path, site_repo: SiteRepo
+) -> None:
+    write_raw(data_dir, _rides())
+    (data_dir / "segments.yaml").write_text("- name: [unclosed\n  ref_activity: ???\n")
+    result = sdash("refresh", "--no-deploy", "--web-dir", site_repo.web)
+    assert result.returncode == 1, f"expected exit 1:\n{result.output}"
+    assert "segments.yaml" in result.stderr
+    assert not (site_repo.web / "dist" / "index.html").exists(), "nothing may be built"
 
 
 @pytest.mark.xfail(strict=True, reason=NOT_DONE)
