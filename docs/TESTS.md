@@ -104,7 +104,9 @@ test-reviewer (or a plan PR), not silently in code.
   `segments/<slug>.json` carry at least `activity_id`, `start_t`, `elapsed_s`, `distance_m` (Effort model).
   Slug: lowercase ASCII words joined by `-` (`River path north` → `river-path-north`), independent of other segments.
 - `sdash segment add --name N --activity ID --from-km A --to-km B` appends to `segments.yaml` with
-  `ref_activity`, `start`/`end` = `[lat, lon]` at those distances (±15 m). `sdash segment import-strava` appends the
+  `ref_activity`, `start`/`end` = `[lat, lon]` at those distances (±15 m). The range must be at least 60 m (2 x the 30 m gate): a shorter one is
+  refused with its actual length, because start and end passes less than 60 m of ridden distance apart are never
+  matched (segment or effort). `sdash segment import-strava` appends the
   rows of `DIR/raw/segments.csv` whose names are new, in file order. Invalid rows are reported on stderr with the
   row number and skipped; exit 0 if any row was added or all were existing, non-zero if some rows were invalid and
   nothing was added.
