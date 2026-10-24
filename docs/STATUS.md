@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M1 / T-006 (segment file validation, segment add, segment import-strava): in progress. Done: T-001 (#5), T-002 (#6), T-003 (#7), T-004 (#8), T-005 (#9)
-Open PRs: –
+Current task: M1 done (T-001…T-006 merged: PRs #5–#10). Milestone PR open, waiting for Martin's review
+Open PRs: M1 milestone PR (chore/milestone-M1, Martin merges)
 Blockers: –
-Next step: builder on T-006 (last M1 task); then M1 milestone PR for Martin
+Next step: Martin reviews + merges the M1 PR; decide on Plan v3 (real-data fix tasks, see M1 findings); then "go M2"
 
 ## Decisions log
 - 2026-10-23: project created
@@ -43,9 +43,19 @@ Next step: builder on T-006 (last M1 task); then M1 milestone PR for Martin
 - Milestone PR todo: TESTS.md status column (16 tests now passing after T-002), PLAN.md ticks.
 - 2026-10-23: paused on Martin's note "approaching claude limit". Task loop stopped mid-T-003.
 - 2026-10-24: resumed (Martin: "continue").
+- 2026-10-24: T-006 merged (PR #10): 1 fix round (control chars in names broke segments.yaml; YAML alias bomb via error repr -> fixed). M1 complete.
+- 2026-10-24: M1 real-data check by Lead (private dir ~/data/m1-check, raw symlinked, nothing committed): parse 661/662 rides (1 TCX fails), match 7 s; one-way Prague segments 26 + 26 efforts (prototype 26 + 32: prototype double-counted 7 out-and-back rides at the turnaround; new matcher correct and finds 1 more). Found 4 real-data bugs (below).
 - 2026-10-24: T-005 merged (PR #9): 1 fix round (reviewer found lost laps when start == end and wrong reference length when ref passes start twice -> fixed; matcher 2x faster).
 - 2026-10-24: T-004 merged (PR #8): 0 fix rounds; reviewer ran 89 hostile zip/URL cases, all handled.
 - 2026-10-24: T-003 merged (PR #7): 1 fix round (reviewer fuzzing found malformed-FIT crash -> fixed; 5000-mutation re-fuzz clean). Test-reviewer approved marker removals.
+
+## M1 real-data findings (proposed Plan v3 tasks, need Martin)
+1. activities.csv numbers with thousands separators (`2,496`, Distance of Swim/Rowing rows) make read_activities fail for non-cycling rows; reference_only_activities swallows the error -> non-ride reference tracks (e.g. the Sitno hike) are silently never parsed.
+2. Out-and-back segment (start == end, "Trojský most - Přívoz Klecánky otočka"): GPS jitter at the gate pairs passes 7 m apart -> degenerate-reference error. Reference pairing must skip too-short pairs and try the next end pass.
+3. One invalid segment makes `match`/`build-data` fail for ALL segments (no site data at all). Should report the bad segment and still process the others (needs a PRD/TESTS decision: exit code).
+4. TCX with text before the XML declaration (Strava's own TCX export) fails to parse (1 ride).
+5. Mutation workflow is broken: 488 mutants all "not checked" (deprecated mutmut config keys); green but empty. Needs a workflow task (Martin's label).
+Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-digit int in YAML -> traceback). CI Playwright-install slowness needs a workflow task (Martin's label).
 
 ## Follow-ups (open)
 - T-005 reviewer non-blocking: `is_reference = act in extra` -> set of IDs (pipeline.py); test_pipeline imports private `_reference`. Matcher bench (synthetic worst case 660 rides × 4000 pts × 5 segments): 43 s, 444 MB.
