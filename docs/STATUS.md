@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M2 / T-015 (CI: mutation workflow + Playwright install time): in progress. Done in M2: T-013 (#13), T-014 (#14)
+Current task: M2 / T-007 (site data complete): in progress. Done in M2: T-013 (#13), T-014 (#14), T-015 (#15)
 Open PRs: –
 Blockers: –
-Next step: builder on T-015 (workflow change -> test-reviewer), then T-007…T-010; stop at M2 end
+Next step: builder on T-007, then T-008, T-009, T-010; stop at M2 end
 
 ## Decisions log
 - 2026-10-23: project created
@@ -72,3 +72,6 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - Cleanup for Martin: reviewer worktree scratchpad/rev13 could not be removed by the reviewer (permission check); not removed by Lead either (agent denial).
 - 2026-10-24: T-014 merged (PR #14): 1 fix round (download deadline didn't stop a slow-drip server -> watchdog closes the socket at the deadline; import lock via flock on the data dir).
 - T-014 reviewer non-blocking: download that ends early but short of Content-Length is accepted (zip check usually rejects it; cheap Content-Length compare); _import_lock creates an empty data dir before validation.
+- 2026-10-24: T-015 merged (PR #15): 1 fix round (0-checked guard was masked by a pipe to tee). Mutation in CI now real: 498 mutants, 405 killed, 91 survived, 2 timeout = 81.7 % (run via throw-away PR #16, closed unmerged, branch kept). Cold Playwright install ~9 s (was up to 11 min).
+- T-015 non-blocking: `env.ImageOS` in the Playwright cache key resolves empty (key playwright-Linux-X64--1.64.1); write $ImageOS to a step output if image-specific caching matters. CI run 40112747910 attempt 2 stuck "in_progress" on GitHub's side (cannot cancel; harmless). mutmut locally OOMs on the 4 GB VPS at default parallelism (CI only).
+- For T-011: refresh must deploy on exit status 0 or 2 (T-013); un-xfail test_req009_invalid_segment_exits_2_and_still_deploys_the_valid_one; consider (explicitly allowed) tightening test_req003_unreadable_segments_yaml_is_a_hard_failure_exit_1 with `not out.exists()`; Content-Length check in importer (T-014 reviewer).

@@ -40,7 +40,6 @@ def _setup(data_dir: Path) -> None:
     (data_dir / "segments.yaml").write_text(segments_yaml([sc.segment()]))
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-005 not implemented (T-002 partial, T-007)")
 def test_req005_site_data_has_lists_and_effort_data(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path
 ) -> None:

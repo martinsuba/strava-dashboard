@@ -152,7 +152,7 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `test_parse.py::test_req002_each_format_yields_track[gpx.gz, fit, fit.gz, tcx.gz]` (4) | T-003 | passing |
 | | `test_parse.py::test_req002_unparseable_file_reported_run_continues` | T-003 | passing |
 | | `test_parse.py::test_req002_unchanged_ride_read_from_cache`, `test_req002_changed_ride_is_parsed_again` | T-003 | passing |
-| | `test_parse.py::test_req002_activities_csv_dates_and_duplicate_columns` (needs `rides/<id>.json`) | T-003/T-007 | xfail |
+| | `test_parse.py::test_req002_activities_csv_dates_and_duplicate_columns` (needs `rides/<id>.json`) | T-003/T-007 | passing |
 | | `test_parse.py::test_req002_thousands_separator_row_does_not_break_reading_or_references`, `test_req002_tcx_with_text_before_the_xml_declaration` (3) | T-013 | passing |
 | REQ-003 segments | `test_segments.py::test_req003_slug_derived_from_name_and_stable` | T-002 | passing |
 | | `test_segments.py::test_req003_invalid_segment_fails_naming_segment_and_problem[missing-field, latitude-out-of-range, longitude-out-of-range, duplicate-name]` (4) | T-006 | passing |
@@ -172,7 +172,7 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `test_match.py::test_req004_out_and_back_reference_that_jitters_at_the_gate` | T-013 | passing |
 | | `test_match.py::test_req004_non_ride_reference_activity_used` | T-005 | passing |
 | REQ-005 site data | `test_sitedata.py::test_req005_site_data_has_no_coordinates_or_raw_tracks` | T-002 | passing |
-| | `test_sitedata.py::test_req005_site_data_has_lists_and_effort_data` | T-007 | xfail |
+| | `test_sitedata.py::test_req005_site_data_has_lists_and_effort_data` | T-007 | passing |
 | | `test_sitedata.py::test_req005_build_twice_is_byte_identical` | T-007 | passing |
 | REQ-006 index | `index.spec.ts` "REQ-006: segment list shows name, effort count, PR time and PR date" | T-008 | fixme |
 | | `index.spec.ts` "REQ-006: ride list shows rides newest first with date, name, distance, segments matched" | T-008 | fixme |
