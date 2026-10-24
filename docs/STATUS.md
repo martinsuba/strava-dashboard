@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M1 done (T-001…T-006, PRs #5–#10); M1 milestone PR #11 merged by Martin. Plan v3 PR open
-Open PRs: Plan v3 (plan/3, Martin merges)
+Current task: M2 / T-013 (real-data fixes from the M1 check): in progress
+Open PRs: –
 Blockers: –
-Next step: Martin merges Plan v3 -> Lead shows M2 list (T-013, T-014, T-015, T-007…T-010) -> "go M2"
+Next step: builder on T-013, then T-014, T-015, T-007…T-010; stop at M2 end for Martin's review
 
 ## Decisions log
 - 2026-10-23: project created
@@ -66,3 +66,4 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-24: Martin: a bad segment must not stop the build: report it and still build the rest -> Plan v3 (REQ-003/009 criteria, exit code 2, refresh still deploys).
 - 2026-10-24: M1 PR #11 screenshots did not render (relative image links in a PR body). Fixed with absolute raw.githubusercontent.com links pinned to the commit, verified via body_html. Root cause in ~/.claude/skills/next-task/SKILL.md fixed (absolute links + verify step). Martin reported it as the second time.
 - 2026-10-24: M1 milestone PR #11 merged by Martin.
+- 2026-10-24: Plan v3 merged (PR #12). Martin: "go M2".

@@ -37,3 +37,4 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-24 | M1 review | reported that milestone PR screenshots don't show (second time) | y: Lead should verify rendered images before reporting; root cause = relative links in next-task skill, fixed in skill + PR
 2026-10-24 | M1 review | decided: one bad segment -> still build the rest and report it | n: owner decision
 2026-10-24 | M1 gate | merged M1 milestone PR #11, asked for Plan v3 | n: gate decision
+2026-10-24 | M2 gate | merged Plan v3 (PR #12), said "go M2" | n: gate decision
