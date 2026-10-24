@@ -1,0 +1,26 @@
+/* Design tokens: docs/DESIGN.md "Tokens" (A2 Logbook, Strava orange). Light only. */
+:root {
+  --bg: #f7f7fa;
+  --surface: #ffffff;
+  --ink: #242428;
+  --muted: #5e5e6a;
+  --line: #dfdfe8;
+  --line-soft: #f0f0f5;
+  --grid: #ececf2;
+  --control-line: #c4c4cf;
+  --orange: #fc4c02;
+  --orange-hover: #d63f00;
+  --effort: #8a8a96;
+  --rank2: #242428;
+  --rank3: #8a8a96;
+
+  --column: 1120px;
+  --gutter: 24px;
+  --font: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (max-width: 479px) {
+  :root {
+    --gutter: 16px;
+  }
+}

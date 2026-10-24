@@ -7,6 +7,10 @@ describe("parseRoute", () => {
     expect(parseRoute("#/")).toEqual({ page: "index" });
   });
 
+  it("maps the rides shortcut", () => {
+    expect(parseRoute("#/rides")).toEqual({ page: "rides" });
+  });
+
   it("maps segment and ride routes", () => {
     expect(parseRoute("#/segment/hill-road-climb")).toEqual({
       page: "segment",

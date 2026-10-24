@@ -25,3 +25,8 @@ export function formatDate(when: string | number): string {
   const month = parts["month"] === "Sept" ? "Sep" : parts["month"];
   return `${parts["day"]} ${month} ${parts["year"]}`;
 }
+
+/** Distance in km with one decimal ("42.6"). */
+export function formatKm(km: number): string {
+  return km.toFixed(1);
+}
