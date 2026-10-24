@@ -10,7 +10,7 @@ import gzip
 import io
 import json
 import math
-import struct
+import os
 import warnings
 import zlib
 from dataclasses import dataclass
@@ -71,6 +71,8 @@ class _Builder:
         self.d: list[float] = []
 
     def add(self, t: float, lat: float, lon: float) -> None:
+        if not (math.isfinite(lat) and math.isfinite(lon) and abs(lat) <= 90 and abs(lon) <= 180):
+            return  # not a real position: skipped
         dist = self.d[-1] if self.d else 0.0
         if self.lat:
             dist += haversine_m(self.lat[-1], self.lon[-1], lat, lon)
@@ -92,9 +94,10 @@ def _parse_gpx(data: bytes, name: str) -> Track:
     for track in gpx.tracks:
         for segment in track.segments:
             for p in segment.points:
-                if p.time is None:
+                if p.time is None or p.latitude is None or p.longitude is None:
                     continue
-                b.add(p.time.timestamp(), p.latitude, p.longitude)
+                when = p.time if p.time.tzinfo is not None else p.time.replace(tzinfo=UTC)
+                b.add(when.timestamp(), float(p.latitude), float(p.longitude))
     return b.track()
 
 
@@ -102,9 +105,20 @@ def _local(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
+def _refuse_dtd(data: bytes, name: str) -> None:
+    """Refuse DOCTYPE/ENTITY declarations in any encoding (UTF-8, UTF-16/32, BOM or not)."""
+    texts = [data.decode("utf-8", errors="ignore")]
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff") or b"\x00" in data[:8]:
+        for enc in ("utf-16", "utf-16-le", "utf-16-be", "utf-32"):
+            texts.append(data.decode(enc, errors="ignore"))
+    for text in texts:
+        low = text.lower()
+        if "<!doctype" in low or "<!entity" in low:
+            raise ValueError(f"cannot read TCX {name}: DTD/entity declarations are not allowed")
+
+
 def _parse_tcx(data: bytes, name: str) -> Track:
-    if b"<!DOCTYPE" in data[:4096].upper() or b"<!ENTITY" in data.upper():
-        raise ValueError(f"cannot read TCX {name}: DTD/entity declarations are not allowed")
+    _refuse_dtd(data, name)
     b = _Builder()
     try:
         for _, el in ElementTree.iterparse(io.BytesIO(data)):
@@ -133,6 +147,12 @@ def _parse_tcx(data: bytes, name: str) -> Track:
 _SEMICIRCLE_TO_DEG = 180.0 / 2**31
 
 
+def _number(x: object) -> float | None:
+    if isinstance(x, bool) or not isinstance(x, int | float):
+        return None
+    return float(x)
+
+
 def _parse_fit(data: bytes, name: str) -> Track:
     b = _Builder()
     try:
@@ -143,14 +163,14 @@ def _parse_fit(data: bytes, name: str) -> Track:
                     if not isinstance(frame, fitdecode.FitDataMessage) or frame.name != "record":
                         continue
                     ts = frame.get_value("timestamp", fallback=None)
-                    lat = frame.get_value("position_lat", fallback=None)
-                    lon = frame.get_value("position_long", fallback=None)
-                    if ts is None or lat is None or lon is None:
-                        continue
+                    lat = _number(frame.get_value("position_lat", fallback=None))
+                    lon = _number(frame.get_value("position_long", fallback=None))
+                    if not isinstance(ts, datetime) or lat is None or lon is None:
+                        continue  # no (valid) time or position: skipped
                     if ts.tzinfo is None:
                         ts = ts.replace(tzinfo=UTC)
                     b.add(ts.timestamp(), lat * _SEMICIRCLE_TO_DEG, lon * _SEMICIRCLE_TO_DEG)
-    except (fitdecode.FitError, struct.error, ValueError, OverflowError, EOFError) as exc:
+    except Exception as exc:  # fitdecode/struct/assert errors: any failure means a bad file
         raise ValueError(f"cannot read FIT {name}: {exc}") from exc
     return b.track()
 
@@ -176,42 +196,68 @@ def source_stamp(path: Path) -> SourceStamp:
 
 
 def write_cache(path: Path, track: Track, source: SourceStamp | None = None) -> None:
+    """Write atomically: a temp file in the same directory, then os.replace."""
     path.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, object] = {"t": track.t, "lat": track.lat, "lon": track.lon, "d": track.d}
     if source is not None:
         payload["src_size"], payload["src_mtime_ns"] = source
-    with gzip.GzipFile(path, "wb", mtime=0) as fh:
-        fh.write(json.dumps(payload, separators=(",", ":")).encode())
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with gzip.GzipFile(tmp, "wb", mtime=0) as fh:
+            fh.write(json.dumps(payload, separators=(",", ":")).encode())
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def _load_cache(path: Path) -> dict[str, object]:
-    with gzip.open(path, "rt", encoding="utf-8") as fh:
-        raw: dict[str, object] = json.load(fh)
+    """The cache file's JSON object; ValueError when it is unreadable or not an object."""
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except (OSError, EOFError, zlib.error, ValueError) as exc:  # incl. BadGzipFile, JSON errors
+        raise ValueError(f"corrupt cache file {path.name}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ValueError(f"corrupt cache file {path.name}: not a JSON object")
     return raw
 
 
+def _num_list(raw: dict[str, object], key: str) -> list[float]:
+    v = raw.get(key)
+    if not isinstance(v, list) or not all(
+        isinstance(x, int | float) and not isinstance(x, bool) for x in v
+    ):
+        raise ValueError(f"field {key!r} is not a list of numbers")
+    return [float(x) for x in v]
+
+
 def _track_of(raw: dict[str, object]) -> Track:
-    return Track(
-        t=[int(x) for x in raw["t"]],  # type: ignore[attr-defined]
-        lat=[float(x) for x in raw["lat"]],  # type: ignore[attr-defined]
-        lon=[float(x) for x in raw["lon"]],  # type: ignore[attr-defined]
-        d=[float(x) for x in raw["d"]],  # type: ignore[attr-defined]
-    )
+    t, lat, lon, d = (_num_list(raw, k) for k in ("t", "lat", "lon", "d"))
+    if not len(t) == len(lat) == len(lon) == len(d):
+        raise ValueError("fields have different lengths")
+    return Track(t=[int(x) for x in t], lat=lat, lon=lon, d=d)
 
 
 def read_cache(path: Path) -> Track:
-    return _track_of(_load_cache(path))
+    """The cached track; ValueError (message names the file) when the cache is corrupt."""
+    try:
+        return _track_of(_load_cache(path))
+    except ValueError as exc:
+        if "corrupt cache" in str(exc):
+            raise
+        raise ValueError(f"corrupt cache file {path.name}: {exc}") from exc
 
 
 def read_cache_if_fresh(path: Path, source: SourceStamp) -> Track | None:
     """The cached track when it was made from a file with this size and mtime, else None.
 
-    A missing, unreadable or stamp-less cache file counts as stale.
+    A missing, unreadable, malformed or stamp-less cache file counts as stale.
     """
     try:
         raw = _load_cache(path)
         if (raw.get("src_size"), raw.get("src_mtime_ns")) != source:
             return None
         return _track_of(raw)
-    except (OSError, ValueError, KeyError, TypeError, EOFError, zlib.error):
+    except ValueError:
         return None

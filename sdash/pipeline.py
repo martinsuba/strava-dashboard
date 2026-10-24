@@ -91,15 +91,24 @@ def parse_rides(data_dir: Path) -> ParseReport:
                 parsed += 1  # unchanged (same size + mtime): not parsed again
                 continue
             track = parse_track(path)
-        except (OSError, ValueError) as exc:
-            failed.append((act.id, str(exc)))
+        except Exception as exc:  # one bad ride file must never abort the run
+            cache.unlink(missing_ok=True)  # no stale data for a ride that cannot be read now
+            failed.append((act.id, str(exc) or type(exc).__name__))
             continue
         if not track.t:
+            cache.unlink(missing_ok=True)
             failed.append((act.id, "no positions in file"))
             continue
         write_cache(cache, track, stamp)
         parsed += 1
     return ParseReport(parsed, failed)
+
+
+def _read_cache(path: Path) -> Track:
+    try:
+        return read_cache(path)
+    except ValueError as exc:
+        raise PipelineError(f"{exc}: run `sdash parse` again") from exc
 
 
 def _ref_length(segment: Segment, ref: Track | None) -> float:
@@ -128,7 +137,7 @@ def match_segments(data_dir: Path) -> tuple[list[Activity], list[SegmentResult]]
     for act in activities:
         path = cache_path(data_dir, act.id)
         if path.is_file():
-            tracks[act.id] = read_cache(path)
+            tracks[act.id] = _read_cache(path)
     ref_cache: dict[str, Track | None] = {}
     results: list[SegmentResult] = []
     for seg in segments:
@@ -139,7 +148,7 @@ def match_segments(data_dir: Path) -> tuple[list[Activity], list[SegmentResult]]
         if seg.ref_activity not in ref_cache:
             path = cache_path(data_dir, seg.ref_activity)
             ref_cache[seg.ref_activity] = tracks.get(seg.ref_activity) or (
-                read_cache(path) if path.is_file() else None
+                _read_cache(path) if path.is_file() else None
             )
         length = _ref_length(seg, ref_cache[seg.ref_activity])
         efforts = [

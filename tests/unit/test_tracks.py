@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import contextlib
+import gzip
+import importlib.util
+import os
+import random
+import struct
+import sys
+import warnings
 from pathlib import Path
 
 import pytest
 
+from sdash import tracks
 from sdash.tracks import Track, haversine_m, parse_track, read_cache, write_cache
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "minimal.gpx"
@@ -65,14 +74,6 @@ def test_cache_roundtrip(tmp_path: Path) -> None:
 
 
 # --- T-003: FIT / TCX / .gz, bounded decompression, cache stamp -------------------------------
-
-import gzip  # noqa: E402
-import importlib.util  # noqa: E402
-import os  # noqa: E402
-import sys  # noqa: E402
-import warnings  # noqa: E402
-
-from sdash import tracks  # noqa: E402
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -196,3 +197,162 @@ def test_source_stamp_follows_size_and_mtime(tmp_path: Path) -> None:
     p.write_bytes(b"abc")
     os.utime(p, ns=(1, 2_000_000_000))
     assert tracks.source_stamp(p) == (3, 2_000_000_000)
+
+
+# --- T-003 review round 1 -------------------------------------------------------------------
+
+
+def _fit_with_crc(data: bytearray) -> bytes:
+    synth = _synth()
+    data[-2:] = struct.pack("<H", synth.fit_crc(bytes(data[:-2])))
+    return bytes(data)
+
+
+def _parse_or_value_error(path: Path) -> None:
+    with contextlib.suppress(ValueError):
+        parse_track(path)
+
+
+def test_mutated_fit_files_never_raise_anything_but_value_error(tmp_path: Path) -> None:
+    synth = _synth()
+    good = synth.fit_bytes(_points(synth)[:6])
+    rng = random.Random(20260101)
+    path = tmp_path / "m.fit"
+    for _ in range(400):
+        data = bytearray(good)
+        for _ in range(rng.randint(1, 4)):
+            data[rng.randrange(14, len(data) - 2)] = rng.randrange(256)
+        path.write_bytes(_fit_with_crc(data))
+        _parse_or_value_error(path)
+
+
+@pytest.mark.parametrize("base_type", [0x00, 0x02, 0x83, 0x84, 0x88, 0x8C])
+def test_fit_with_odd_timestamp_base_type_is_value_error_or_track(
+    tmp_path: Path, base_type: int
+) -> None:
+    synth = _synth()
+    data = bytearray(synth.fit_bytes(_points(synth)[:3]))
+    # record definition: timestamp field (253, size 4, base type 0x86 uint32) -> another base type;
+    # fitdecode then yields a non-datetime (float/int) or raises TypeError
+    data[bytes(data).index(bytes([253, 4, 0x86])) + 2] = base_type
+    path = tmp_path / "i.fit"
+    path.write_bytes(_fit_with_crc(data))
+    _parse_or_value_error(path)
+
+
+def test_fit_with_non_numeric_position_is_skipped_or_value_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class Frame(tracks.fitdecode.FitDataMessage):  # type: ignore[misc]
+        name = "record"
+
+        def __init__(self) -> None:  # no real message: only get_value is used
+            pass
+
+        def get_value(self, name, idx=0, **kw):  # type: ignore[no-untyped-def]
+            from datetime import UTC, datetime
+
+            return {
+                "timestamp": datetime(2026, 1, 1, tzinfo=UTC),
+                "position_lat": "x",
+                "position_long": (1, 2),
+            }[name]
+
+    class Reader:
+        def __init__(self, *_a: object, **_k: object) -> None: ...
+        def __enter__(self) -> Reader:
+            return self
+
+        def __exit__(self, *_a: object) -> None: ...
+        def __iter__(self):  # type: ignore[no-untyped-def]
+            return iter([Frame()])
+
+    monkeypatch.setattr(tracks.fitdecode, "FitReader", Reader)
+    path = tmp_path / "n.fit"
+    path.write_bytes(b"x")
+    assert parse_track(path).t == []
+
+
+@pytest.mark.parametrize("bad", ["nan", "inf", "-inf", "91", "-91.5"])
+def test_gpx_rejects_invalid_latitude_points(tmp_path: Path, bad: str) -> None:
+    p = tmp_path / "a.gpx"
+    p.write_text(
+        '<gpx version="1.1" creator="x" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>'
+        '<trkpt lat="-47.0" lon="-134.0"><time>2026-05-01T08:00:00Z</time></trkpt>'
+        f'<trkpt lat="{bad}" lon="-134.0"><time>2026-05-01T08:00:05Z</time></trkpt>'
+        '<trkpt lat="-47.001" lon="-134.0"><time>2026-05-01T08:00:10Z</time></trkpt>'
+        "</trkseg></trk></gpx>",
+        encoding="utf-8",
+    )
+    try:
+        track = parse_track(p)
+    except ValueError:
+        return  # gpxpy itself refuses it
+    assert len(track.t) == 2
+
+
+@pytest.mark.parametrize(
+    ("lat", "lon"), [("nan", "-134"), ("500", "-134"), ("-47", "inf"), ("-47", "181")]
+)
+def test_tcx_rejects_invalid_coordinates(tmp_path: Path, lat: str, lon: str) -> None:
+    p = tmp_path / "a.tcx"
+    p.write_text(
+        '<TrainingCenterDatabase xmlns="x"><Trackpoint><Time>2026-05-01T08:00:00Z</Time>'
+        f"<Position><LatitudeDegrees>{lat}</LatitudeDegrees>"
+        f"<LongitudeDegrees>{lon}</LongitudeDegrees></Position></Trackpoint>"
+        "</TrainingCenterDatabase>",
+        encoding="utf-8",
+    )
+    assert parse_track(p).t == []
+
+
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-16-le", "utf-16-be", "utf-8"])
+@pytest.mark.parametrize(
+    "decl", ["<!DOCTYPE a [<!ENTITY b 'c'>]>", "<!doctype a>", "<!entity b 'c'>"]
+)
+def test_tcx_dtd_refused_in_any_encoding(tmp_path: Path, encoding: str, decl: str) -> None:
+    text = f'<?xml version="1.0"?>{decl}<a>&b;</a>'
+    path = tmp_path / "x.tcx"
+    path.write_bytes(text.encode(encoding))
+    with pytest.raises(ValueError):
+        parse_track(path)
+
+
+def test_gpx_parsing_does_not_use_lxml() -> None:
+    # lxml resolves XML entities by default; the stdlib parser (expat) does not resolve external
+    # ones and limits entity amplification. Fail loudly if gpxpy would switch to lxml.
+    import gpxpy.parser
+
+    assert "lxml" not in str(gpxpy.parser.mod_etree), "gpxpy would parse with lxml"
+
+
+def test_cache_with_non_object_json_or_bad_types_is_stale_and_unreadable(tmp_path: Path) -> None:
+    path = tmp_path / "1.json.gz"
+    for payload in (
+        b"[]",
+        b"null",
+        b'"x"',
+        b'{"t":1,"lat":[],"lon":[],"d":[]}',
+        b'{"t":["a"],"lat":[1],"lon":[1],"d":[1]}',
+        b'{"t":[1,2],"lat":[1],"lon":[1],"d":[1]}',
+    ):
+        path.write_bytes(gzip.compress(payload))
+        assert tracks.read_cache_if_fresh(path, (1, 1)) is None
+        with pytest.raises(ValueError):
+            read_cache(path)
+
+
+def test_cache_write_is_atomic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    track = Track(t=[1], lat=[-47.0], lon=[-134.0], d=[0.0])
+    path = tmp_path / "1.json.gz"
+    write_cache(path, track)
+    before = path.read_bytes()
+
+    def boom(*_a: object, **_k: object) -> None:
+        raise OSError("replace failed")
+
+    monkeypatch.setattr(os, "replace", boom)
+    with pytest.raises(OSError):
+        write_cache(path, Track(t=[2], lat=[-47.0], lon=[-134.0], d=[0.0]))
+    assert path.read_bytes() == before
+    assert [p.name for p in tmp_path.iterdir()] == ["1.json.gz"]  # temp file cleaned up
