@@ -35,14 +35,12 @@ def test_req004_effort_found_elapsed_includes_stops(sdash, data_dir, tmp_path) -
     )
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-004 not implemented (T-005)")
 def test_req004_different_road_no_effort(sdash, data_dir, tmp_path) -> None:
     efforts = _match(sdash, data_dir, tmp_path, [sc.reference_ride(), sc.detour()], sc.segment())
     assert efforts.get(sc.REF_ID), "the reference ride itself should match (sanity)"
     assert efforts.get(TEST_RIDE, []) == []
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-004 not implemented (T-005)")
 def test_req004_ridden_distance_off_by_more_than_10_percent_no_effort(
     sdash, data_dir, tmp_path
 ) -> None:
@@ -84,7 +82,6 @@ def test_req004_out_and_back_not_zero_length(sdash, data_dir, tmp_path) -> None:
     assert found[0]["distance_m"] > 1500
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-004 not implemented (T-005)")
 def test_req004_non_ride_reference_activity_used(sdash, data_dir, tmp_path) -> None:
     ride = sc.ride(TEST_RIDE, [(0, -500), (0, 2500)], day=1)
     efforts = _match(sdash, data_dir, tmp_path, [sc.hike_reference(), ride], sc.segment())
@@ -109,7 +106,6 @@ def test_req004_start_passed_20m_away_effort_found(sdash, data_dir, tmp_path) ->
     assert 370 <= found[0]["elapsed_s"] <= 420
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-004 not implemented (T-005)")
 def test_req004_path_80m_off_reference_no_effort(sdash, data_dir, tmp_path) -> None:
     rides = [sc.reference_ride(), sc.near_detour()]
     efforts = _match(sdash, data_dir, tmp_path, rides, sc.segment())

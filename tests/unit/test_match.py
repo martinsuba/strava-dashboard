@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+import itertools
 import math
 
-from sdash.match import GATE_M, find_efforts
+from sdash.match import (
+    GATE_M,
+    PATH_M,
+    Reference,
+    distance_to_polyline_m,
+    find_efforts,
+    point_segment_distance_m,
+    reference_from,
+)
 from sdash.tracks import Track, haversine_m
 
 LAT0, LON0 = -47.0, -134.0
@@ -142,3 +151,181 @@ def test_one_pass_is_not_used_as_both_start_and_end() -> None:
 
 def test_helper_geometry_sanity() -> None:
     assert abs(haversine_m(*START, *END) - 2000) < 5
+
+
+# ---- T-005: full REQ-004 rules (length, path, direction, laps, bounding box) ----
+
+
+def walk(waypoints: list[tuple[float, float]], *, step: float = 20.0, t0: int = 1000) -> Track:
+    """Ride through (x, y) waypoints in metres at 5 m/s, a point every `step` metres."""
+    t, lat, lon, d = [], [], [], []
+    now, dist = float(t0), 0.0
+    for (x0, y0), (x1, y1) in itertools.pairwise(waypoints):
+        length = math.hypot(x1 - x0, y1 - y0)
+        n = max(1, round(length / step))
+        for k in range(n):
+            f = k / n
+            t.append(round(now + f * length / 5.0))
+            lat.append(lat_at(y0 + f * (y1 - y0)))
+            lon.append(lon_at(x0 + f * (x1 - x0)))
+            d.append(dist + f * length)
+        now += length / 5.0
+        dist += length
+    t.append(round(now))
+    lat.append(lat_at(waypoints[-1][1]))
+    lon.append(lon_at(waypoints[-1][0]))
+    d.append(dist)
+    return Track(t, lat, lon, d)
+
+
+def ref_ab() -> Reference:
+    ref = reference_from(walk([(0, 0), (0, 2000)]), START, END)
+    assert ref is not None
+    return ref
+
+
+def efforts_of(track: Track) -> list:
+    return find_efforts(track, START, END, "x", reference=ref_ab())
+
+
+def test_path_limit_constant() -> None:
+    assert PATH_M == 60.0
+
+
+def test_point_segment_distance() -> None:
+    assert point_segment_distance_m(5, 5, 0, 0, 10, 0) == 5  # beside the segment
+    assert point_segment_distance_m(-3, 4, 0, 0, 10, 0) == 5  # beyond the A end
+    assert point_segment_distance_m(13, 4, 0, 0, 10, 0) == 5  # beyond the B end
+    assert point_segment_distance_m(3, 4, 0, 0, 0, 0) == 5  # degenerate segment
+
+
+def test_distance_to_polyline_uses_segments_not_points() -> None:
+    xs, ys = [0.0, 1000.0], [0.0, 0.0]  # two points 1 km apart
+    assert distance_to_polyline_m(500, 10, xs, ys) == 10
+
+
+def test_reference_from_length_and_points() -> None:
+    ref = ref_ab()
+    assert abs(ref.length_m - 2000) <= 2
+    assert 38 <= len(ref.points) <= 45  # every ~50 m, including both ends
+    assert reference_from(walk([(0, 0), (0, 1000)]), START, END) is None
+
+
+def test_reference_ride_matches_itself() -> None:
+    (e,) = efforts_of(walk([(0, -500), (0, 2500)]))
+    assert abs(e.elapsed_s - 400) <= 1
+
+
+def test_path_59m_off_matches_and_61m_off_does_not() -> None:
+    # the detour apex is 59 / 61 m beside the road; the nearest reference points sit ~25 m from
+    # the apex projection, so the polyline distance (not the vertex distance) decides
+    for apex, expected in ((59, 1), (61, 0)):
+        track = walk([(0, -500), (0, 0), (apex, 1000), (0, 2000), (0, 2500)])
+        found = efforts_of(track)
+        assert len(found) == expected, (apex, found)
+
+
+def test_length_within_9_percent_matches_beyond_11_percent_does_not() -> None:
+    # a spur out and back on the line adds length without leaving the reference path
+    def with_spur(extra: float) -> Track:
+        return walk([(0, -500), (0, 0), (0, 1000), (0, 1000 - extra), (0, 1000), (0, 2000)])
+
+    assert len(efforts_of(with_spur(90))) == 1  # +180 m = +9 %
+    assert efforts_of(with_spur(110)) == []  # +220 m = +11 %
+
+
+def test_too_short_ride_between_gates_does_not_match() -> None:
+    # gates are 2000 m apart on the reference; a shortcut ride covers ~1800 m (-10 % limit 1800)
+    short_end = (lat_at(1700), lon_at(0))
+    ref = reference_from(walk([(0, 0), (0, 2000)]), START, END)
+    assert ref is not None
+    assert find_efforts(walk([(0, -500), (0, 1700)]), START, short_end, reference=ref) == []
+
+
+def test_reversed_ride_has_no_effort_even_with_reference() -> None:
+    assert efforts_of(walk([(0, 2500), (0, -500)])) == []
+
+
+def test_lap_pairing_a_b_back_a_b_gives_two_correct_efforts() -> None:
+    track = walk([(0, -500), (0, 2000), (0, 0), (0, 2500)])  # A->B, B->A same road, A->B
+    found = efforts_of(track)
+    assert len(found) == 2, found
+    for e in found:
+        assert abs(e.elapsed_s - 400) <= 2
+        assert abs(e.distance_m - 2000) <= 25
+    assert found[0].start_t + found[0].elapsed_s <= found[1].start_t
+
+
+def test_lap_pairing_without_reference_is_still_per_pass() -> None:
+    track = walk([(0, -500), (0, 2000), (0, 0), (0, 2500)])
+    found = find_efforts(track, START, END, "x")
+    assert len(found) == 2
+    assert all(abs(e.elapsed_s - 400) <= 2 for e in found)
+
+
+def test_failed_pair_does_not_consume_the_end_pass() -> None:
+    # first start pass leads into a 3 km loop before B (fails length); the second start pass is fine
+    loop = [(0, -500), (0, 0), (600, 0), (600, 800), (0, 800), (0, 0), (0, 2500)]
+    found = efforts_of(walk(loop))
+    assert len(found) == 1
+    assert abs(found[0].elapsed_s - 400) <= 2
+
+
+def test_efforts_never_overlap_in_time() -> None:
+    track = walk([(0, -500), (0, 2000), (0, 0), (0, 2000), (0, 0), (0, 2500)])
+    found = efforts_of(track)
+    assert len(found) >= 2
+    for a, b in itertools.pairwise(found):
+        assert a.start_t + a.elapsed_s <= b.start_t
+
+
+def test_out_and_back_segment_needs_the_full_distance() -> None:
+    c = (0, 1000)
+    ref = reference_from(walk([(0, 0), c, (0, 0)]), START, START)
+    assert ref is not None and abs(ref.length_m - 2000) <= 2
+    good = find_efforts(
+        walk([(0, -500), (0, 0), c, (0, 0), (0, -500)]), START, START, "x", reference=ref
+    )
+    assert len(good) == 1 and good[0].distance_m > 1900
+    # turns at 500 m: only 1000 m ridden, and the reference apex is 500 m away
+    short = find_efforts(
+        walk([(0, -500), (0, 0), (0, 500), (0, 0), (0, -500)]), START, START, "x", reference=ref
+    )
+    assert short == []
+
+
+def test_sparse_ride_matches_with_polyline_distance() -> None:
+    # one point per 50 m, with a 25 m lateral jog so a vertex-only check would see > 25 m anyway;
+    # every reference point must still be within 60 m of the polyline
+    track = walk([(0, -500), (30, 1000), (0, 2500)], step=50.0)
+    assert len(efforts_of(track)) == 1
+
+
+def test_sparse_ride_with_very_long_legs_still_matches() -> None:
+    track = Track(
+        t=[1000, 1100, 1500, 1600],
+        lat=[lat_at(y) for y in (-500, 0, 2000, 2500)],
+        lon=[lon_at(0)] * 4,
+        d=[0.0, 500.0, 2500.0, 3000.0],
+    )
+    (e,) = efforts_of(track)
+    assert e.elapsed_s == 400
+
+
+def test_gate_exactly_at_the_30m_boundary() -> None:
+    inside = find_efforts(walk([(29.5, -500), (29.5, 2500)]), START, END, "x", reference=ref_ab())
+    outside = find_efforts(walk([(30.5, -500), (30.5, 2500)]), START, END, "x", reference=ref_ab())
+    assert len(inside) == 1
+    assert outside == []
+
+
+def test_bounding_box_prefilter_keeps_true_matches_and_drops_far_rides() -> None:
+    near = walk([(0, -500), (0, 2500)])
+    assert len(efforts_of(near)) == 1
+    far = walk([(5000, -500), (5000, 2500)])
+    assert efforts_of(far) == []
+    # ride bbox only just contains the reference path (well inside the 60 m margin)
+    narrow = walk([(55, -25), (55, 1000), (55, 2025)])
+    assert len(efforts_of(narrow)) == 0  # gates 55 m away
+    edge = walk([(25, -25), (25, 1000), (25, 2025)])
+    assert len(efforts_of(edge)) == 1

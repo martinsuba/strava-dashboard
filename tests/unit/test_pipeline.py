@@ -235,3 +235,31 @@ def test_match_with_corrupt_cache_gives_pipeline_error(tmp_path: Path) -> None:
     )
     with pytest.raises(PipelineError, match="cache"):
         match_segments(data)
+
+
+def _segments(data: Path, ref: str) -> None:
+    (data / "segments.yaml").write_text(
+        f'- name: Ref seg\n  ref_activity: "{ref}"\n  start: [-47.0, -134.0]\n  end: [-46.99, -134.0]\n'
+    )
+
+
+def test_non_ride_reference_activity_is_parsed(tmp_path: Path) -> None:
+    data = _data(tmp_path, _row("5", "activities/ok.gpx"), _row("8", "activities/ok.gpx", "Hike"))
+    _segments(data, "8")
+    report = parse_rides(data)
+    assert report.parsed == 2 and report.failed == []
+    assert (data / "cache" / "8.json.gz").is_file()
+
+
+def test_non_ride_reference_is_not_parsed_when_unused(tmp_path: Path) -> None:
+    data = _data(tmp_path, _row("5", "activities/ok.gpx"), _row("8", "activities/ok.gpx", "Hike"))
+    _segments(data, "5")
+    parse_rides(data)
+    assert not (data / "cache" / "8.json.gz").exists()
+
+
+def test_non_ride_reference_with_path_outside_raw_is_reported(tmp_path: Path) -> None:
+    data = _data(tmp_path, _row("8", "../../outside.gpx", "Hike"))
+    _segments(data, "8")
+    report = parse_rides(data)
+    assert report.parsed == 0 and report.failed[0][0] == "8"
