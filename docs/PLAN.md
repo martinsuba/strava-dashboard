@@ -11,7 +11,7 @@ The real-data spike was already done during planning (export shape + matcher fea
 T-001 aligns the synthetic export with the recorded real header (Plan v2).
 
 ## M1: Pipeline end to end (export → efforts → JSON), proven on fixtures
-### [ ] T-001: Align synthetic activities.csv header with the real export  (size S)
+### [x] T-001: Align synthetic activities.csv header with the real export  (size S)
 - Goal: `_synth.ACTIVITIES_HEADER` equals the exact 103-column header recorded in docs/ARCHITECTURE.md (harness used 99
   publicly documented names). A unit test parses the header block from ARCHITECTURE.md and compares it with
   `ACTIVITIES_HEADER`. Duplicate-column handling (first occurrence wins) still holds.
@@ -22,7 +22,7 @@ T-001 aligns the synthetic export with the recorded real header (Plan v2).
 - Definition of done: header matches, unit test added, CI green, review + test-review clean
 - Notes: column names only come from ARCHITECTURE.md; never read ~/data.
 
-### [ ] T-002: Thin slice: GPX ride → one segment → JSON → segment page  (size M)
+### [x] T-002: Thin slice: GPX ride → one segment → JSON → segment page  (size M)
 - Goal: thinnest working path: read `activities.csv`, parse GPX rides, load `segments.yaml`, simple gate matcher
   (start/end gates only), write `index.json` + `segments/<slug>.json`, and a segment page listing efforts (date, time).
   `sdash refresh --no-deploy --data-dir <dir>` runs it end to end.
@@ -31,14 +31,14 @@ T-001 aligns the synthetic export with the recorded real header (Plan v2).
 - Areas/files: sdash/{cli,activities,tracks,segments,match,sitedata}.py, web/src/pages/segment.ts
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
-### [ ] T-003: All ride formats + cycling filter + cache  (size M)
+### [x] T-003: All ride formats + cycling filter + cache  (size M)
 - Goal: FIT, FIT.gz, GPX.gz, TCX.gz parsing; only Ride/E-Bike Ride; corrupt files reported, not fatal; per-ride cache.
 - REQs: REQ-002
 - Acceptance tests to make pass: tests/acceptance/pipeline/test_parse*.py
 - Areas/files: sdash/tracks.py, sdash/activities.py
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
-### [ ] T-004: Import from local zip and https link (safe extraction)  (size M)
+### [x] T-004: Import from local zip and https link (safe extraction)  (size M)
 - Goal: `sdash import <zip|url>`: allowlist extraction, zip-slip/abs-path/size-cap rejection, https + host allowlist,
   link never logged, zip deleted after import, old ride files replaced.
 - REQs: REQ-001
@@ -50,7 +50,7 @@ T-001 aligns the synthetic export with the recorded real header (Plan v2).
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 - Notes: security-relevant. The reviewer checks the extraction and URL handling explicitly.
 
-### [ ] T-005: Full matcher rules  (size M)
+### [x] T-005: Full matcher rules  (size M)
 - Goal: REQ-004 in full: length ±10 %, path check against every ride point, direction, multiple laps, out-and-back,
   sparse tracks, non-ride reference activity.
 - REQs: REQ-004
@@ -58,7 +58,7 @@ T-001 aligns the synthetic export with the recorded real header (Plan v2).
 - Areas/files: sdash/match.py
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
-### [ ] T-006: Segment file validation, `segment add`, `segment import-strava`  (size S)
+### [x] T-006: Segment file validation, `segment add`, `segment import-strava`  (size S)
 - Goal: validate segments.yaml (REQ-003 errors), add a segment from ride + km range, import Strava `segments.csv`.
 - REQs: REQ-003
 - Acceptance tests to make pass: tests/acceptance/pipeline/test_segments*.py

@@ -131,43 +131,43 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 
 | REQ | Acceptance test(s) | Task | Status |
 |---|---|---|---|
-| REQ-001 import | `test_import.py::test_req001_local_zip_keeps_only_ride_data` | T-004 | xfail |
-| | `test_import.py::test_req001_unsafe_zip_entry_rejected[../, ../../, activities/../../../, absolute]` (4) | T-004 | xfail |
-| | `test_import.py::test_req001_oversized_zip_fails_before_extracting` | T-004 | xfail |
-| | `test_import.py::test_req001_non_https_url_rejected_without_request[http, ftp, file]` (3; override set to the same host) | T-004 | xfail |
-| | `test_import.py::test_req001_downloaded_zip_deleted_after_import` (local HTTPS, redirect, link not logged, override warning) | T-004 | xfail |
-| | `test_import.py::test_req001_redirect_to_disallowed_host_rejected` (allowlist `localhost`, redirect to `127.0.0.1`) | T-004 | xfail |
-| | `test_import.py::test_req001_allowlist_suffix_needs_dot_boundary` (allowlist `7.0.0.1` must not match `127.0.0.1`) | T-004 | xfail |
-| | `test_import.py::test_req001_newer_export_replaces_old_ride_files` | T-004 | xfail |
-| REQ-002 parse | `test_parse.py::test_req002_only_ride_and_ebike_are_kept` | T-003 | xfail |
-| | `test_parse.py::test_req002_each_format_yields_track[gpx]` | T-002 | xfail |
-| | `test_parse.py::test_req002_each_format_yields_track[gpx.gz, fit, fit.gz, tcx.gz]` (4) | T-003 | xfail |
-| | `test_parse.py::test_req002_unparseable_file_reported_run_continues` | T-003 | xfail |
-| | `test_parse.py::test_req002_unchanged_ride_read_from_cache`, `test_req002_changed_ride_is_parsed_again` | T-003 | xfail |
+| REQ-001 import | `test_import.py::test_req001_local_zip_keeps_only_ride_data` | T-004 | passing |
+| | `test_import.py::test_req001_unsafe_zip_entry_rejected[../, ../../, activities/../../../, absolute]` (4) | T-004 | passing |
+| | `test_import.py::test_req001_oversized_zip_fails_before_extracting` | T-004 | passing |
+| | `test_import.py::test_req001_non_https_url_rejected_without_request[http, ftp, file]` (3; override set to the same host) | T-004 | passing |
+| | `test_import.py::test_req001_downloaded_zip_deleted_after_import` (local HTTPS, redirect, link not logged, override warning) | T-004 | passing |
+| | `test_import.py::test_req001_redirect_to_disallowed_host_rejected` (allowlist `localhost`, redirect to `127.0.0.1`) | T-004 | passing |
+| | `test_import.py::test_req001_allowlist_suffix_needs_dot_boundary` (allowlist `7.0.0.1` must not match `127.0.0.1`) | T-004 | passing |
+| | `test_import.py::test_req001_newer_export_replaces_old_ride_files` | T-004 | passing |
+| REQ-002 parse | `test_parse.py::test_req002_only_ride_and_ebike_are_kept` | T-003 | passing |
+| | `test_parse.py::test_req002_each_format_yields_track[gpx]` | T-002 | passing |
+| | `test_parse.py::test_req002_each_format_yields_track[gpx.gz, fit, fit.gz, tcx.gz]` (4) | T-003 | passing |
+| | `test_parse.py::test_req002_unparseable_file_reported_run_continues` | T-003 | passing |
+| | `test_parse.py::test_req002_unchanged_ride_read_from_cache`, `test_req002_changed_ride_is_parsed_again` | T-003 | passing |
 | | `test_parse.py::test_req002_activities_csv_dates_and_duplicate_columns` (needs `rides/<id>.json`) | T-003/T-007 | xfail |
-| REQ-003 segments | `test_segments.py::test_req003_slug_derived_from_name_and_stable` | T-002 | xfail |
-| | `test_segments.py::test_req003_invalid_segment_fails_naming_segment_and_problem[missing-field, latitude-out-of-range, longitude-out-of-range, duplicate-name]` (4) | T-006 | xfail |
-| | `test_segments.py::test_req003_segment_add_from_ride_and_km` | T-006 | xfail |
-| | `test_segments.py::test_req003_import_strava_segments_skips_existing` | T-006 | xfail |
-| REQ-004 matching | `test_match.py::test_req004_effort_found_elapsed_includes_stops` | T-002 | xfail |
-| | `test_match.py::test_req004_different_road_no_effort` (~148 m off) | T-005 | xfail |
-| | `test_match.py::test_req004_path_80m_off_reference_no_effort` | T-005 | xfail |
-| | `test_match.py::test_req004_start_passed_45m_away_no_effort` | T-005 | xfail |
-| | `test_match.py::test_req004_start_passed_20m_away_effort_found` (positive control) | T-005 | xfail |
-| | `test_match.py::test_req004_ridden_distance_off_by_more_than_10_percent_no_effort` | T-005 | xfail |
-| | `test_match.py::test_req004_opposite_direction_no_effort` | T-005 | xfail |
-| | `test_match.py::test_req004_two_laps_two_efforts` | T-005 | xfail |
-| | `test_match.py::test_req004_sparse_track_effort_found` | T-005 | xfail |
-| | `test_match.py::test_req004_out_and_back_not_zero_length` | T-005 | xfail |
-| | `test_match.py::test_req004_non_ride_reference_activity_used` | T-005 | xfail |
-| REQ-005 site data | `test_sitedata.py::test_req005_site_data_has_no_coordinates_or_raw_tracks` | T-002 | xfail |
+| REQ-003 segments | `test_segments.py::test_req003_slug_derived_from_name_and_stable` | T-002 | passing |
+| | `test_segments.py::test_req003_invalid_segment_fails_naming_segment_and_problem[missing-field, latitude-out-of-range, longitude-out-of-range, duplicate-name]` (4) | T-006 | passing |
+| | `test_segments.py::test_req003_segment_add_from_ride_and_km` | T-006 | passing |
+| | `test_segments.py::test_req003_import_strava_segments_skips_existing` | T-006 | passing |
+| REQ-004 matching | `test_match.py::test_req004_effort_found_elapsed_includes_stops` | T-002 | passing |
+| | `test_match.py::test_req004_different_road_no_effort` (~148 m off) | T-005 | passing |
+| | `test_match.py::test_req004_path_80m_off_reference_no_effort` | T-005 | passing |
+| | `test_match.py::test_req004_start_passed_45m_away_no_effort` | T-005 | passing |
+| | `test_match.py::test_req004_start_passed_20m_away_effort_found` (positive control) | T-005 | passing |
+| | `test_match.py::test_req004_ridden_distance_off_by_more_than_10_percent_no_effort` | T-005 | passing |
+| | `test_match.py::test_req004_opposite_direction_no_effort` | T-005 | passing |
+| | `test_match.py::test_req004_two_laps_two_efforts` | T-005 | passing |
+| | `test_match.py::test_req004_sparse_track_effort_found` | T-005 | passing |
+| | `test_match.py::test_req004_out_and_back_not_zero_length` | T-005 | passing |
+| | `test_match.py::test_req004_non_ride_reference_activity_used` | T-005 | passing |
+| REQ-005 site data | `test_sitedata.py::test_req005_site_data_has_no_coordinates_or_raw_tracks` | T-002 | passing |
 | | `test_sitedata.py::test_req005_site_data_has_lists_and_effort_data` | T-007 | xfail |
-| | `test_sitedata.py::test_req005_build_twice_is_byte_identical` | T-007 | xfail |
+| | `test_sitedata.py::test_req005_build_twice_is_byte_identical` | T-007 | passing |
 | REQ-006 index | `index.spec.ts` "REQ-006: segment list shows name, effort count, PR time and PR date" | T-008 | fixme |
 | | `index.spec.ts` "REQ-006: ride list shows rides newest first with date, name, distance, segments matched" | T-008 | fixme |
 | | `index.spec.ts` "REQ-006: clicking a segment opens its page", "REQ-006: clicking a ride opens its page" | T-008 | fixme |
 | | `index.spec.ts` "REQ-006: no segments defined shows an empty state explaining how to add one" | T-008 | fixme |
-| REQ-007 segment page | `segment.spec.ts` "REQ-007: table lists every effort with date and elapsed time" | T-002 | fixme |
+| REQ-007 segment page | `segment.spec.ts` "REQ-007: table lists every effort with date and elapsed time" | T-002 | passing |
 | | `segment.spec.ts` "REQ-007: each effort shows ride name, average speed, rank and gap to PR" | T-009 | fixme |
 | | `segment.spec.ts` "REQ-007: sortable by time (default) and by date" | T-009 | fixme |
 | | `segment.spec.ts` "REQ-007: top three efforts are marked PR, 2nd and 3rd" | T-009 | fixme |
@@ -179,7 +179,7 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `ride.spec.ts` "REQ-008: an effort is marked when it is the PR or was the PR at the time" | T-010 | fixme |
 | | `ride.spec.ts` "REQ-008: a ride with no matched segments says so" | T-010 | fixme |
 | REQ-009 refresh/deploy | `test_refresh.py::test_req009_refresh_from_zip_builds_deploys_and_reports` | T-011 (+T-012) | xfail |
-| | `test_refresh.py::test_req009_refresh_without_argument_rebuilds_from_existing_data` | T-011 | xfail |
+| | `test_refresh.py::test_req009_refresh_without_argument_rebuilds_from_existing_data` | T-011 | passing |
 | | `test_refresh.py::test_req009_no_deploy_stops_after_local_build` | T-011 | xfail |
 | | `test_refresh.py::test_req009_any_failed_step_deploys_nothing[invalid-segments, broken-zip, site-build-fails]` (3) | T-011 | xfail |
 | | `test_refresh.py::test_req009_refresh_guard_blocks_raw_file_in_site` | T-011 | xfail |
