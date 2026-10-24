@@ -1,0 +1,108 @@
+/* Ride page: docs/DESIGN.md "Ride page", docs/design/ride-page.dc.html. Reuses .summary from segment.css. */
+.summary--ride {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.summary__value--ride {
+  font-size: 26px;
+}
+
+.summary__note--pr {
+  color: var(--orange);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.seg-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cell-seg {
+  min-width: 160px;
+}
+
+.chip-pr {
+  padding: 1px 6px;
+  background: var(--orange);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.today {
+  font-weight: 600;
+}
+
+.today--pr {
+  color: var(--orange);
+  font-size: 15px;
+}
+
+.legend-tick {
+  color: var(--effort);
+}
+
+.cell-bar {
+  min-width: 160px;
+  width: 24%;
+}
+
+.posbar {
+  position: relative;
+  display: block;
+  height: 18px;
+}
+
+.posbar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 8px;
+  height: 2px;
+  background: var(--line);
+}
+
+.posbar__avg {
+  position: absolute;
+  top: 2px;
+  width: 2px;
+  height: 14px;
+  background: var(--effort);
+}
+
+.posbar__dot {
+  position: absolute;
+  top: 9px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--ink);
+}
+
+.posbar__dot--pr {
+  background: var(--orange);
+}
+
+.panel--ride-segments table {
+  min-width: 760px;
+}
+
+.seg-cell a {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
+@media (max-width: 479px) {
+  .seg-cell a {
+    max-width: 120px;
+  }
+}
