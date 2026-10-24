@@ -1,9 +1,9 @@
 # Status: strava-dashboard
-Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M2 / T-009 (segment page complete): in progress. Done in M2: T-013, T-014, T-015, T-007, T-008 (#13, #14, #15, #17, #18)
+Phase: paused   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: M2 / T-009 builder STOPPED mid-work (paused 2026-10-24, token limit). Done in M2: T-013, T-014, T-015, T-007, T-008
 Open PRs: –
-Blockers: –
-Next step: builder on T-009, then T-010; stop at M2 end
+Blockers: paused by Martin (token limit)
+Next step: on "continue": check branch task/T-009-segment-page for builder's uncommitted/unpushed work (git status, git log origin..HEAD); resume or restart T-009 builder with the same task text; then T-010; then M2 milestone PR
 
 ## Decisions log
 - 2026-10-23: project created
@@ -82,3 +82,4 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-24: T-008 merged (PR #18): 1 fix round (orange back-link 13 px < 14 px rule). Public Sans self-hosted (OFL, latin-ext), no third-party requests; `#/rides` route added; Rides column "Matched".
 - For the M2 review (Martin decides): index shows h1 "Segments" and panel h2 "Segments" (per DESIGN, looks redundant).
 - Known (pre-existing, preview only): under `vite preview` a missing segment JSON returns index.html 200 -> "Could not load" instead of Not found; GitHub Pages returns a real 404.
+- 2026-10-24: paused by Martin (tokens nearly used up). T-009 builder stopped mid-task; its working-tree changes (if any) are left uncommitted on task/T-009-segment-page, not reviewed.
