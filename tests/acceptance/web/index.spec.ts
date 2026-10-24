@@ -2,10 +2,10 @@
 // the two lists are tables named "Segments" and "Rides" (caption or aria-labelledby the panel
 // heading); times m:ss, dates "12 Jun 2024" (UTC), as in docs/DESIGN.md.
 import { expect, test } from "@playwright/test";
-import { cellsMatching, exactly, fixme, open, withNoSegments } from "./helpers";
+import { cellsMatching, exactly, open, withNoSegments } from "./helpers";
 
 test.describe("REQ-006 index page", { tag: "@REQ-006" }, () => {
-  fixme("REQ-006: segment list shows name, effort count, PR time and PR date", async ({ page }) => {
+  test("REQ-006: segment list shows name, effort count, PR time and PR date", async ({ page }) => {
     await open(page, "/");
     const table = page.getByRole("table", { name: "Segments" });
     await expect(table.locator("tbody tr")).toHaveCount(3);
@@ -21,36 +21,35 @@ test.describe("REQ-006 index page", { tag: "@REQ-006" }, () => {
     await expect(cellsMatching(quarry, exactly("0"))).toHaveCount(1);
   });
 
-  fixme(
-    "REQ-006: ride list shows rides newest first with date, name, distance, segments matched",
-    async ({ page }) => {
-      await open(page, "/");
-      const rows = page.getByRole("table", { name: "Rides" }).locator("tbody tr");
-      // [date, name, km, segments matched], newest first (values from site-data/index.json)
-      const newestFirst: [string, string, string, string][] = [
-        ["18 Oct 2026", "Evening loop", "42.6", "2"],
-        ["1 Sept? 2026", "Recovery spin", "18.0", "0"],
-        ["7 Jun 2026", "Sunday long ride", "88.3", "1"],
-        ["4 May 2025", "Gravel detour", "44.1", "2"],
-        ["12 Jun 2024", "Hill repeats", "31.2", "1"],
-        ["10 Sept? 2023", "Evening spin", "25.5", "2"],
-        ["13 Jun 2021", "Hill repeats", "30.8", "1"],
-        ["19 Jul 2020", "Hill repeats", "31.0", "1"],
-        ["4 May 2019", "Morning loop", "28.4", "1"],
-      ];
-      await expect(rows).toHaveCount(newestFirst.length);
-      for (const [i, [date, name, km, matched]] of newestFirst.entries()) {
-        const row = rows.nth(i);
-        await expect(cellsMatching(row, new RegExp(`^\\s*(\\w{3} )?${date}\\s*$`))).toHaveCount(1);
-        await expect(row.getByRole("link")).toHaveText(name);
-        const kmCell = new RegExp(`^\\s*${km.replace(".", "\\.")}(\\s*km)?\\s*$`);
-        await expect(cellsMatching(row, kmCell)).toHaveCount(1);
-        await expect(row.getByRole("cell").last()).toHaveText(exactly(matched));
-      }
-    },
-  );
+  test("REQ-006: ride list shows rides newest first with date, name, distance, segments matched", async ({
+    page,
+  }) => {
+    await open(page, "/");
+    const rows = page.getByRole("table", { name: "Rides" }).locator("tbody tr");
+    // [date, name, km, segments matched], newest first (values from site-data/index.json)
+    const newestFirst: [string, string, string, string][] = [
+      ["18 Oct 2026", "Evening loop", "42.6", "2"],
+      ["1 Sept? 2026", "Recovery spin", "18.0", "0"],
+      ["7 Jun 2026", "Sunday long ride", "88.3", "1"],
+      ["4 May 2025", "Gravel detour", "44.1", "2"],
+      ["12 Jun 2024", "Hill repeats", "31.2", "1"],
+      ["10 Sept? 2023", "Evening spin", "25.5", "2"],
+      ["13 Jun 2021", "Hill repeats", "30.8", "1"],
+      ["19 Jul 2020", "Hill repeats", "31.0", "1"],
+      ["4 May 2019", "Morning loop", "28.4", "1"],
+    ];
+    await expect(rows).toHaveCount(newestFirst.length);
+    for (const [i, [date, name, km, matched]] of newestFirst.entries()) {
+      const row = rows.nth(i);
+      await expect(cellsMatching(row, new RegExp(`^\\s*(\\w{3} )?${date}\\s*$`))).toHaveCount(1);
+      await expect(row.getByRole("link")).toHaveText(name);
+      const kmCell = new RegExp(`^\\s*${km.replace(".", "\\.")}(\\s*km)?\\s*$`);
+      await expect(cellsMatching(row, kmCell)).toHaveCount(1);
+      await expect(row.getByRole("cell").last()).toHaveText(exactly(matched));
+    }
+  });
 
-  fixme("REQ-006: clicking a segment opens its page", async ({ page }) => {
+  test("REQ-006: clicking a segment opens its page", async ({ page }) => {
     await open(page, "/");
     await page
       .getByRole("table", { name: "Segments" })
@@ -60,7 +59,7 @@ test.describe("REQ-006 index page", { tag: "@REQ-006" }, () => {
     await expect(page.getByRole("heading", { level: 1, name: "Not found" })).toHaveCount(0);
   });
 
-  fixme("REQ-006: clicking a ride opens its page", async ({ page }) => {
+  test("REQ-006: clicking a ride opens its page", async ({ page }) => {
     await open(page, "/");
     await page
       .getByRole("table", { name: "Rides" })
@@ -70,15 +69,14 @@ test.describe("REQ-006 index page", { tag: "@REQ-006" }, () => {
     await expect(page.getByRole("heading", { level: 1, name: "Not found" })).toHaveCount(0);
   });
 
-  fixme(
-    "REQ-006: no segments defined shows an empty state explaining how to add one",
-    async ({ page }) => {
-      await withNoSegments(page);
-      await open(page, "/");
-      await expect(page.getByText(/sdash segment add/)).toBeVisible();
-      await expect(page.getByRole("table", { name: "Rides" }).locator("tbody tr")).toHaveCount(9);
-    },
-  );
+  test("REQ-006: no segments defined shows an empty state explaining how to add one", async ({
+    page,
+  }) => {
+    await withNoSegments(page);
+    await open(page, "/");
+    await expect(page.getByText(/sdash segment add/)).toBeVisible();
+    await expect(page.getByRole("table", { name: "Rides" }).locator("tbody tr")).toHaveCount(9);
+  });
 });
 
 test("harness smoke: the built site boots and an unknown route shows Not found", async ({
