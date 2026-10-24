@@ -117,8 +117,27 @@ def _refuse_dtd(data: bytes, name: str) -> None:
             raise ValueError(f"cannot read TCX {name}: DTD/entity declarations are not allowed")
 
 
+def _strip_leading_junk(data: bytes) -> bytes:
+    """Drop a BOM and any text/whitespace before the first '<' (expat wants `<?xml` at byte 0).
+
+    UTF-16 with a BOM is handled in text form; UTF-32 and BOM-less UTF-16 are left as they are.
+    """
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        if data[:4] == b"\xff\xfe\x00\x00":
+            return data  # UTF-32 LE
+        text = data.decode("utf-16", errors="replace")
+        i = text.find("<")
+        return text[i:].encode("utf-16") if i > 0 else data
+    if data[:4] in (b"\x00\x00\xfe\xff", b"\xff\xfe\x00\x00") or b"\x00" in data[:8]:
+        return data
+    data = data.removeprefix(b"\xef\xbb\xbf")
+    i = data.find(b"<")
+    return data[i:] if i > 0 else data
+
+
 def _parse_tcx(data: bytes, name: str) -> Track:
     _refuse_dtd(data, name)
+    data = _strip_leading_junk(data)
     b = _Builder()
     try:
         for _, el in ElementTree.iterparse(io.BytesIO(data)):

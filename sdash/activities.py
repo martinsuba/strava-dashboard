@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -45,8 +46,20 @@ def parse_strava_date(text: str) -> datetime:
         raise ValueError(f"unrecognised activity date {text!r}") from exc
 
 
-def _number(text: str) -> float:
-    return float(text) if text.strip() else 0.0
+_THOUSANDS = re.compile(r"-?\d{1,3}(,\d{3})+(\.\d+)?")
+
+
+def _number(text: str, column: str = "number") -> float:
+    """A cell as a float; blank = 0. '2,496' (thousands separator) = 2496; '2,49' is an error."""
+    text = text.strip()
+    if not text:
+        return 0.0
+    if _THOUSANDS.fullmatch(text):
+        text = text.replace(",", "")
+    try:
+        return float(text)
+    except ValueError:
+        raise ValueError(f"unreadable {column} {text!r}") from None
 
 
 def read_activities(
@@ -58,7 +71,7 @@ def read_activities(
     """Rows of activities.csv. For duplicated column names the first occurrence is used.
 
     With `cycling_only`, other rows are skipped before their dates are parsed. A row with an
-    unreadable date raises ValueError, or, when `errors` is given, is appended there as
+    unreadable date or number raises ValueError, or, when `errors` is given, is appended there as
     (activity id, reason) and skipped.
     """
     with path.open(newline="", encoding="utf-8-sig") as fh:
@@ -95,6 +108,9 @@ def read_activities(
                 continue
             try:
                 date = parse_strava_date(cell(row, "Activity Date"))
+                distance = _number(cell(row, "Distance"), "Distance")
+                elapsed = _number(cell(row, "Elapsed Time"), "Elapsed Time")
+                moving = _number(cell(row, "Moving Time"), "Moving Time")
             except ValueError as exc:
                 if errors is None:
                     raise
@@ -108,9 +124,9 @@ def read_activities(
                     type=type_,
                     gear=cell(row, "Activity Gear"),
                     filename=cell(row, "Filename"),
-                    distance_km=_number(cell(row, "Distance")),
-                    elapsed_s=round(_number(cell(row, "Elapsed Time"))),
-                    moving_s=round(_number(cell(row, "Moving Time"))),
+                    distance_km=distance,
+                    elapsed_s=round(elapsed),
+                    moving_s=round(moving),
                 )
             )
         return activities
