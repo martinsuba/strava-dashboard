@@ -118,10 +118,11 @@ def parse_rides(data_dir: Path) -> ParseReport:
     parsed = 0
     activities, failed = cycling_rides(data_dir)
     extra, reference_errors = reference_only_activities(data_dir, activities)
+    extra_ids = {a.id for a in extra}
     failed += reference_errors
     references = 0
     for act in activities + extra:
-        is_reference = act in extra
+        is_reference = act.id in extra_ids
         if not act.filename:
             failed.append((act.id, "no file in activities.csv"))
             continue
@@ -285,6 +286,12 @@ def add_segment(
     if to_km * 1000 > track.d[-1] + 1e-6:
         raise PipelineError(
             f"--to-km {to_km} is beyond the end of activity {activity_id} ({total_km:.3f} km)"
+        )
+    length_m = (to_km - from_km) * 1000
+    if length_m < 2 * GATE_M:
+        raise PipelineError(
+            f"segment {name!r} would be only {length_m:.0f} m long; the minimum is "
+            f"{2 * GATE_M:.0f} m (two gates)"
         )
     start = _position_at(track, from_km * 1000)
     end = _position_at(track, to_km * 1000)
