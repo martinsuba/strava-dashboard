@@ -1,8 +1,9 @@
-// Hash routing (docs/ARCHITECTURE.md D-005): #/ , #/segment/<slug> , #/ride/<id>.
+// Hash routing (docs/ARCHITECTURE.md D-005): #/ , #/rides (index, scrolled to the rides list), #/segment/<slug> , #/ride/<id>.
 // GitHub Pages has no SPA rewrites, so everything after "#" is ours.
 
 export type Route =
   | { page: "index" }
+  | { page: "rides" }
   | { page: "segment"; slug: string }
   | { page: "ride"; id: string }
   | { page: "not-found"; path: string };
@@ -13,6 +14,7 @@ const ID = /^[0-9]+$/;
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, "").replace(/\/+$/, "") || "/";
   if (path === "/") return { page: "index" };
+  if (path === "/rides") return { page: "rides" };
   const parts = path.split("/").slice(1);
   if (parts.length === 2) {
     const [kind, raw] = parts as [string, string];

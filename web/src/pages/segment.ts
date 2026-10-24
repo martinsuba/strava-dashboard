@@ -1,3 +1,4 @@
+import { cell, dataTable, panel, tableRow } from "../lib/components";
 import { fetchJson, NotFoundError } from "../lib/data";
 import { h } from "../lib/dom";
 import { formatDate, formatDuration } from "../lib/format";
@@ -26,31 +27,31 @@ export interface SegmentData {
   per_year: { year: number; count: number; best_s: number }[];
 }
 
-function effortsTable(efforts: Effort[]): HTMLElement {
+function backLink(): HTMLElement {
+  return h(
+    "a",
+    { href: "#/", class: "back-link" },
+    h("span", { "aria-hidden": "true" }, "← "),
+    "All segments",
+  );
+}
+
+function effortsPanel(efforts: Effort[]): HTMLElement {
   const sorted = [...efforts].sort((a, b) => a.elapsed_s - b.elapsed_s || a.start_t - b.start_t);
   const rows = sorted.map((e) =>
-    h("tr", {}, h("td", {}, formatDate(e.start_t)), h("td", {}, formatDuration(e.elapsed_s))),
+    tableRow([cell(formatDate(e.start_t)), cell(formatDuration(e.elapsed_s), { numeric: true })]),
   );
-  return h(
-    "table",
-    {},
-    h("caption", {}, "All efforts"),
-    h(
-      "thead",
-      {},
-      h("tr", {}, h("th", { scope: "col" }, "Date"), h("th", { scope: "col" }, "Time")),
-    ),
-    h("tbody", {}, ...rows),
-  );
+  return panel("efforts-h", "All efforts", [
+    dataTable("efforts-h", [{ label: "Date" }, { label: "Time", numeric: true }], rows),
+  ]);
 }
 
 export function renderSegmentData(root: HTMLElement, data: SegmentData): void {
   root.replaceChildren(
-    h("p", {}, h("a", { href: "#/" }, h("span", { "aria-hidden": "true" }, "← "), "All segments")),
-    h("h1", {}, data.name),
+    h("div", { class: "page-head" }, backLink(), h("h1", {}, data.name)),
     data.efforts.length === 0
-      ? h("p", {}, "No efforts on this segment yet.")
-      : effortsTable(data.efforts),
+      ? h("p", { class: "meta" }, "No efforts on this segment yet.")
+      : effortsPanel(data.efforts),
   );
 }
 
@@ -59,11 +60,7 @@ export function renderSegment(root: HTMLElement, slug: string): void {
     root.replaceChildren(
       h("h1", {}, "Segment"),
       h("p", { role: "status", "aria-live": "polite" }, text),
-      h(
-        "p",
-        {},
-        h("a", { href: "#/" }, h("span", { "aria-hidden": "true" }, "← "), "All segments"),
-      ),
+      h("p", {}, backLink()),
     );
   root.replaceChildren(h("h1", {}, "Segment"), h("p", { "aria-live": "polite" }, "Loading…"));
   fetchJson<SegmentData>(`segments/${slug}.json`).then(

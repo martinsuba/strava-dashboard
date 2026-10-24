@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M2 / T-007 (site data complete): in progress. Done in M2: T-013 (#13), T-014 (#14), T-015 (#15)
+Current task: M2 / T-008 (base layout + design tokens + Index page): in progress. Done in M2: T-013, T-014, T-015, T-007 (#13, #14, #15, #17)
 Open PRs: –
 Blockers: –
-Next step: builder on T-007, then T-008, T-009, T-010; stop at M2 end
+Next step: builder on T-008, then T-009, T-010; stop at M2 end
 
 ## Decisions log
 - 2026-10-23: project created
@@ -75,3 +75,7 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-24: T-015 merged (PR #15): 1 fix round (0-checked guard was masked by a pipe to tee). Mutation in CI now real: 498 mutants, 405 killed, 91 survived, 2 timeout = 81.7 % (run via throw-away PR #16, closed unmerged, branch kept). Cold Playwright install ~9 s (was up to 11 min).
 - T-015 non-blocking: `env.ImageOS` in the Playwright cache key resolves empty (key playwright-Linux-X64--1.64.1); write $ImageOS to a step output if image-specific caching matters. CI run 40112747910 attempt 2 stuck "in_progress" on GitHub's side (cannot cancel; harmless). mutmut locally OOMs on the 4 GB VPS at default parallelism (CI only).
 - For T-011: refresh must deploy on exit status 0 or 2 (T-013); un-xfail test_req009_invalid_segment_exits_2_and_still_deploys_the_valid_one; consider (explicitly allowed) tightening test_req003_unreadable_segments_yaml_is_a_hard_failure_exit_1 with `not out.exists()`; Content-Length check in importer (T-014 reviewer).
+- 2026-10-24: T-007 merged (PR #17): 1 fix round (per_year bucketed by UTC year -> Europe/Bratislava per D-007; tzdata pinned). Lead real-data build: 662 ride files + 5 segment files, 0.26 MB, 8 s, no coordinates.
+- For the M2 review (Martin decides): elapsed-time averages are skewed by long stops (southbound avg 25:56 vs typical ~16-17 min, one effort with a 1.5 h stop). Suggest: show the median instead of the mean on the Ride page ("vs average") as well.
+- GitHub Actions glitch: stuck "in_progress" runs block the per-branch concurrency group (ci.yml cancel-in-progress); fix = cancel/force-cancel the stuck run. Seen twice on 2026-10-24.
+- T-007 reviewer non-blocking: duplicate activity IDs in activities.csv -> duplicate index rows / overwritten ride file (pre-existing).
