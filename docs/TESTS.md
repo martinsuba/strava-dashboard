@@ -174,21 +174,21 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | REQ-005 site data | `test_sitedata.py::test_req005_site_data_has_no_coordinates_or_raw_tracks` | T-002 | passing |
 | | `test_sitedata.py::test_req005_site_data_has_lists_and_effort_data` | T-007 | passing |
 | | `test_sitedata.py::test_req005_build_twice_is_byte_identical` | T-007 | passing |
-| REQ-006 index | `index.spec.ts` "REQ-006: segment list shows name, effort count, PR time and PR date" | T-008 | fixme |
-| | `index.spec.ts` "REQ-006: ride list shows rides newest first with date, name, distance, segments matched" | T-008 | fixme |
-| | `index.spec.ts` "REQ-006: clicking a segment opens its page", "REQ-006: clicking a ride opens its page" | T-008 | fixme |
-| | `index.spec.ts` "REQ-006: no segments defined shows an empty state explaining how to add one" | T-008 | fixme |
+| REQ-006 index | `index.spec.ts` "REQ-006: segment list shows name, effort count, PR time and PR date" | T-008 | passing |
+| | `index.spec.ts` "REQ-006: ride list shows rides newest first with date, name, distance, segments matched" | T-008 | passing |
+| | `index.spec.ts` "REQ-006: clicking a segment opens its page", "REQ-006: clicking a ride opens its page" | T-008 | passing |
+| | `index.spec.ts` "REQ-006: no segments defined shows an empty state explaining how to add one" | T-008 | passing |
 | REQ-007 segment page | `segment.spec.ts` "REQ-007: table lists every effort with date and elapsed time" | T-002 | passing |
-| | `segment.spec.ts` "REQ-007: each effort shows ride name, average speed, rank and gap to PR" | T-009 | fixme |
-| | `segment.spec.ts` "REQ-007: sortable by time (default) and by date" | T-009 | fixme |
-| | `segment.spec.ts` "REQ-007: top three efforts are marked PR, 2nd and 3rd" | T-009 | fixme |
-| | `segment.spec.ts` "REQ-007: chart of elapsed time against date with the PR highlighted" | T-009 | fixme |
-| | `segment.spec.ts` "REQ-007: summary shows effort count and best time per year" | T-009 | fixme |
-| | `segment.spec.ts` "REQ-007: a segment with no efforts says so instead of an empty table or chart" | T-009 | fixme |
-| REQ-008 ride page | `ride.spec.ts` "REQ-008: shows date, name, distance, moving/elapsed time and gear" | T-010 | fixme |
-| | `ride.spec.ts` "REQ-008: each matched effort shows time, PR, average, gap to PR and rank" | T-010 | fixme |
-| | `ride.spec.ts` "REQ-008: an effort is marked when it is the PR or was the PR at the time" | T-010 | fixme |
-| | `ride.spec.ts` "REQ-008: a ride with no matched segments says so" | T-010 | fixme |
+| | `segment.spec.ts` "REQ-007: each effort shows ride name, average speed, rank and gap to PR" | T-009 | passing |
+| | `segment.spec.ts` "REQ-007: sortable by time (default) and by date" | T-009 | passing |
+| | `segment.spec.ts` "REQ-007: top three efforts are marked PR, 2nd and 3rd" | T-009 | passing |
+| | `segment.spec.ts` "REQ-007: chart of elapsed time against date with the PR highlighted" | T-009 | passing |
+| | `segment.spec.ts` "REQ-007: summary shows effort count and best time per year" | T-009 | passing |
+| | `segment.spec.ts` "REQ-007: a segment with no efforts says so instead of an empty table or chart" | T-009 | passing |
+| REQ-008 ride page | `ride.spec.ts` "REQ-008: shows date, name, distance, moving/elapsed time and gear" | T-010 | passing |
+| | `ride.spec.ts` "REQ-008: each matched effort shows time, PR, average, gap to PR and rank" | T-010 | passing |
+| | `ride.spec.ts` "REQ-008: an effort is marked when it is the PR or was the PR at the time" | T-010 | passing |
+| | `ride.spec.ts` "REQ-008: a ride with no matched segments says so" | T-010 | passing |
 | REQ-009 refresh/deploy | `test_refresh.py::test_req009_refresh_from_zip_builds_deploys_and_reports` | T-011 (+T-012) | xfail |
 | | `test_refresh.py::test_req009_refresh_without_argument_rebuilds_from_existing_data` | T-011 | passing |
 | | `test_refresh.py::test_req009_no_deploy_stops_after_local_build` | T-011 | xfail |
