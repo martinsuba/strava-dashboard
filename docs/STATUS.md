@@ -54,6 +54,7 @@ Next step: Martin reviews + merges the M1 PR; decide on Plan v3 (real-data fix t
 2. Out-and-back segment (start == end, "Trojský most - Přívoz Klecánky otočka"): GPS jitter at the gate pairs passes 7 m apart -> degenerate-reference error. Reference pairing must skip too-short pairs and try the next end pass.
 3. One invalid segment makes `match`/`build-data` fail for ALL segments (no site data at all). Should report the bad segment and still process the others (needs a PRD/TESTS decision: exit code).
 4. TCX with text before the XML declaration (Strava's own TCX export) fails to parse (1 ride).
+5. Mutation workflow is broken: 488 mutants all "not checked" (deprecated mutmut config keys); green but empty. Needs a workflow task (Martin's label).
 Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-digit int in YAML -> traceback). CI Playwright-install slowness needs a workflow task (Martin's label).
 
 ## Follow-ups (open)
