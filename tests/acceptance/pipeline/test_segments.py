@@ -64,16 +64,7 @@ PROBLEM_WORDS = {
 }
 
 
-# One xfail mark per case, so each task un-marks exactly the cases it implements.
-KINDS = [
-    pytest.param(
-        kind,
-        marks=pytest.mark.xfail(strict=True, reason="REQ-003 validation not implemented (T-006)"),
-    )
-    if kind != "missing-field"
-    else kind
-    for kind in PROBLEM_WORDS
-]
+KINDS = list(PROBLEM_WORDS)
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -90,7 +81,6 @@ def test_req003_invalid_segment_fails_naming_segment_and_problem(
     assert re.search(PROBLEM_WORDS[kind], result.output, re.IGNORECASE), result.output
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-003 `segment add` not implemented (T-006)")
 def test_req003_segment_add_from_ride_and_km(sdash: SdashRunner, data_dir: Path) -> None:
     ride = sc.ride("1000000061", [(0, 0), (0, 5000)], spacing_m=10.0)
     write_raw(data_dir, [sc.reference_ride(), ride])
@@ -111,7 +101,6 @@ def test_req003_segment_add_from_ride_and_km(sdash: SdashRunner, data_dir: Path)
     )
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-003 `segment import-strava` not implemented (T-006)")
 def test_req003_import_strava_segments_skips_existing(sdash: SdashRunner, data_dir: Path) -> None:
     hill_s, hill_e = sc.latlon((0, 100)), sc.latlon((0, 900))
     flat_s, flat_e = sc.latlon((300, 0)), sc.latlon((300, 1500))

@@ -99,7 +99,9 @@ test-reviewer (or a plan PR), not silently in code.
   Slug: lowercase ASCII words joined by `-` (`River path north` → `river-path-north`), independent of other segments.
 - `sdash segment add --name N --activity ID --from-km A --to-km B` appends to `segments.yaml` with
   `ref_activity`, `start`/`end` = `[lat, lon]` at those distances (±15 m). `sdash segment import-strava` appends the
-  rows of `DIR/raw/segments.csv` whose names are new, in file order.
+  rows of `DIR/raw/segments.csv` whose names are new, in file order. Invalid rows are reported on stderr with the
+  row number and skipped; exit 0 if any row was added or all were existing, non-zero if some rows were invalid and
+  nothing was added.
 - `sdash deploy [--web-dir W] [--remote R]` → guard, then `W/dist` becomes a new commit on branch `gh-pages` of `R`
   (normal push, fast-forward; `main` untouched). Guard aborts (non-zero, names the file, nothing pushed) on any
   `.fit/.gpx/.tcx/.csv` file (+ `.gz`; every CSV, not only `activities.csv`) or JSON with coordinate keys.

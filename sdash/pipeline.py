@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+import bisect
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from sdash.activities import Activity, read_activities
 from sdash.match import GATE_M, Reference, find_efforts, reference_from
-from sdash.segments import Segment, SegmentError, load_segments
+from sdash.segments import (
+    Segment,
+    SegmentError,
+    check_unique,
+    load_segments,
+    load_segments_or_empty,
+    segment_from_entry,
+    write_segments,
+)
 from sdash.sitedata import SegmentResult, write_site_data
 from sdash.tracks import (
     Track,
@@ -202,3 +211,80 @@ def build_data(data_dir: Path, out: Path) -> list[SegmentResult]:
     activities, results = match_segments(data_dir)
     write_site_data(out, activities, results)
     return results
+
+
+def _ride_track(data_dir: Path, activity_id: str) -> Track:
+    """The cached track of an activity; parses (and caches) the file if it is not cached yet."""
+    cache = cache_path(data_dir, activity_id)  # refuses non-numeric IDs
+    if cache.is_file():
+        return _read_cache(cache)
+    csv_path = data_dir / "raw" / "activities.csv"
+    if not csv_path.is_file():
+        raise PipelineError(f"{csv_path} not found: run `sdash import` first")
+    try:
+        rows = read_activities(csv_path, errors=[])
+    except ValueError as exc:
+        raise PipelineError(str(exc)) from exc
+    act = next((a for a in rows if a.id == activity_id), None)
+    if act is None:
+        raise PipelineError(f"activity {activity_id} not found in activities.csv")
+    if not act.filename:
+        raise PipelineError(f"activity {activity_id} has no file in activities.csv")
+    try:
+        path = ride_file(data_dir, act.filename)
+        stamp = source_stamp(path)
+        track = parse_track(path)
+    except Exception as exc:
+        raise PipelineError(f"activity {activity_id} cannot be read: {exc}") from exc
+    if not track.t:
+        raise PipelineError(f"activity {activity_id} has no positions")
+    write_cache(cache, track, stamp)
+    return track
+
+
+def _position_at(track: Track, dist_m: float) -> tuple[float, float]:
+    """(lat, lon) at cumulative distance `dist_m`, interpolated linearly between track points."""
+    i = bisect.bisect_right(track.d, dist_m) - 1
+    i = max(0, min(i, len(track.d) - 2))
+    d0, d1 = track.d[i], track.d[i + 1]
+    f = 0.0 if d1 == d0 else (dist_m - d0) / (d1 - d0)
+    return (
+        track.lat[i] + f * (track.lat[i + 1] - track.lat[i]),
+        track.lon[i] + f * (track.lon[i + 1] - track.lon[i]),
+    )
+
+
+def add_segment(
+    data_dir: Path, name: str, activity_id: str, from_km: float, to_km: float
+) -> Segment:
+    """Append a segment taken from `activity_id` between two distances (km) to segments.yaml."""
+    if not (0 <= from_km < to_km):
+        raise PipelineError(f"--from-km ({from_km}) must be >= 0 and less than --to-km ({to_km})")
+    try:
+        track = _ride_track(data_dir, activity_id)
+    except ValueError as exc:
+        raise PipelineError(str(exc)) from exc
+    if len(track.d) < 2:
+        raise PipelineError(f"activity {activity_id} has fewer than 2 track points")
+    total_km = track.d[-1] / 1000
+    if to_km * 1000 > track.d[-1] + 1e-6:
+        raise PipelineError(
+            f"--to-km {to_km} is beyond the end of activity {activity_id} ({total_km:.3f} km)"
+        )
+    start = _position_at(track, from_km * 1000)
+    end = _position_at(track, to_km * 1000)
+    path = data_dir / "segments.yaml"
+    try:
+        existing = load_segments_or_empty(path)
+        seg = segment_from_entry(
+            {"name": name, "ref_activity": activity_id, "start": list(start), "end": list(end)}
+        )
+        check_unique([*existing, seg])
+    except SegmentError as exc:
+        raise PipelineError(str(exc)) from exc
+    _reference(seg, track)  # refuses a segment that match would reject (degenerate reference)
+    try:
+        write_segments(path, [*existing, seg])
+    except (SegmentError, OSError) as exc:
+        raise PipelineError(f"cannot write {path.name}: {exc}") from exc
+    return seg

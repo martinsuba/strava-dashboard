@@ -14,7 +14,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from sdash import __version__, importer, pipeline
+from sdash import __version__, importer, pipeline, segments
 
 DEFAULT_DATA_DIR = Path("~/data/strava-export")
 
@@ -121,7 +121,37 @@ def _cmd_refresh(data_dir: Path, args: argparse.Namespace) -> int:
     return 0
 
 
-IMPLEMENTED = {"import", "parse", "match", "build-data", "refresh"}
+def _cmd_segment_add(data_dir: Path, args: argparse.Namespace) -> int:
+    seg = pipeline.add_segment(data_dir, args.name, args.activity, args.from_km, args.to_km)
+    print(f"added segment {seg.name!r} (slug {seg.slug}) to {data_dir / 'segments.yaml'}")
+    return 0
+
+
+def _cmd_segment_import_strava(data_dir: Path) -> int:
+    try:
+        report = segments.import_strava_csv(
+            data_dir / "raw" / "segments.csv", data_dir / "segments.yaml"
+        )
+    except segments.SegmentError as exc:
+        raise pipeline.PipelineError(str(exc)) from exc
+    print(
+        f"added {report.added}, skipped {report.skipped_existing} existing, "
+        f"{len(report.invalid)} invalid"
+    )
+    for row, reason in report.invalid:
+        print(f"invalid row {row}: {reason}", file=sys.stderr)
+    return 1 if report.invalid and not report.added else 0
+
+
+IMPLEMENTED = {
+    "import",
+    "parse",
+    "match",
+    "build-data",
+    "refresh",
+    "segment add",
+    "segment import-strava",
+}
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -148,6 +178,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _cmd_match(data_dir)
         if command == "build-data":
             return _cmd_build_data(data_dir, args.out)
+        if command == "segment add":
+            return _cmd_segment_add(data_dir, args)
+        if command == "segment import-strava":
+            return _cmd_segment_import_strava(data_dir)
         return _cmd_refresh(data_dir, args)
     except pipeline.PipelineError as exc:
         print(f"sdash {command}: {exc}", file=sys.stderr)

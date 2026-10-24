@@ -31,3 +31,4 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-24 | M1 | resumed task loop after usage-limit pause ("continue") | n: budget decision
 2026-10-24 | M1 | (none) T-003 merged after 1 fix round | y: done by agents
 2026-10-24 | M1 | (none) T-004 merged, 0 fix rounds | y: done by agents
+2026-10-24 | M1 | (none) T-005 merged after 1 fix round | y: done by agents
