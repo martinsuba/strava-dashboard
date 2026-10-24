@@ -435,3 +435,12 @@ def test_integers_too_large_for_a_float_or_an_activity_id_are_segment_problems(
     segments, problems = load_segments_lenient(path)
     assert segments == [] and len(problems) == 3
     assert all(n in p for n, p in zip("ABC", problems, strict=True)), problems
+
+
+@pytest.mark.parametrize("ref", ["1" * 20, "1" * 40, 10**19, 10**25])
+def test_ref_activity_longer_than_19_digits_is_rejected_the_same_way(ref: object) -> None:
+    entry = {"name": "A", "ref_activity": ref, "start": [-47.0, -134.0], "end": [-46.9, -134.0]}
+    with pytest.raises(SegmentError, match=r"ref_activity.*too large"):
+        segment_from_entry(entry)
+    ok = {**entry, "ref_activity": "1" * 19}
+    assert segment_from_entry(ok).ref_activity == "1" * 19

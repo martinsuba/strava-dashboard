@@ -53,6 +53,7 @@ STRAVA_HEADER = (
 
 
 MAX_NAME_LEN = 120
+MAX_REF_DIGITS = 19
 _BAD_CATEGORIES = {"Cc", "Cs", "Co", "Cn", "Zl", "Zp"}
 
 
@@ -121,7 +122,9 @@ def segment_from_entry(entry: object, index: int = 0) -> Segment:
         )
     name = _check_name(entry["name"], label)
     ref = entry["ref_activity"]
-    if isinstance(ref, int) and not isinstance(ref, bool) and ref.bit_length() > 64:
+    if (isinstance(ref, int) and not isinstance(ref, bool) and abs(ref) >= 10**MAX_REF_DIGITS) or (
+        isinstance(ref, str) and len(ref) > MAX_REF_DIGITS
+    ):
         raise SegmentError(f"{label}: ref_activity is too large to be an activity ID")
     if (
         isinstance(ref, bool)

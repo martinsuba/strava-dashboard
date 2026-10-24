@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import bisect
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -290,7 +291,7 @@ def add_segment(
     length_m = (to_km - from_km) * 1000
     if length_m < 2 * GATE_M:
         raise PipelineError(
-            f"segment {name!r} would be only {length_m:.0f} m long; the minimum is "
+            f"segment {name!r} would be only {math.floor(length_m)} m long; the minimum is "
             f"{2 * GATE_M:.0f} m (two gates)"
         )
     start = _position_at(track, from_km * 1000)

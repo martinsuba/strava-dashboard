@@ -134,7 +134,7 @@ Served from the `gh-pages` branch root. Requires a public repo on Martin's plan.
   reports, Git, issues or STATUS. Logs show only the host.
 - Importer: https only, redirect targets limited to `*.strava.com` and `*.amazonaws.com`, max download 3 GB, zip-slip
   and absolute-path rejection, uncompressed size cap, extraction allowlist, never execute anything from the archive.
-- Importer limits: at most 100,000 zip entries, a 30 minute wall-clock limit for the whole download, entries that
+- Importer limits: at most 100,000 zip entries, a 30 minute hard wall-clock limit for the whole download (connect, TLS, redirects, headers, body; a watchdog closes the socket), one import at a time per data dir (flock on the data dir), entries that
   make a file and a directory share a path are refused by name, and leftovers of an interrupted import
   (`.raw-staging-*`, `.raw-old-*`, `.download-*.zip.tmp` in the data dir) are removed on the next start.
 - Proxies are ignored: the importer connects directly (`http.client`) and never reads `HTTPS_PROXY`/`ALL_PROXY`.

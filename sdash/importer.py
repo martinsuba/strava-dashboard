@@ -14,17 +14,21 @@ Rules enforced here:
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import http.client
 import os
 import re
 import shutil
+import socket
 import ssl
 import stat
 import sys
 import tempfile
+import threading
 import time
 import urllib.parse
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path, PurePosixPath
 
 from sdash.pipeline import PipelineError
@@ -124,15 +128,104 @@ def _ssl_context() -> ssl.SSLContext:
     return ctx
 
 
+def _duration_text(seconds: float) -> str:
+    if seconds < 60:
+        n = f"{seconds:g}"
+        return f"{n} second" + ("" if n == "1" else "s")
+    minutes = f"{seconds / 60:.0f}"
+    return f"{minutes} minute" + ("" if minutes == "1" else "s")
+
+
+def _timeout_error() -> ImportFailed:
+    return ImportFailed(
+        f"download exceeded the time limit of {_duration_text(DEADLINE_S)}: aborted"
+    )
+
+
+class _Watchdog:
+    """Hard wall-clock bound: at the deadline it shuts the connection's socket down, which ends
+    any blocked connect/handshake/header/body read at once (a per-read timeout cannot)."""
+
+    def __init__(self, seconds: float) -> None:
+        self.expired = False
+        self._lock = threading.Lock()
+        self._socks: list[socket.socket] = []
+        self._timer = threading.Timer(max(seconds, 0.0), self._fire)
+        self._timer.daemon = True
+        self._timer.start()
+
+    def _fire(self) -> None:
+        with self._lock:
+            self.expired = True
+            for sock in self._socks:
+                with contextlib.suppress(OSError):
+                    sock.shutdown(socket.SHUT_RDWR)
+
+    def watch(self, sock: socket.socket) -> None:
+        """Watch a duplicate of the connection's socket (shutdown acts on the connection)."""
+        dup = sock.dup()
+        with self._lock:
+            self._socks.append(dup)
+            if self.expired:
+                with contextlib.suppress(OSError):
+                    dup.shutdown(socket.SHUT_RDWR)
+
+    def stop(self) -> None:
+        self._timer.cancel()
+        with self._lock:
+            for sock in self._socks:
+                sock.close()
+            self._socks.clear()
+
+
+def _connection_class(dog: _Watchdog) -> type[http.client.HTTPSConnection]:
+    base = http.client.HTTPSConnection  # looked up now so tests can replace it
+
+    class Conn(base):  # type: ignore[valid-type, misc]
+        def connect(self) -> None:
+            raw = self._create_connection((self.host, self.port), self.timeout, self.source_address)
+            dog.watch(raw)  # before the TLS handshake, so a stalled handshake is cut off too
+            raw.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
+
+    return Conn
+
+
 def download(url: str, dest_dir: Path, hosts: tuple[str, ...] | None = None) -> Path:
-    """Download to a private (0600) temp file in dest_dir. The caller must delete it."""
+    """Download to a private (0600) temp file in dest_dir. The caller must delete it.
+
+    The whole download (connect, TLS, every redirect hop, headers, body) must finish within
+    DEADLINE_S wall-clock seconds.
+    """
     hosts = allowed_hosts() if hosts is None else hosts
     deadline = time.monotonic() + DEADLINE_S
+    dog = _Watchdog(DEADLINE_S)
+    try:
+        path = _download(url, dest_dir, hosts, deadline, dog)
+    except ImportFailed:
+        if dog.expired:
+            raise _timeout_error() from None
+        raise
+    finally:
+        dog.stop()
+    if dog.expired:  # the cut-off looked like a clean end of the stream
+        path.unlink(missing_ok=True)
+        raise _timeout_error()
+    return path
+
+
+def _download(
+    url: str, dest_dir: Path, hosts: tuple[str, ...], deadline: float, dog: _Watchdog
+) -> Path:
     current = url
     ctx = _ssl_context()
+    conn_class = _connection_class(dog)
     for _hop in range(MAX_REDIRECTS + 1):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise _timeout_error()
         host, port, target = _check_url(current, hosts)  # before any connection
-        conn = http.client.HTTPSConnection(host, port, timeout=TIMEOUT_S, context=ctx)
+        conn = conn_class(host, port, timeout=min(TIMEOUT_S, remaining), context=ctx)
         try:
             try:
                 conn.request("GET", target, headers={"User-Agent": "sdash"})
@@ -170,18 +263,16 @@ def _stream_to_file(
         total = 0
         with os.fdopen(fd, "wb") as out:
             while True:
+                if time.monotonic() > deadline:
+                    raise _timeout_error()
                 try:
-                    chunk = resp.read(CHUNK)
+                    chunk = resp.read1(CHUNK)  # returns what has arrived; read() would wait
                 except (OSError, http.client.HTTPException) as exc:
                     raise ImportFailed(
                         f"download failed for host {_norm_host(host)!r}: {type(exc).__name__}"
                     ) from None
                 if not chunk:
                     break
-                if time.monotonic() > deadline:
-                    raise ImportFailed(
-                        f"download took longer than {DEADLINE_S / 60:.0f} minutes: aborted"
-                    )
                 total += len(chunk)
                 if total > MAX_BYTES:
                     raise ImportFailed(f"download size exceeds the limit of {MAX_BYTES} bytes")
@@ -335,20 +426,39 @@ def import_zip(zip_path: Path, data_dir: Path) -> int:
     return count
 
 
+@contextlib.contextmanager
+def _import_lock(data_dir: Path) -> Iterator[None]:
+    """Exclusive lock for a whole import (stale cleanup included): two imports in one data dir
+    would delete each other's temp files. The lock is on the data dir itself (no lock file: a
+    failed import must leave nothing behind)."""
+    _private_dir(data_dir)
+    fd = os.open(data_dir, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            raise ImportFailed("another import is running in this data dir") from None
+        yield
+    finally:
+        os.close(fd)  # also releases the lock
+
+
 def import_source(source: str, data_dir: Path) -> int:
     """`sdash import <zip|https-url>`; returns the number of extracted files."""
     if "://" in source:
         hosts = allowed_hosts()
         _check_url(source, hosts)  # https/host check before touching the disk or network
-        clean_stale(data_dir)  # before the download starts: its own temp file must survive
-        zip_path = download(source, data_dir, hosts)
-        try:
-            return import_zip(zip_path, data_dir)
-        finally:
-            zip_path.unlink(missing_ok=True)
+        with _import_lock(data_dir):
+            clean_stale(data_dir)  # before the download starts: its own temp file must survive
+            zip_path = download(source, data_dir, hosts)
+            try:
+                return import_zip(zip_path, data_dir)
+            finally:
+                zip_path.unlink(missing_ok=True)
     path = Path(source).expanduser()
     if not path.is_file():
         shown = "" if "?" in source else f": {source}"
         raise ImportFailed(f"zip file not found{shown}")
-    clean_stale(data_dir)
-    return import_zip(path, data_dir)
+    with _import_lock(data_dir):
+        clean_stale(data_dir)
+        return import_zip(path, data_dir)
