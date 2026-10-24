@@ -41,3 +41,4 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-24 | M2 | (none) T-013 merged, real-data check clean | y: done by agents + Lead
 2026-10-24 | M2 | (none) T-014 merged after 1 fix round | y: done by agents
 2026-10-24 | M2 | (none) T-015 merged after 1 fix round; Lead measured cold CI + CI mutation run via throw-away PR #16 | y: done by agents + Lead
+2026-10-24 | M2 | (none) T-007 merged after 1 fix round; Lead unblocked a stuck GitHub Actions run | y: done by agents + Lead
