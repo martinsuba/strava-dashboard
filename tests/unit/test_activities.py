@@ -111,7 +111,16 @@ def test_bad_date_on_cycling_row_is_collected_or_raised(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     ("text", "value"),
-    [("2,496", 2496.0), ("1,234,567.5", 1234567.5), ("12.5", 12.5), ("", 0.0), (" 7 ", 7.0)],
+    [
+        ("2,496", 2496.0),
+        ("1,234.5", 1234.5),
+        ("-1,234", -1234.0),
+        ("1,234,567.89", 1234567.89),
+        ("1,234,567.5", 1234567.5),
+        ("12.5", 12.5),
+        ("", 0.0),
+        (" 7 ", 7.0),
+    ],
 )
 def test_numbers_with_thousands_separators(tmp_path: Path, text: str, value: float) -> None:
     row = f'1,"Jun 1, 2026, 9:00:00 AM",n,Swim,1,"{text}",,f,1,1,1'
@@ -119,7 +128,10 @@ def test_numbers_with_thousands_separators(tmp_path: Path, text: str, value: flo
     assert act.distance_km == value
 
 
-@pytest.mark.parametrize("text", ["2,49", "2,4960", "1,23", ",496", "12,34,567", "1.234,5", "abc"])
+@pytest.mark.parametrize(
+    "text",
+    ["2,49", "2,4960", "1,23", ",496", "12,34,567", "1.234,5", "abc", "0,500", "-0,500", "00,500"],
+)
 def test_decimal_comma_is_never_taken_for_a_thousands_separator(tmp_path: Path, text: str) -> None:
     row = f'7,"Jun 1, 2026, 9:00:00 AM",n,Swim,1,"{text}",,f,1,1,1'
     p = _write(tmp_path / "activities.csv", row)
