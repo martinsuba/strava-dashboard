@@ -27,6 +27,8 @@ export type { Effort, SegmentData } from "../lib/segment-data";
 
 const EFFORTS_SHOWN = 12;
 
+let destroyChart: (() => void) | null = null;
+
 function backLink(): HTMLElement {
   return h(
     "a",
@@ -222,7 +224,8 @@ export function renderSegmentData(root: HTMLElement, data: SegmentData, year?: n
   );
   // Chart.js is a separate chunk, loaded only on this page; the table and summary show meanwhile.
   void import("../lib/segment-chart").then(({ mountSegmentChart }) => {
-    if (chart.canvas.isConnected) mountSegmentChart(chart.canvas, model, data.efforts);
+    if (chart.canvas.isConnected)
+      destroyChart = mountSegmentChart(chart.canvas, model, data.efforts);
   });
 }
 
@@ -237,7 +240,9 @@ async function generatedYear(): Promise<number | undefined> {
 }
 
 export function renderSegment(root: HTMLElement, slug: string): void {
-  void import("../lib/segment-chart").then(({ disposeSegmentChart }) => disposeSegmentChart());
+  // Synchronous: a lazy import here could resolve after the new chart is mounted and destroy it.
+  destroyChart?.();
+  destroyChart = null;
   const status = (text: string): void =>
     root.replaceChildren(
       h("h1", {}, "Segment"),

@@ -53,7 +53,7 @@ export function mountSegmentChart(
   canvas: HTMLCanvasElement,
   model: ChartModel,
   efforts: Effort[],
-): void {
+): () => void {
   disposeSegmentChart();
   canvas.setAttribute("role", "img");
   canvas.setAttribute("aria-label", chartLabel(efforts));
@@ -135,5 +135,9 @@ export function mountSegmentChart(
     },
     plugins: [prLabelPlugin(model)],
   });
-  void document.fonts?.ready?.then(() => current?.update("none"));
+  const chart = current;
+  void document.fonts?.ready?.then(() => {
+    if (current === chart) chart.update("none");
+  });
+  return disposeSegmentChart;
 }
