@@ -47,27 +47,7 @@ def test_req002_only_ride_and_ebike_are_kept(sdash: SdashRunner, data_dir: Path)
     assert not cached & {"1000000013", "1000000014"}, f"non-cycling activities parsed: {cached}"
 
 
-# One xfail mark per format, so each task un-marks exactly the formats it implements.
-FORMATS = [
-    "gpx",
-    pytest.param(
-        "gpx.gz",
-        marks=pytest.mark.xfail(strict=True, reason="REQ-002 gpx.gz not implemented (T-003)"),
-    ),
-    pytest.param(
-        "fit", marks=pytest.mark.xfail(strict=True, reason="REQ-002 fit not implemented (T-003)")
-    ),
-    pytest.param(
-        "fit.gz",
-        marks=pytest.mark.xfail(strict=True, reason="REQ-002 fit.gz not implemented (T-003)"),
-    ),
-    pytest.param(
-        "tcx.gz",
-        marks=pytest.mark.xfail(
-            strict=True, reason="REQ-002 tcx.gz (priority could) not implemented (T-003)"
-        ),
-    ),
-]
+FORMATS = ["gpx", "gpx.gz", "fit", "fit.gz", "tcx.gz"]
 
 
 @pytest.mark.parametrize("fmt", FORMATS)
@@ -94,7 +74,6 @@ def test_req002_each_format_yields_track(sdash: SdashRunner, data_dir: Path, fmt
     assert abs(track["d"][-1] - 2000) < 40, f"cumulative distance {track['d'][-1]} != ~2000 m"
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-002 not implemented (T-003)")
 def test_req002_unparseable_file_reported_run_continues(sdash: SdashRunner, data_dir: Path) -> None:
     rides = [
         _ride("1000000021", fmt="gpx"),
@@ -132,7 +111,6 @@ def _swap_lat_keep_size_and_mtime(path: Path) -> None:
     os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns))
 
 
-@pytest.mark.xfail(strict=True, reason="REQ-002 cache not implemented (T-003)")
 def test_req002_unchanged_ride_read_from_cache(sdash: SdashRunner, data_dir: Path) -> None:
     ride = _ride("1000000041", fmt="gpx")
     write_raw(data_dir, [ride])
