@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDuration } from "./format";
+import { formatDate, formatDuration, formatKm } from "./format";
 
 describe("formatDuration", () => {
   it("uses m:ss under an hour", () => {
@@ -31,5 +31,13 @@ describe("formatDate", () => {
 
   it("writes Sep as Sep", () => {
     expect(formatDate("2023-09-10T16:45:00Z")).toBe("10 Sep 2023");
+  });
+});
+
+describe("formatKm", () => {
+  it("shows one decimal", () => {
+    expect(formatKm(42.6)).toBe("42.6");
+    expect(formatKm(18)).toBe("18.0");
+    expect(formatKm(88.349)).toBe("88.3");
   });
 });
