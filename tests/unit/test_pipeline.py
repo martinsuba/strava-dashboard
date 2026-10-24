@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from sdash.pipeline import PipelineError, _reference, match_segments, parse_rides
+from sdash.pipeline import PipelineError, _reference, build_data, match_segments, parse_rides
 from sdash.tracks import Track
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "minimal.gpx"
@@ -78,14 +78,15 @@ def test_bad_date_on_a_ride_is_a_failed_ride_and_run_continues(tmp_path: Path) -
     assert [f[0] for f in report.failed] == ["1"]
 
 
-def test_bad_ref_activity_names_the_segment(tmp_path: Path) -> None:
+def test_bad_ref_activity_is_a_problem_naming_the_segment(tmp_path: Path) -> None:
     data = _data(tmp_path, _row("5", "activities/ok.gpx"))
     (data / "segments.yaml").write_text(
         '- name: "Sneaky"\n  ref_activity: "../../x"\n  start: [-47.0, -134.0]\n'
         "  end: [-46.9, -134.0]\n"
     )
-    with pytest.raises(PipelineError, match="Sneaky"):
-        match_segments(data)
+    report = match_segments(data)
+    assert report.results == []
+    assert len(report.problems) == 1 and "Sneaky" in report.problems[0]
 
 
 # --- T-003: cache and cycling filter ------------------------------------------------------------
@@ -274,7 +275,7 @@ def test_degenerate_reference_is_rejected_naming_the_segment() -> None:
     lat = [-47.0 + m / 111_195.0 for m in (20, 31, 31, 20, 31)]
     track = Track(t=[0, 10, 11, 20, 30], lat=lat, lon=[-134.0] * 5, d=[0.0, 11.0, 12.0, 23.0, 34.0])
     seg = Segment("Wobble", "wobble", "5", (-47.0, -134.0), (-47.0, -134.0))
-    with pytest.raises(PipelineError, match=r"Wobble.*only"):
+    with pytest.raises(PipelineError, match=r"Wobble.*does not pass"):
         _reference(seg, track)
 
 
@@ -385,7 +386,7 @@ def test_add_segment_refuses_degenerate_reference(tmp_path: Path) -> None:
     from sdash.pipeline import add_segment
 
     data = _add_data(tmp_path)
-    with pytest.raises(PipelineError, match="only"):
+    with pytest.raises(PipelineError, match=r"Tiny.*does not pass"):
         add_segment(data, "Tiny", "5", 1.0, 1.02)  # 20 m: shorter than two gates
     assert not (data / "segments.yaml").exists()
 
@@ -411,3 +412,92 @@ def test_add_segment_empty_name_and_single_point_track(tmp_path: Path) -> None:
     data2 = _add_data(tmp_path / "two", one)
     with pytest.raises(PipelineError, match="fewer than 2"):
         add_segment(data2, "X", "5", 0.0, 0.1)
+
+
+# --- T-013: segment-level problems are reported and skipped; the rest is matched ---------------
+
+M_LON = 1 / (111_194.93 * 0.682)  # degrees of longitude per metre on the -47 deg parallel
+
+
+def _seg_yaml(name: str, ref: str, from_m: float = 0.0, to_m: float = 3000.0) -> str:
+    start = [-47.0, round(-134.0 + from_m * M_LON, 6)]
+    end = [-47.0, round(-134.0 + to_m * M_LON, 6)]
+    return f'- name: "{name}"\n  ref_activity: "{ref}"\n  start: {start}\n  end: {end}\n'
+
+
+def _matching_data(tmp_path: Path, segments: str) -> Path:
+    data = _add_data(tmp_path)
+    (data / "segments.yaml").write_text(segments)
+    return data
+
+
+def test_one_bad_segment_does_not_stop_the_others(tmp_path: Path) -> None:
+    broken = '- name: "Broken"\n  ref_activity: "5"\n  start: [-47.0, -134.0]\n'
+    data = _matching_data(tmp_path, broken + _seg_yaml("Good", "5"))
+    report = match_segments(data)
+    assert [r.segment.name for r in report.results] == ["Good"]
+    assert len(report.results[0].efforts) == 1
+    assert len(report.problems) == 1 and "Broken" in report.problems[0]
+
+
+@pytest.mark.parametrize("ref", ["99", "5"])
+def test_unusable_reference_is_a_problem_naming_the_segment(tmp_path: Path, ref: str) -> None:
+    # 99: no parsed track; 5 with the gates 40 m apart: the reference never rides 2 x gate
+    bad = _seg_yaml("Bad ref", ref) if ref == "99" else _seg_yaml("Bad ref", ref, 0, 40)
+    data = _matching_data(tmp_path, bad + _seg_yaml("Good", "5"))
+    report = match_segments(data)
+    assert [r.segment.name for r in report.results] == ["Good"]
+    assert len(report.problems) == 1
+    assert "Bad ref" in report.problems[0] and "reference" in report.problems[0]
+
+
+def test_duplicate_name_keeps_the_first_segment(tmp_path: Path) -> None:
+    data = _matching_data(
+        tmp_path, _seg_yaml("Same", "5", 0, 3000) + _seg_yaml("Same", "5", 0, 1000)
+    )
+    report = match_segments(data)
+    assert [r.segment.name for r in report.results] == ["Same"]
+    assert abs(report.results[0].ref_length_m - 3000) < 50, "the first occurrence is kept"
+    assert len(report.problems) == 1 and "duplicate" in report.problems[0]
+
+
+def test_unreadable_segments_yaml_is_still_a_hard_failure(tmp_path: Path) -> None:
+    data = _matching_data(tmp_path, "- name: [unclosed\n")
+    with pytest.raises(PipelineError, match="invalid YAML"):
+        match_segments(data)
+
+
+def test_build_data_writes_json_only_for_valid_segments(tmp_path: Path) -> None:
+    data = _matching_data(tmp_path, _seg_yaml("Bad ref", "99") + _seg_yaml("Good", "5"))
+    out = tmp_path / "out"
+    report = build_data(data, out)
+    assert [p.name for p in (out / "segments").glob("*.json")] == ["good.json"]
+    assert len(report.problems) == 1
+
+
+def test_hike_reference_with_thousands_separator_in_another_row_is_parsed(tmp_path: Path) -> None:
+    swim = '9,"Jun 1, 2026, 9:00:00 AM",n,Swim,activities/ok.gpx,,"2,496",0,0'
+    data = _data(tmp_path, swim, _row("8", "activities/ok.gpx", "Hike"))
+    _segments(data, "8")
+    report = parse_rides(data)
+    assert report.references == 1 and report.failed == []
+    assert (data / "cache" / "8.json.gz").is_file()
+
+
+def test_unreadable_row_of_a_reference_activity_is_reported(tmp_path: Path) -> None:
+    hike = '8,"Jun 1, 2026, 9:00:00 AM",n,Hike,activities/ok.gpx,,"2,49",0,0'
+    data = _data(tmp_path, _row("5", "activities/ok.gpx"), hike)
+    _segments(data, "8")
+    report = parse_rides(data)
+    assert report.references == 0
+    assert [f[0] for f in report.failed] == ["8"] and "Distance" in report.failed[0][1]
+    assert not (data / "cache" / "8.json.gz").exists()
+
+
+def test_reference_lookup_reads_segments_leniently(tmp_path: Path) -> None:
+    data = _data(tmp_path, _row("8", "activities/ok.gpx", "Hike"))
+    (data / "segments.yaml").write_text(
+        '- name: "Broken"\n  ref_activity: "8"\n- name: "Hike seg"\n  ref_activity: "8"\n'
+        "  start: [-47.0, -134.0]\n  end: [-46.99, -134.0]\n"
+    )
+    assert parse_rides(data).references == 1

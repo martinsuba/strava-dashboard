@@ -192,3 +192,54 @@ def test_req002_activities_csv_dates_and_duplicate_columns(
         assert ride["km"] == pytest.approx(25.31, abs=0.01), "Distance: first occurrence (km) wins"
         assert ride["elapsed_s"] == 3600, "Elapsed Time: first occurrence wins"
         assert ride["moving_s"] == 3300
+
+
+def test_req002_thousands_separator_row_does_not_break_reading_or_references(
+    sdash: SdashRunner, data_dir: Path, tmp_path: Path
+) -> None:
+    """Real data: Swim/Rowing rows have Distance like "2,496" (metres). Every row must still be
+    read; here the hike used as a segment reference sits after such a row."""
+    swim = Ride(
+        Activity(
+            "1000000071",
+            datetime(2026, 5, 1, 7, 0, tzinfo=UTC),
+            "Synthetic swim",
+            type="Swim",
+            extra={"Distance": "2,496"},
+        ),
+        None,
+        fmt="gpx",
+        raw_bytes=b"not used",
+    )
+    ride = sc.ride("1000000002", [(0, -500), (0, 2500)], day=1)
+    write_raw(data_dir, [swim, sc.hike_reference(), ride])
+    (data_dir / "segments.yaml").write_text(segments_yaml([sc.segment()]))
+    parsed = sdash("parse").ok()
+    assert "1000000071" not in parsed.output, "a non-cycling row is not a failure"
+    assert "1000000001" not in parsed.output, (
+        f"the hike reference failed to parse:\n{parsed.output}"
+    )
+    read_cached_track(data_dir, sc.REF_ID)
+    sdash("match").ok()
+    out = tmp_path / "site-data"
+    sdash("build-data", "--out", out).ok()
+    assert [r["id"] for r in load_json(out / "index.json")["rides"]] == ["1000000002"]
+    efforts = load_json(out / "segments" / "synthetic-climb.json")["efforts"]
+    assert [e["activity_id"] for e in efforts] == ["1000000002"]
+
+
+@pytest.mark.parametrize("prefix", [b"\n  ", b"\xef\xbb\xbf\n", b"Exported by Synthetic\n"])
+def test_req002_tcx_with_text_before_the_xml_declaration(
+    sdash: SdashRunner, data_dir: Path, prefix: bytes
+) -> None:
+    """Real data: a Strava TCX with text/whitespace/BOM before `<?xml`."""
+    from _synth import tcx_bytes
+
+    pts = _track()
+    ride = _ride("1000000081", fmt="tcx", points=pts, raw_bytes=prefix + tcx_bytes(pts))
+    write_raw(data_dir, [ride])
+    result = sdash("parse").ok()
+    assert "1000000081" not in result.output, f"parse reported a failure:\n{result.output}"
+    track = read_cached_track(data_dir, "1000000081")
+    assert len(track["t"]) == len(pts)
+    assert abs(track["d"][-1] - 2000) < 40

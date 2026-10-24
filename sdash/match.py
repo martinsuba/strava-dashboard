@@ -8,7 +8,8 @@ ride path is the distance to the nearest ride *segment*, so sparse tracks still 
 = time at the end pass - time at the start pass, so stops are included.
 
 When a (start, end) pair fails, the next end pass is tried for the same start and then the next
-start pass, so a failed pair never consumes a pass that a later pair needs. Efforts never overlap.
+start pass, so a failed pair never consumes a pass that a later pair needs. Pairs ridden over less
+than 2 x GATE_M are skipped (gate jitter). Efforts never overlap.
 Without a `Reference`, only the gates and the order are checked.
 """
 
@@ -132,10 +133,14 @@ def _first_pair(
     end: tuple[float, float],
     gate_m: float,
 ) -> tuple[Approach, Approach] | None:
-    """First end pass with a start pass before it, paired with the latest such start pass."""
+    """First end pass with a start pass before it, paired with the latest such start pass.
+
+    Pairs ridden over less than 2 x gate are skipped (a track that jitters in and out of the gate
+    is not a segment): the next end pass is tried.
+    """
     starts = approaches(track, start, gate_m)
     for e in approaches(track, end, gate_m):
-        before = [x for x in starts if x.t < e.t]
+        before = [x for x in starts if x.t < e.t and e.d - x.d >= 2 * gate_m]
         if before:
             return before[-1], e
     return None
@@ -232,8 +237,8 @@ def find_efforts(
         if s.t < last_end_t:
             continue
         for e in ends:
-            if e.t <= s.t:
-                continue
+            if e.t <= s.t or e.d - s.d < 2 * gate_m:
+                continue  # not after the start, or a gate pair too short to be a segment
             if reference is not None:
                 ridden = e.d - s.d
                 if ridden > reference.length_m * (1 + LENGTH_TOLERANCE):

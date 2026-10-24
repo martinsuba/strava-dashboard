@@ -356,3 +356,52 @@ def test_cache_write_is_atomic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
         write_cache(path, Track(t=[2], lat=[-47.0], lon=[-134.0], d=[0.0]))
     assert path.read_bytes() == before
     assert [p.name for p in tmp_path.iterdir()] == ["1.json.gz"]  # temp file cleaned up
+
+
+# --- T-013: text / whitespace / BOM before the XML declaration -----------------------------------
+
+
+def _tcx_bytes() -> bytes:
+    synth = _synth()
+    return synth.tcx_bytes(_points(synth))
+
+
+@pytest.mark.parametrize(
+    "prefix",
+    [b" ", b"\n\n", b"\t \r\n", b"\xef\xbb\xbf", b"\xef\xbb\xbf\n", b"Strava export\n", b"x"],
+)
+def test_tcx_with_text_whitespace_or_bom_before_declaration_parses(
+    tmp_path: Path, prefix: bytes
+) -> None:
+    path = tmp_path / "x.tcx"
+    path.write_bytes(prefix + _tcx_bytes())
+    assert len(parse_track(path).t) == 30
+
+
+def test_tcx_with_leading_whitespace_parses_when_gzipped(tmp_path: Path) -> None:
+    path = tmp_path / "x.tcx.gz"
+    path.write_bytes(gzip.compress(b"\n  " + _tcx_bytes(), mtime=0))
+    assert len(parse_track(path).t) == 30
+
+
+def test_tcx_utf16_with_bom_and_leading_whitespace_parses(tmp_path: Path) -> None:
+    text = "\n " + _tcx_bytes().decode().replace("UTF-8", "UTF-16")
+    path = tmp_path / "x.tcx"
+    path.write_bytes(text.encode("utf-16"))
+    assert len(parse_track(path).t) == 30
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-16", "utf-32"])
+def test_tcx_dtd_still_refused_after_leading_text(tmp_path: Path, encoding: str) -> None:
+    text = 'junk\n <?xml version="1.0"?><!DOCTYPE a [<!ENTITY b "c">]><a>&b;</a>'
+    path = tmp_path / "x.tcx"
+    path.write_bytes(text.encode(encoding))
+    with pytest.raises(ValueError, match="DTD"):
+        parse_track(path)
+
+
+def test_tcx_without_any_xml_is_still_an_error(tmp_path: Path) -> None:
+    path = tmp_path / "x.tcx"
+    path.write_bytes(b"just some text")
+    with pytest.raises(ValueError, match="TCX"):
+        parse_track(path)

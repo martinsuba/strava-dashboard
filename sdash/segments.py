@@ -153,7 +153,8 @@ def check_unique(segments: list[Segment]) -> None:
         slugs[seg.slug] = seg.name
 
 
-def load_segments(path: Path) -> list[Segment]:
+def _read_entries(path: Path) -> list[object]:
+    """The raw entries of segments.yaml; SegmentError when the file itself is unusable."""
     if not path.is_file():
         raise SegmentError(f"{path.name} not found in {path.parent}")
     try:
@@ -164,9 +165,44 @@ def load_segments(path: Path) -> list[Segment]:
         data = []
     if not isinstance(data, list):
         raise SegmentError(f"{path.name} must be a list of segments")
-    segments = [segment_from_entry(entry, i) for i, entry in enumerate(data, 1)]
+    return data
+
+
+def load_segments(path: Path) -> list[Segment]:
+    segments = [segment_from_entry(entry, i) for i, entry in enumerate(_read_entries(path), 1)]
     check_unique(segments)
     return segments
+
+
+def load_segments_lenient(path: Path) -> tuple[list[Segment], list[str]]:
+    """(valid segments, problems). One bad segment never hides the others.
+
+    Invalid entries, later duplicate names and later slug collisions are skipped (the first
+    occurrence is kept); each is one problem message that names the segment. An unusable file
+    (missing, invalid YAML, not a list) still raises SegmentError.
+    """
+    segments: list[Segment] = []
+    problems: list[str] = []
+    names: set[str] = set()
+    slugs: dict[str, str] = {}
+    for i, entry in enumerate(_read_entries(path), 1):
+        try:
+            seg = segment_from_entry(entry, i)
+        except SegmentError as exc:
+            problems.append(str(exc))
+            continue
+        if seg.name in names:
+            problems.append(f"segment {_short(seg.name)}: duplicate name")
+        elif seg.slug in slugs:
+            problems.append(
+                f"segment {_short(seg.name)}: slug {seg.slug!r} collides with segment "
+                f"{_short(slugs[seg.slug])}: rename one of them"
+            )
+        else:
+            names.add(seg.name)
+            slugs[seg.slug] = seg.name
+            segments.append(seg)
+    return segments, problems
 
 
 def load_segments_or_empty(path: Path) -> list[Segment]:

@@ -358,3 +358,46 @@ def test_reference_passing_the_start_gate_twice_uses_the_tightest_pair() -> None
     assert ref is not None
     assert abs(ref.length_m - 2000) <= 25
     assert len(find_efforts(walk([(0, -500), (0, 2500)]), START, END, "x", reference=ref)) == 1
+
+
+# --- T-013: jitter at the gate must not produce a tiny out-and-back pair -------------------------
+
+
+def _path(xy: list[tuple[float, float]], *, t0: int = 1000, step_s: int = 2) -> Track:
+    """A track through the given (x east, y north) points in metres, one point per `step_s`."""
+    d = [0.0]
+    for (xa, ya), (xb, yb) in itertools.pairwise(xy):
+        d.append(d[-1] + math.hypot(xb - xa, yb - ya))
+    return Track(
+        t=[t0 + i * step_s for i in range(len(xy))],
+        lat=[lat_at(y) for _, y in xy],
+        lon=[lon_at(x) for x, _ in xy],
+        d=d,
+    )
+
+
+# Starts on the gate point, steps out of the 30 m gate and straight back in (a second pass 34 m
+# further on), then rides 1 km north on x = 29 and back on x = 60, which passes the gate a third time.
+JITTER = [(0, 0), (31, 0), (31, 1), (29, 0)]
+OUT_AND_BACK = [*JITTER, (29, 1000), (60, 1000), (60, 10), (29, 0)]
+
+
+def test_reference_skips_gate_pairs_shorter_than_two_gates() -> None:
+    ref = reference_from(_path(OUT_AND_BACK), START, START)
+    assert ref is not None
+    assert 2000 <= ref.length_m <= 2100, ref.length_m
+
+
+def test_reference_without_any_long_enough_pair_is_none() -> None:
+    assert reference_from(_path(JITTER), START, START) is None
+
+
+def test_ride_with_jitter_at_the_gate_gets_one_full_effort() -> None:
+    efforts = find_efforts(_path([*OUT_AND_BACK, (29, -200)]), START, START, "r")
+    assert len(efforts) == 1, efforts
+    assert efforts[0].distance_m > 2000
+
+
+def test_a_start_end_pair_shorter_than_two_gates_is_never_an_effort() -> None:
+    near_end = (lat_at(40), lon_at(0))  # 40 m north of the start: ridden 40 m < 2 x gate
+    assert find_efforts(northbound(-500, 500), START, near_end) == []

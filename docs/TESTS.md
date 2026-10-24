@@ -88,8 +88,14 @@ test-reviewer (or a plan PR), not silently in code.
   "d": [...cumulative m]}` for each Ride / E-Bike Ride only; records without a position are dropped. Cache key =
   source file size + mtime (same size+mtime → not re-parsed). A broken file does not stop the run (exit 0); its
   activity ID and a reason appear in the output or under `DIR/reports/`.
-- `sdash match` → validates `DIR/segments.yaml`, errors name the segment and the problem (missing field name,
-  "range"/"invalid", "duplicate").
+- `sdash match` → reads `DIR/segments.yaml`; every segment-level problem names the segment and the problem
+  (missing field name, "range"/"invalid", "duplicate", unusable "reference") and is printed on stdout as
+  `warning: segment '<name>': <problem> (segment skipped)`. See "Exit codes" below.
+- Exit codes (`match`, `build-data`, `refresh`; Plan v3): `0` all fine; `2` segment-level warnings: invalid segment
+  fields, a later duplicate name (the first occurrence is kept), a missing/unusable reference track. Each problem is
+  reported once, that segment is skipped everywhere (no JSON for it), every valid segment is matched/built as usual
+  and `refresh` still builds and deploys. `1` real failure (unreadable `segments.yaml` (missing, invalid YAML, not a
+  list), import/parse-wide errors, site build or guard failure): message on stderr, nothing built/deployed.
 - `sdash build-data --out OUT` (default `web/public/data`) → `index.json`, `segments/<slug>.json`,
   `rides/<id>.json` per ARCHITECTURE.md "Site JSON" (keys checked as a minimum set; extra keys allowed); only
   `.json` files; no coordinate keys (`lat`, `lon`, `start`, `end`, `points`, …) and no coordinate values;
@@ -145,8 +151,10 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `test_parse.py::test_req002_unparseable_file_reported_run_continues` | T-003 | passing |
 | | `test_parse.py::test_req002_unchanged_ride_read_from_cache`, `test_req002_changed_ride_is_parsed_again` | T-003 | passing |
 | | `test_parse.py::test_req002_activities_csv_dates_and_duplicate_columns` (needs `rides/<id>.json`) | T-003/T-007 | xfail |
+| | `test_parse.py::test_req002_thousands_separator_row_does_not_break_reading_or_references`, `test_req002_tcx_with_text_before_the_xml_declaration` (3) | T-013 | passing |
 | REQ-003 segments | `test_segments.py::test_req003_slug_derived_from_name_and_stable` | T-002 | passing |
 | | `test_segments.py::test_req003_invalid_segment_fails_naming_segment_and_problem[missing-field, latitude-out-of-range, longitude-out-of-range, duplicate-name]` (4) | T-006 | passing |
+| | `test_segments.py::test_req003_bad_segment_is_skipped_and_the_good_one_is_built_exit_2` (4), `test_req003_segment_with_unusable_reference_is_skipped_exit_2`, `test_req003_unreadable_segments_yaml_is_a_hard_failure_exit_1` | T-013 | passing |
 | | `test_segments.py::test_req003_segment_add_from_ride_and_km` | T-006 | passing |
 | | `test_segments.py::test_req003_import_strava_segments_skips_existing` | T-006 | passing |
 | REQ-004 matching | `test_match.py::test_req004_effort_found_elapsed_includes_stops` | T-002 | passing |
@@ -159,6 +167,7 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `test_match.py::test_req004_two_laps_two_efforts` | T-005 | passing |
 | | `test_match.py::test_req004_sparse_track_effort_found` | T-005 | passing |
 | | `test_match.py::test_req004_out_and_back_not_zero_length` | T-005 | passing |
+| | `test_match.py::test_req004_out_and_back_reference_that_jitters_at_the_gate` | T-013 | passing |
 | | `test_match.py::test_req004_non_ride_reference_activity_used` | T-005 | passing |
 | REQ-005 site data | `test_sitedata.py::test_req005_site_data_has_no_coordinates_or_raw_tracks` | T-002 | passing |
 | | `test_sitedata.py::test_req005_site_data_has_lists_and_effort_data` | T-007 | xfail |
@@ -181,7 +190,9 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | REQ-009 refresh/deploy | `test_refresh.py::test_req009_refresh_from_zip_builds_deploys_and_reports` | T-011 (+T-012) | xfail |
 | | `test_refresh.py::test_req009_refresh_without_argument_rebuilds_from_existing_data` | T-011 | passing |
 | | `test_refresh.py::test_req009_no_deploy_stops_after_local_build` | T-011 | xfail |
-| | `test_refresh.py::test_req009_any_failed_step_deploys_nothing[invalid-segments, broken-zip, site-build-fails]` (3) | T-011 | xfail |
+| | `test_refresh.py::test_req009_any_failed_step_deploys_nothing[unreadable-yaml, broken-zip, site-build-fails]` (3) | T-011 | xfail |
+| | `test_refresh.py::test_req009_invalid_segment_exits_2_and_still_deploys_the_valid_one` | T-011 | xfail |
+| | `test_refresh.py::test_req009_invalid_segment_exits_2_and_builds_the_valid_one`, `test_req009_unreadable_segments_yaml_fails_with_exit_1_and_builds_nothing` | T-013 | passing |
 | | `test_refresh.py::test_req009_refresh_guard_blocks_raw_file_in_site` | T-011 | xfail |
 | | `test_deploy.py::test_req009_guard_aborts_deploy_on_raw_files_or_coordinates[12 leak kinds incl. export.csv, data/segments.csv, .csv.gz]` | T-011 | xfail |
 | | `test_deploy.py::test_req009_guard_passes_clean_site` (pushes), `test_req009_deploy_pushes_dist_to_gh_pages_only`, `test_req009_redeploy_adds_a_commit_without_force` | T-012 | xfail |

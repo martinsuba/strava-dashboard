@@ -104,3 +104,36 @@ def test_bad_date_on_cycling_row_is_collected_or_raised(tmp_path: Path) -> None:
     assert errors and errors[0][0] == "1" and "date" in errors[0][1]
     with pytest.raises(ValueError, match="date"):
         read_activities(p, cycling_only=True)
+
+
+# --- T-013: thousands separators -----------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [("2,496", 2496.0), ("1,234,567.5", 1234567.5), ("12.5", 12.5), ("", 0.0), (" 7 ", 7.0)],
+)
+def test_numbers_with_thousands_separators(tmp_path: Path, text: str, value: float) -> None:
+    row = f'1,"Jun 1, 2026, 9:00:00 AM",n,Swim,1,"{text}",,f,1,1,1'
+    (act,) = read_activities(_write(tmp_path / "activities.csv", row))
+    assert act.distance_km == value
+
+
+@pytest.mark.parametrize("text", ["2,49", "2,4960", "1,23", ",496", "12,34,567", "1.234,5", "abc"])
+def test_decimal_comma_is_never_taken_for_a_thousands_separator(tmp_path: Path, text: str) -> None:
+    row = f'7,"Jun 1, 2026, 9:00:00 AM",n,Swim,1,"{text}",,f,1,1,1'
+    p = _write(tmp_path / "activities.csv", row)
+    errors: list[tuple[str, str]] = []
+    assert read_activities(p, errors=errors) == []
+    assert errors and errors[0][0] == "7" and "Distance" in errors[0][1], errors
+    with pytest.raises(ValueError, match="Distance"):
+        read_activities(p)
+
+
+def test_thousands_separator_row_does_not_hide_other_rows(tmp_path: Path) -> None:
+    rows = [
+        '1,"Jun 1, 2026, 9:00:00 AM",n,Swim,1,"2,496",,f,1,1,1',
+        '2,"Jun 1, 2026, 9:00:00 AM",n,Ride,1,5.5,,f,1,1,1',
+    ]
+    acts = read_activities(_write(tmp_path / "activities.csv", *rows))
+    assert [a.id for a in acts] == ["1", "2"]
