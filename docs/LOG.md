@@ -45,3 +45,4 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-24 | M2 | (none) T-008 merged after 1 fix round | y: done by agents
 2026-10-24 | M2 | paused (token limit) during T-009 | n: budget decision
 2026-10-24 | M2 | resumed after token-limit pause ("continue") | n: budget decision
+2026-10-24 | M2 | (none) T-009 merged after 2 fix rounds | y: done by agents
