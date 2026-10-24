@@ -1,12 +1,14 @@
 name: mutation
-# NOT a required check. Runs only on milestone PRs (branch chore/milestone-*); report is a run artifact.
+# NOT a required check. Runs on milestone PRs (branch chore/milestone-*) and on demand (workflow_dispatch);
+# report is a run artifact + step summary. The step fails visibly if no mutant was checked.
 # Python stack: mutmut on the matcher (sdash/match.py, configured in pyproject.toml [tool.mutmut]).
 # Report only, never blocking. Mutation testing is too heavy for the 4 GB VPS, so it runs here.
 on:
   pull_request:
+  workflow_dispatch:
 jobs:
   mutation:
-    if: ${{ startsWith(github.head_ref, 'chore/milestone-') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'chore/milestone-') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     continue-on-error: true
@@ -28,11 +30,23 @@ jobs:
             echo "sdash/match.py does not exist yet; nothing to mutate" | tee reports/mutation/results.txt
             exit 0
           fi
-          .venv/bin/mutmut run || true
+          # mutmut exits non-zero when mutants survive; that is a result, not an error.
+          .venv/bin/mutmut run --max-children 2 || echo "mutmut run exit code: $?"
           .venv/bin/mutmut results > reports/mutation/results.txt 2>&1 || true
-          .venv/bin/mutmut export-cicd-stats || true
-          cp mutants/mutmut-cicd-stats.json reports/mutation/ 2>/dev/null || true
+          .venv/bin/mutmut export-cicd-stats
+          cp mutants/mutmut-cicd-stats.json reports/mutation/
           cat reports/mutation/results.txt
+          python3 - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json, sys
+          s = json.load(open("reports/mutation/mutmut-cicd-stats.json"))
+          checked = s["killed"] + s["survived"] + s["timeout"] + s["suspicious"] + s["segfault"]
+          score = 100 * (s["killed"] + s["timeout"]) / checked if checked else 0.0
+          print("### Mutation score (sdash/match.py)")
+          print(f"score {score:.1f}% | killed {s['killed']} | survived {s['survived']} | timeout {s['timeout']} | total {s['total']}")
+          if checked == 0:
+              print("ERROR: mutmut checked 0 mutants (all not checked)")
+              sys.exit(1)
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:

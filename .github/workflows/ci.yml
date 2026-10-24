@@ -60,8 +60,28 @@ jobs:
       - name: Acceptance tests (pipeline, pytest)
         run: pytest tests/acceptance/pipeline
 
+      - name: Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('./web/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
       - name: Install Playwright browser
-        run: cd web && npx playwright install --with-deps chromium
+        # Browser binaries come from the cache; the (slow, apt-based) system deps are installed only
+        # when chromium cannot launch without them.
+        run: |
+          cd web
+          if [ "${{ steps.pw-cache.outputs.cache-hit }}" != "true" ]; then
+            npx playwright install chromium
+          fi
+          if ! node -e "require('@playwright/test').chromium.launch().then(b => b.close())" 2>/dev/null; then
+            echo "chromium cannot launch; installing system deps"
+            npx playwright install-deps chromium
+            node -e "require('@playwright/test').chromium.launch().then(b => b.close())"
+          fi
       - name: Acceptance tests (web, Playwright)
         run: npm --prefix web run test:acceptance
       - uses: actions/upload-artifact@v4
