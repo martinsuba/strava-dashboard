@@ -32,3 +32,5 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-24 | M1 | (none) T-003 merged after 1 fix round | y: done by agents
 2026-10-24 | M1 | (none) T-004 merged, 0 fix rounds | y: done by agents
 2026-10-24 | M1 | (none) T-005 merged after 1 fix round | y: done by agents
+2026-10-24 | M1 | (none) T-006 merged; M1 complete; Lead ran real-data check and found 4 bugs synthetic tests missed | y: done by Lead. Framework idea: make a real-data smoke check a standard milestone step
+2026-10-24 | M1 | (none) scratchpad cleanup (`rm -rf` of old clones + spike pickles with real GPS) blocked by permission check | n: Martin must allow or delete
