@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M1 done (T-001…T-006 merged: PRs #5–#10). Milestone PR open, waiting for Martin's review
-Open PRs: M1 milestone PR (chore/milestone-M1, Martin merges)
+Current task: M1 done (T-001…T-006, PRs #5–#10); M1 milestone PR #11 merged by Martin. Plan v3 PR open
+Open PRs: Plan v3 (plan/3, Martin merges)
 Blockers: –
-Next step: Martin reviews + merges the M1 PR; decide on Plan v3 (real-data fix tasks, see M1 findings); then "go M2"
+Next step: Martin merges Plan v3 -> Lead shows M2 list (T-013, T-014, T-015, T-007…T-010) -> "go M2"
 
 ## Decisions log
 - 2026-10-23: project created
@@ -49,7 +49,7 @@ Next step: Martin reviews + merges the M1 PR; decide on Plan v3 (real-data fix t
 - 2026-10-24: T-004 merged (PR #8): 0 fix rounds; reviewer ran 89 hostile zip/URL cases, all handled.
 - 2026-10-24: T-003 merged (PR #7): 1 fix round (reviewer fuzzing found malformed-FIT crash -> fixed; 5000-mutation re-fuzz clean). Test-reviewer approved marker removals.
 
-## M1 real-data findings (proposed Plan v3 tasks, need Martin)
+## M1 real-data findings (-> Plan v3: T-013, T-014, T-015)
 1. activities.csv numbers with thousands separators (`2,496`, Distance of Swim/Rowing rows) make read_activities fail for non-cycling rows; reference_only_activities swallows the error -> non-ride reference tracks (e.g. the Sitno hike) are silently never parsed.
 2. Out-and-back segment (start == end, "Trojský most - Přívoz Klecánky otočka"): GPS jitter at the gate pairs passes 7 m apart -> degenerate-reference error. Reference pairing must skip too-short pairs and try the next end pass.
 3. One invalid segment makes `match`/`build-data` fail for ALL segments (no site data at all). Should report the bad segment and still process the others (needs a PRD/TESTS decision: exit code).
@@ -63,3 +63,6 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - T-004 reviewer non-blocking: name the entry on file/dir clash (importer.py:238); cap number of zip entries; overall download deadline (slow drip); chmod existing data dir 0700; clean stale .raw-old-*/.raw-staging-*/.download-* after a kill; opt-in redacted debug traceback (cli.py:142); note in ARCHITECTURE that proxies are ignored. Real link hosts (email.strava.com -> s3.amazonaws.com, seen 2026-10-23) match the allowlist.
 - CI: "Install Playwright browser" sometimes ~11 min (needs a task allowed to edit workflows).
 - Milestone PR: TESTS.md status column (tests un-marked in T-002/T-003), PLAN.md ticks.
+- 2026-10-24: Martin: a bad segment must not stop the build: report it and still build the rest -> Plan v3 (REQ-003/009 criteria, exit code 2, refresh still deploys).
+- 2026-10-24: M1 PR #11 screenshots did not render (relative image links in a PR body). Fixed with absolute raw.githubusercontent.com links pinned to the commit, verified via body_html. Root cause in ~/.claude/skills/next-task/SKILL.md fixed (absolute links + verify step). Martin reported it as the second time.
+- 2026-10-24: M1 milestone PR #11 merged by Martin.

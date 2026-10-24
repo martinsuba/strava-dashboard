@@ -1,5 +1,5 @@
 # PRD: strava-dashboard
-Status: approved (Plan v1, PR #1); Plan v2 amendments · Last update: 2026-10-23
+Status: approved (Plan v1, PR #1); Plan v2 + v3 amendments · Last update: 2026-10-23
 
 ## Problem & why
 Martin wants to compare **all his own times on every segment over time**. Strava shows this only with a paid
@@ -52,6 +52,8 @@ Acceptance criteria:
 - Given activities of types Ride, E-Bike Ride, Run, Virtual Ride, When parsing, Then only Ride and E-Bike Ride are kept.
 - Given ride files in `.fit`, `.fit.gz`, `.gpx`, `.gpx.gz` (and `.tcx.gz`, priority could), When parsing, Then each yields a track with timestamps and positions; records without a position are skipped.
 - Given a file that cannot be parsed, When parsing, Then the run continues, and the activity ID plus reason appear in the run report.
+- Given `activities.csv` rows (of any activity type) whose numbers use a thousands separator (e.g. Distance `2,496`), When reading the CSV, Then those rows are read correctly and no row is silently dropped. (Plan v3, real-data finding)
+- Given a TCX file with whitespace, a BOM or other text before the XML declaration (as in Strava's own TCX export), When parsing, Then it yields a track. (Plan v3)
 - Given a ride already parsed and unchanged, When parsing again, Then it is read from the cache and not re-parsed.
 - Given the `Activity Date` format `Oct 20, 2026, 3:45:46 AM` (UTC) and duplicated column names in `activities.csv`, When reading the CSV, Then date, name, type, gear, distance and filename are read correctly (first occurrence of a duplicated column wins).
 Priority: must (tcx.gz: could)
@@ -60,7 +62,8 @@ Priority: must (tcx.gz: could)
 Segments are defined in a YAML file in the data directory: name, start lat/lon, end lat/lon, reference activity ID.
 Acceptance criteria:
 - Given a valid segments file, When the pipeline runs, Then each segment gets a stable slug derived from its name.
-- Given a segment with a missing field, an out-of-range coordinate or a duplicate name, When the pipeline runs, Then it fails with an error naming the segment and the problem.
+- Given a segment with a missing field, an out-of-range coordinate or a duplicate name, When the pipeline runs, Then it reports an error naming the segment and the problem and exits non-zero.
+- Given one invalid or unusable segment (bad fields, duplicate name, missing or unusable reference track) next to valid segments, When `match`, `build-data` or `refresh` runs, Then the bad segment is reported (name + problem) and skipped, all valid segments are still matched and built (and deployed by `refresh`), and the command exits with code 2 ("finished with warnings"). An unreadable `segments.yaml` (not valid YAML) still fails the whole run. (Plan v3, Martin 2026-10-24)
 - Given a ride ID and a start km and end km, When `sdash segment add --name N --activity ID --from-km A --to-km B` runs, Then a segment with the coordinates at those distances on that ride is appended to the segments file.
 - Given Strava's `segments.csv` from the export, When `sdash segment import-strava` runs, Then its segments are added to the segments file (skipping names that already exist).
 Priority: must
@@ -74,6 +77,7 @@ Acceptance criteria:
 - Given a ride that rides the segment twice (e.g. two laps), Then two efforts are recorded.
 - Given a sparse track (one point per ~50 m, "smart recording"), Then the effort is still found.
 - Given a segment whose start and end are the same place (out-and-back), Then the effort is found and is not a zero-length match.
+- Given an out-and-back segment whose reference activity jitters in and out of the start/end gate before riding the segment, When building the reference, Then too-short gate pairs are skipped and the real out-and-back run is used. (Plan v3, real-data finding)
 - Given a segment whose reference activity is not a ride (e.g. a hike), Then the reference track is still used.
 Priority: must
 
@@ -113,7 +117,7 @@ Acceptance criteria:
 - Given an export link or zip, When `sdash refresh <link|zip>` runs, Then it imports, parses, matches, builds site data, builds the static site and deploys it, printing a short report (rides parsed, failures, efforts per segment).
 - Given `sdash refresh` without an argument, Then it rebuilds from the existing data (e.g. after adding a segment).
 - Given `--no-deploy`, Then it stops after building the site locally.
-- Given any step fails, Then nothing is deployed.
+- Given any step fails, Then nothing is deployed. Segment-level warnings (REQ-003, exit code 2) are not failures: the valid segments are built and deployed and the warnings are printed in the report.
 - Given the built site, Before deploying, Then a guard verifies the output has no `.fit/.gpx/.tcx/.csv` files and no coordinate fields; it aborts otherwise.
 Priority: must
 
