@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from sdash.pipeline import PipelineError, _reference, match_segments, parse_rides
+from sdash.tracks import Track
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "minimal.gpx"
 HEADER = (
@@ -275,3 +276,115 @@ def test_degenerate_reference_is_rejected_naming_the_segment() -> None:
     seg = Segment("Wobble", "wobble", "5", (-47.0, -134.0), (-47.0, -134.0))
     with pytest.raises(PipelineError, match=r"Wobble.*only"):
         _reference(seg, track)
+
+
+# --- T-006: segment add ---------------------------------------------------------------------------
+
+
+def _line_track(length_m: float = 5000.0, step: float = 10.0) -> Track:
+    from sdash.tracks import Track
+
+    n = int(length_m / step) + 1
+    m_deg = 111_194.93
+    return Track(
+        t=[i * 2 for i in range(n)],
+        lat=[-47.0] * n,
+        lon=[-134.0 + i * step / (m_deg * 0.682) for i in range(n)],
+        d=[i * step for i in range(n)],
+    )
+
+
+def _add_data(tmp_path: Path, track: Track | None = None) -> Path:
+    from sdash.tracks import write_cache
+
+    data = _data(tmp_path, _row("5", "activities/ok.gpx"))
+    write_cache(data / "cache" / "5.json.gz", track or _line_track())
+    return data
+
+
+def test_add_segment_interpolates_and_appends(tmp_path: Path) -> None:
+    from sdash.segments import load_segments
+    from sdash.tracks import haversine_m
+
+    data = _add_data(tmp_path)
+    (data / "segments.yaml").write_text(
+        '- name: "Old"\n  ref_activity: "5"\n  start: [-47.0, -134.0]\n  end: [-46.99, -134.0]\n'
+    )
+    from sdash.pipeline import add_segment
+
+    seg = add_segment(data, "New one", "5", 1.0004, 3.5)  # between two track points
+    segs = load_segments(data / "segments.yaml")
+    assert [s.name for s in segs] == ["Old", "New one"] and segs[1] == seg
+    track = _line_track()
+    for point, km in ((seg.start, 1.0004), (seg.end, 3.5)):
+        i = round(km * 100)
+        assert haversine_m(*point, track.lat[i], track.lon[i]) < 15
+
+
+def test_add_segment_creates_file_and_it_validates(tmp_path: Path) -> None:
+    from sdash.pipeline import add_segment
+    from sdash.segments import load_segments
+
+    data = _add_data(tmp_path)
+    add_segment(data, "First", "5", 0.5, 2.0)
+    assert [s.slug for s in load_segments(data / "segments.yaml")] == ["first"]
+
+
+@pytest.mark.parametrize(
+    ("a", "b", "msg"),
+    [(2.0, 1.0, "less than"), (2.0, 2.0, "less than"), (-1.0, 2.0, ">= 0"), (1.0, 5.5, "beyond")],
+)
+def test_add_segment_km_bounds(tmp_path: Path, a: float, b: float, msg: str) -> None:
+    from sdash.pipeline import add_segment
+
+    data = _add_data(tmp_path)
+    with pytest.raises(PipelineError, match=msg):
+        add_segment(data, "X", "5", a, b)
+    assert not (data / "segments.yaml").exists()
+
+
+def test_add_segment_unknown_or_unsafe_ride(tmp_path: Path) -> None:
+    from sdash.pipeline import add_segment
+
+    data = _add_data(tmp_path)
+    with pytest.raises(PipelineError, match="not found"):
+        add_segment(data, "X", "999", 0.0, 1.0)
+    with pytest.raises(PipelineError, match="invalid activity ID"):
+        add_segment(data, "X", "../5", 0.0, 1.0)
+    assert not (data / "segments.yaml").exists()
+
+
+def test_add_segment_parses_uncached_ride(tmp_path: Path) -> None:
+    from sdash.pipeline import add_segment
+
+    data = _data(tmp_path, _row("5", "activities/ok.gpx"))
+    assert not (data / "cache").exists()
+    seg = add_segment(data, "From file", "5", 0.0, 0.3)
+    assert seg.ref_activity == "5" and (data / "cache" / "5.json.gz").is_file()
+
+
+def test_add_segment_duplicate_name_and_bad_existing_file(tmp_path: Path) -> None:
+    from sdash.pipeline import add_segment
+
+    data = _add_data(tmp_path)
+    add_segment(data, "Dup", "5", 0.5, 2.0)
+    before = (data / "segments.yaml").read_text()
+    with pytest.raises(PipelineError, match="duplicate"):
+        add_segment(data, "Dup", "5", 0.5, 2.0)
+    with pytest.raises(PipelineError, match="collides"):
+        add_segment(data, "dup!", "5", 0.5, 2.0)
+    with pytest.raises(PipelineError, match="name"):
+        add_segment(data, "  ", "5", 0.5, 2.0)
+    assert (data / "segments.yaml").read_text() == before
+    (data / "segments.yaml").write_text("- [oops\n")
+    with pytest.raises(PipelineError, match="invalid YAML"):
+        add_segment(data, "Other", "5", 0.5, 2.0)
+
+
+def test_add_segment_refuses_degenerate_reference(tmp_path: Path) -> None:
+    from sdash.pipeline import add_segment
+
+    data = _add_data(tmp_path)
+    with pytest.raises(PipelineError, match="only"):
+        add_segment(data, "Tiny", "5", 1.0, 1.02)  # 20 m: shorter than two gates
+    assert not (data / "segments.yaml").exists()

@@ -1,10 +1,15 @@
 """segments.yaml: load segment definitions and derive slugs (REQ-003).
 
-Full validation messages (ranges, duplicates) and `segment add/import-strava` arrive with T-006.
+Every problem is a SegmentError whose message names the segment and the problem. segments.yaml is
+rewritten from the parsed segments (same order, deterministic formatting), so comments are not kept.
 """
 
 from __future__ import annotations
 
+import csv
+import json
+import math
+import os
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -36,13 +41,88 @@ def slugify(name: str) -> str:
     return slug
 
 
-def _point(entry: dict[str, Any], key: str, name: str) -> tuple[float, float]:
+FIELDS = ("name", "ref_activity", "start", "end")
+STRAVA_HEADER = (
+    "Segment Name",
+    "Activity ID",
+    "Starting Latitude",
+    "Starting Longitude",
+    "Ending Latitude",
+    "Ending Longitude",
+)
+
+
+def _label(entry: dict[str, Any], index: int) -> str:
+    name = entry.get("name")
+    return f"segment {name!r}" if isinstance(name, str) and name.strip() else f"segment #{index}"
+
+
+def _number(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value) if math.isfinite(value) else None
+
+
+def _point(entry: dict[str, Any], key: str, label: str) -> tuple[float, float]:
     value = entry[key]
-    try:
-        lat, lon = value
-        return float(lat), float(lon)
-    except (TypeError, ValueError) as exc:
-        raise SegmentError(f"segment {name!r}: {key} must be [lat, lon]") from exc
+    if not isinstance(value, (list, tuple)) or len(value) != 2:
+        raise SegmentError(f"{label}: {key} must be [lat, lon] (two numbers)")
+    lat, lon = _number(value[0]), _number(value[1])
+    if lat is None or lon is None:
+        raise SegmentError(f"{label}: {key} must be [lat, lon] with numeric coordinates")
+    if not -90.0 <= lat <= 90.0:
+        raise SegmentError(f"{label}: {key} latitude {lat} is out of range [-90, 90]")
+    if not -180.0 <= lon <= 180.0:
+        raise SegmentError(f"{label}: {key} longitude {lon} is out of range [-180, 180]")
+    return lat, lon
+
+
+def segment_from_entry(entry: object, index: int = 0) -> Segment:
+    """Validate one segments.yaml entry; `index` (1-based) names it if it has no usable name."""
+    if not isinstance(entry, dict):
+        raise SegmentError(f"segment #{index}: must be a mapping with {', '.join(FIELDS)}")
+    label = _label(entry, index)
+    for key in FIELDS:
+        if key not in entry:
+            raise SegmentError(f"{label}: missing field {key}")
+    unknown = sorted(str(k) for k in entry if k not in FIELDS)
+    if unknown:
+        raise SegmentError(
+            f"{label}: unknown field {', '.join(unknown)} (allowed: {', '.join(FIELDS)})"
+        )
+    name = entry["name"]
+    if not isinstance(name, str) or not name.strip():
+        raise SegmentError(f"{label}: name must be a non-empty text")
+    ref = entry["ref_activity"]
+    if (
+        isinstance(ref, bool)
+        or not isinstance(ref, (int, str))
+        or not re.fullmatch(r"[0-9]+", str(ref))
+    ):
+        raise SegmentError(f"{label}: ref_activity {ref!r} must be an activity ID (digits only)")
+    return Segment(
+        name=name,
+        slug=slugify(name),
+        ref_activity=str(ref),
+        start=_point(entry, "start", label),
+        end=_point(entry, "end", label),
+    )
+
+
+def check_unique(segments: list[Segment]) -> None:
+    """Names must be unique and must not share a slug (the slug is the page URL)."""
+    names: dict[str, str] = {}
+    slugs: dict[str, str] = {}
+    for seg in segments:
+        if seg.name in names:
+            raise SegmentError(f"segment {seg.name!r}: duplicate name")
+        if seg.slug in slugs:
+            raise SegmentError(
+                f"segment {seg.name!r}: slug {seg.slug!r} collides with segment "
+                f"{slugs[seg.slug]!r}: rename one of them"
+            )
+        names[seg.name] = seg.name
+        slugs[seg.slug] = seg.name
 
 
 def load_segments(path: Path) -> list[Segment]:
@@ -50,27 +130,116 @@ def load_segments(path: Path) -> list[Segment]:
         raise SegmentError(f"{path.name} not found in {path.parent}")
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except yaml.YAMLError as exc:
+    except (yaml.YAMLError, UnicodeDecodeError) as exc:
         raise SegmentError(f"{path.name}: invalid YAML: {exc}") from exc
     if data is None:
         data = []
     if not isinstance(data, list):
         raise SegmentError(f"{path.name} must be a list of segments")
-    segments: list[Segment] = []
-    for i, entry in enumerate(data, 1):
-        if not isinstance(entry, dict) or "name" not in entry:
-            raise SegmentError(f"segment #{i}: missing field name")
-        name = str(entry["name"])
-        for key in ("ref_activity", "start", "end"):
-            if key not in entry:
-                raise SegmentError(f"segment {name!r}: missing field {key}")
-        segments.append(
-            Segment(
-                name=name,
-                slug=slugify(name),
-                ref_activity=str(entry["ref_activity"]),
-                start=_point(entry, "start", name),
-                end=_point(entry, "end", name),
-            )
-        )
+    segments = [segment_from_entry(entry, i) for i, entry in enumerate(data, 1)]
+    check_unique(segments)
     return segments
+
+
+def load_segments_or_empty(path: Path) -> list[Segment]:
+    """Like load_segments, but a missing file means no segments yet."""
+    return load_segments(path) if path.exists() else []
+
+
+def dump_segments(segments: list[Segment]) -> str:
+    """Deterministic YAML (JSON scalars are valid YAML); one block per segment, in order."""
+    if not segments:
+        return "[]\n"
+    lines: list[str] = []
+    for seg in segments:
+        lines.append(f"- name: {json.dumps(seg.name, ensure_ascii=False)}")
+        lines.append(f"  ref_activity: {json.dumps(seg.ref_activity)}")
+        lines.append(f"  start: {json.dumps(list(seg.start))}")
+        lines.append(f"  end: {json.dumps(list(seg.end))}")
+    return "\n".join(lines) + "\n"
+
+
+def write_segments(path: Path, segments: list[Segment]) -> None:
+    """Validate, then replace `path` atomically (temp file + os.replace); old file kept on error."""
+    check_unique(segments)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        tmp.write_text(dump_segments(segments), encoding="utf-8")
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+@dataclass(frozen=True)
+class ImportReport:
+    added: int
+    skipped_existing: int
+    invalid: list[tuple[int, str]]  # (CSV row number, reason); row 1 is the header
+
+
+def import_strava_csv(csv_path: Path, segments_path: Path) -> ImportReport:
+    """Append rows of Strava's segments.csv whose names are new; bad rows are skipped and reported.
+
+    The file is written only if something was added, and only with valid segments.
+    """
+    if not csv_path.is_file():
+        raise SegmentError(f"{csv_path} not found: run `sdash import` first")
+    existing = load_segments_or_empty(segments_path)
+    known_names = {s.name for s in existing}
+    known_slugs = {s.slug: s.name for s in existing}
+    new: list[Segment] = []
+    skipped = 0
+    invalid: list[tuple[int, str]] = []
+    try:
+        with csv_path.open(newline="", encoding="utf-8-sig") as fh:
+            reader = csv.reader(fh)
+            header = [h.strip() for h in next(reader, [])]
+            missing = [h for h in STRAVA_HEADER if h not in header]
+            if missing:
+                raise SegmentError(f"{csv_path.name}: missing column {', '.join(missing)}")
+            col = {h: header.index(h) for h in STRAVA_HEADER}
+            for row_no, row in enumerate(reader, 2):
+                if not any(c.strip() for c in row):
+                    continue
+                try:
+                    seg = _strava_row(row, col, row_no)
+                    if seg.name in known_names:
+                        skipped += 1
+                        continue
+                    if seg.slug in known_slugs:
+                        raise SegmentError(
+                            f"segment {seg.name!r}: slug {seg.slug!r} collides with segment "
+                            f"{known_slugs[seg.slug]!r}"
+                        )
+                except SegmentError as exc:
+                    invalid.append((row_no, str(exc)))
+                    continue
+                known_names.add(seg.name)
+                known_slugs[seg.slug] = seg.name
+                new.append(seg)
+    except (csv.Error, UnicodeDecodeError) as exc:
+        raise SegmentError(f"{csv_path.name}: cannot read: {exc}") from exc
+    if new:
+        write_segments(segments_path, existing + new)
+    return ImportReport(len(new), skipped, invalid)
+
+
+def _strava_row(row: list[str], col: dict[str, int], row_no: int) -> Segment:
+    def cell(header: str) -> str:
+        i = col[header]
+        return row[i].strip() if i < len(row) else ""
+
+    def num(header: str) -> object:
+        try:
+            return float(cell(header))
+        except ValueError:
+            return cell(header)
+
+    entry = {
+        "name": cell("Segment Name"),
+        "ref_activity": cell("Activity ID"),
+        "start": [num("Starting Latitude"), num("Starting Longitude")],
+        "end": [num("Ending Latitude"), num("Ending Longitude")],
+    }
+    return segment_from_entry(entry, row_no)
