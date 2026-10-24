@@ -106,7 +106,7 @@ test-reviewer (or a plan PR), not silently in code.
   (normal push, fast-forward; `main` untouched). Guard aborts (non-zero, names the file, nothing pushed) on any
   `.fit/.gpx/.tcx/.csv` file (+ `.gz`; every CSV, not only `activities.csv`) or JSON with coordinate keys.
 - `sdash refresh [zip|url] [--no-deploy] [--web-dir W] [--remote R]` → import (if given) → parse → match →
-  build-data into `W/public/data` → `npm run build` in `W` → deploy unless `--no-deploy`. Any failing step = non-zero
+  build-data into `W/public/data` → `npm run build` in `W` → deploy unless `--no-deploy`. Any failing step = non-zero (segment-level warnings are exit 2 and still deploy, Plan v3 / T-013)
   exit and nothing pushed. The report has a "parsed" line with a count, the failed activity IDs, and one line per
   segment with its name and effort count.
 

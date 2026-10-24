@@ -66,6 +66,51 @@ T-001 aligns the synthetic export with the recorded real header (Plan v2).
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
 ## M2: The site (index, segment, ride pages)
+M2 starts with three fix tasks from the M1 review (Plan v3), then the site tasks.
+
+### [ ] T-013: Real-data fixes from the M1 check  (size M)
+- Goal: (1) activities.csv numbers with thousands separators read correctly in all rows; reference-track lookup reports
+  read errors instead of swallowing them. (2) Out-and-back reference: skip gate pairs shorter than a minimum (e.g.
+  2 × gate = 60 m ridden distance) and use the next end pass. (3) Segment-level problems (invalid fields, duplicate
+  name: keep the first, skip the next; missing/unusable reference) are reported and skipped; other segments are
+  matched and built; `match`/`build-data`/`refresh` exit 2; `refresh` still deploys. Unreadable segments.yaml stays a
+  hard failure. (4) TCX with text/whitespace/BOM before the XML declaration parses.
+- REQs: REQ-002, REQ-003, REQ-004, REQ-009 (Plan v3 criteria)
+- Acceptance tests to make pass: new tests for the Plan v3 criteria. **Explicitly allowed acceptance changes** (need
+  test-reviewer): add tests for the new criteria to tests/acceptance/pipeline/ (thousands-separator row, TCX with
+  leading text, jittery out-and-back reference, one bad segment + one good segment -> exit 2 and the good one built);
+  change test_refresh.py `test_req009_any_failed_step_deploys_nothing[invalid-segments]` to the new rule (invalid
+  segment next to a valid one -> exit 2, valid segment deployed, warning names the bad segment) and add an
+  unreadable-YAML case that still deploys nothing. No other acceptance edits.
+- Areas/files: sdash/activities.py, sdash/tracks.py, sdash/match.py, sdash/pipeline.py, sdash/cli.py, docs/TESTS.md
+  (contracts: exit code 2), tests
+- Definition of done: code + unit tests, listed acceptance tests pass, CI green, review + test-review clean; Lead
+  re-runs the private real-data check: Sitno hike segments get a reference, the otočka segment matches, 662/662 parsed.
+
+### [ ] T-014: Hardening leftovers from M1 reviews  (size S)
+- Goal: FIT failure reasons include the exception type; cache `_num_list` rejects Infinity; drop dead GPX
+  `latitude is None` check (test: lat-less trkpt -> reported failure); DTD test `match="DTD"` + UTF-32 case; drop the
+  vacuous `except ValueError: return` in the fuzz test; huge YAML integers -> clear error (catch ValueError in
+  load_segments); importer: name the entry on file/dir clash, cap entry count (e.g. 100 000), overall download
+  deadline, chmod existing data dir 0700, clean stale .raw-old-*/.raw-staging-*/.download-* on start; `is_reference`
+  via a set of IDs; note in ARCHITECTURE that proxies are ignored.
+- REQs: REQ-001, REQ-002, REQ-003 (robustness)
+- Acceptance tests to make pass: none newly; all stay green
+- Areas/files: sdash/, tests/unit/, docs/ARCHITECTURE.md (proxy note only)
+- Definition of done: code + unit tests, CI green, review clean
+
+### [ ] T-015: CI fixes: mutation workflow and Playwright install time  (size S)
+- Goal: mutation.yml + mutmut config produce a real score on sdash/match.py (verify locally that mutants are actually
+  run; current run: 488 mutants all "not checked" because of deprecated config keys); speed up "Install Playwright
+  browser" (Playwright container image or cached browsers + deps), keeping the `ci` job name and steps.
+- REQs: – (test infrastructure)
+- Acceptance tests to make pass: none; all stay green
+- Areas/files: **explicitly allowed workflow change**: .github/workflows/mutation.yml, .github/workflows/ci.yml,
+  .github/workflows/screenshots.yml, pyproject.toml (mutmut config). Never acceptance-guard.yml. Needs test-reviewer
+  (and Martin's `acceptance-change` label if the guard requires it).
+- Definition of done: mutation run on a test branch shows killed/survived counts; ci install step < 2 min on a cold
+  run; CI green, review + test-review clean
+
 All M2 UI tasks follow docs/DESIGN.md (tokens, type, layout, screens) and the reference mockups in docs/design/.
 Milestone review compares the screenshots with those mockups.
 ### [ ] T-007: Site data complete: ranks, PR at the time, averages, per-year, determinism  (size M)

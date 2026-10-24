@@ -32,3 +32,5 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-24 | M1 | (none) T-003 merged after 1 fix round | y: done by agents
 2026-10-24 | M1 | (none) T-004 merged, 0 fix rounds | y: done by agents
 2026-10-24 | M1 | (none) T-005 merged after 1 fix round | y: done by agents
+2026-10-24 | M1 review | reported that milestone PR screenshots don't show (second time) | y: Lead should verify rendered images before reporting; root cause = relative links in next-task skill, fixed in skill + PR
+2026-10-24 | M1 review | decided: one bad segment -> still build the rest and report it | n: owner decision

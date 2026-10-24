@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
 Current task: M1 / T-006 (segment file validation, segment add, segment import-strava): in progress. Done: T-001 (#5), T-002 (#6), T-003 (#7), T-004 (#8), T-005 (#9)
-Open PRs: –
+Open PRs: #11 M1 milestone, Plan v3 (both Martin merges)
 Blockers: –
-Next step: builder on T-006 (last M1 task); then M1 milestone PR for Martin
+Next step: Martin merges #11 and Plan v3 -> show M2 list (T-013, T-014, T-015, T-007…T-010) -> "go M2"
 
 ## Decisions log
 - 2026-10-23: project created
@@ -53,3 +53,5 @@ Next step: builder on T-006 (last M1 task); then M1 milestone PR for Martin
 - T-004 reviewer non-blocking: name the entry on file/dir clash (importer.py:238); cap number of zip entries; overall download deadline (slow drip); chmod existing data dir 0700; clean stale .raw-old-*/.raw-staging-*/.download-* after a kill; opt-in redacted debug traceback (cli.py:142); note in ARCHITECTURE that proxies are ignored. Real link hosts (email.strava.com -> s3.amazonaws.com, seen 2026-10-23) match the allowlist.
 - CI: "Install Playwright browser" sometimes ~11 min (needs a task allowed to edit workflows).
 - Milestone PR: TESTS.md status column (tests un-marked in T-002/T-003), PLAN.md ticks.
+- 2026-10-24: Martin: a bad segment must not stop the build: report it and still build the rest -> Plan v3 (REQ-003/009 criteria, exit code 2, refresh still deploys).
+- 2026-10-24: M1 PR #11 screenshots did not render (relative image links in a PR body). Fixed with absolute raw.githubusercontent.com links pinned to the commit, verified via body_html. Root cause in ~/.claude/skills/next-task/SKILL.md fixed (absolute links + verify step). Martin reported it as the second time.
