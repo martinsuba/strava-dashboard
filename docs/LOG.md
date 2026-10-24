@@ -29,3 +29,4 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-23 | M1 | (none) T-002 merged after 1 fix round (security issues found by reviewer) | y: done by agents
 2026-10-23 | M1 | paused the task loop: Claude usage limit approaching | n: account/budget decision
 2026-10-24 | M1 | resumed task loop after usage-limit pause ("continue") | n: budget decision
+2026-10-24 | M1 | (none) T-003 merged after 1 fix round | y: done by agents

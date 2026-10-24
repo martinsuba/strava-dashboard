@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M1 / T-003 PR #7: fix round 1 (reviewer findings) in progress. Done: T-001 (PR #5), T-002 (PR #6)
-Open PRs: #7 T-003 (branch task/T-003-formats-cache)
+Current task: M1 / T-004 (import from local zip and https link, safe extraction): in progress. Done: T-001 (#5), T-002 (#6), T-003 (#7)
+Open PRs: –
 Blockers: –
-Next step: builder fix round 1 on T-003 -> reviewer -> test-reviewer -> merge; then T-004…T-006
+Next step: builder on T-004, then T-005, T-006; then M1 milestone PR for Martin
 
 ## Decisions log
 - 2026-10-23: project created
@@ -43,16 +43,11 @@ Next step: builder fix round 1 on T-003 -> reviewer -> test-reviewer -> merge; t
 - Milestone PR todo: TESTS.md status column (16 tests now passing after T-002), PLAN.md ticks.
 - 2026-10-23: paused on Martin's note "approaching claude limit". Task loop stopped mid-T-003.
 - 2026-10-24: resumed (Martin: "continue").
+- 2026-10-24: T-003 merged (PR #7): 1 fix round (reviewer fuzzing found malformed-FIT crash -> fixed; 5000-mutation re-fuzz clean). Test-reviewer approved marker removals.
 
-## Resume notes (written 2026-10-23 at pause; resumed 2026-10-24)
-State of T-003 / PR #7 (https://github.com/martinsuba/strava-dashboard/pull/7):
-- Builder done: code commit 9140e0a (FIT/TCX/.gz parsing, 200 MB bounded decompression, TCX DOCTYPE/ENTITY refusal, size+mtime cache). Local checks reported green: pytest unit 82 passed, acceptance 52 passed / 45 xfailed.
-- CI on 9140e0a: ci pass, screenshots pass, acceptance-guard fail (expected until test-review).
-- Reviewer verdict on 9140e0a: CHANGES NEEDED (PR comment https://github.com/martinsuba/strava-dashboard/pull/7#issuecomment-6371950797).
-  BLOCKING: malformed FIT crashes the whole `sdash parse` run (REQ-002 says report + continue). Fuzzing found uncaught AttributeError (tracks.py:150, ts.tzinfo on int), TypeError (fitdecode processors.py:144), AssertionError (fitdecode reader.py:368). Fix: _parse_fit catches Exception -> ValueError (like _parse_gpx); type-check ts (datetime) and lat/lon (numbers); optionally parse_rides turns any per-ride exception into a report entry; unit test with a mutated FIT (CRC recomputed).
-  Also fix (cheap, non-blocking): cache read isinstance(raw, dict) check (tracks.py:209-217); atomic cache write via temp file + os.replace (tracks.py:181); delete stale cache when a changed ride fails to re-parse or its file disappears; reject NaN/out-of-range lat/lon; TCX DOCTYPE/ENTITY check after decoding (UTF-16 bypass; expat 2.6.1 still blocks billion laughs) or assert expat >= 2.4; note/test that gpxpy must not switch to lxml; unit tests for GPX position-less points and UTF-16 DTD.
-  Reviewer's repro files were in the session scratchpad (rev7probe/fitbad/) and may be gone; the PR comment has the details.
-- On resume: send the above to a builder as fix round 1 for T-003 (new builder run: give it the PR, branch, task text and this list), then reviewer on the new head, then test-reviewer (test_parse.py marker changes: FORMATS list now plain names), rerun acceptance-guard, merge with --match-head-commit.
-- Fix rounds used on T-003: 0 of 3.
-Then continue M1: T-004 (import, security-relevant; add unit tests evilstrava.com vs strava.com and calhost vs localhost), T-005 (full matcher; include reviewer note: when a (start,end) pair fails direction/path/length, move to the next start pass; add A->B, B->A, A->B ride unit test), T-006 (segments). Then milestone M1 PR (TESTS.md status column + PLAN.md ticks, screenshots, mutation report) and stop for Martin.
-To resume: Martin says "continue" (or "resume M1") in the strava-dashboard Lead session; Lead reads this section, `git status`, `gh pr list`.
+## Follow-ups (open)
+- T-004: unit tests `evilstrava.com` vs `strava.com` and allowlist `calhost` vs host `localhost` (Plan v2).
+- T-005: when a (start,end) pair fails direction/path/length, move to the next start pass instead of consuming the end pass; add the A->B, B->A, A->B ride as a unit test (T-002 reviewer).
+- T-003 reviewer non-blocking (candidate fix/ task or fold into T-005/T-007): N1 include exception type name in FIT failure reasons (tracks.py:174); N2 `_num_list` must reject JSON Infinity (tracks.py:226/239, match crashes on hand-corrupted cache); N3 drop dead `p.latitude is None` check, test lat-less trkpt -> reported failure; N4 DTD test `match="DTD"` + UTF-32 case; N5 drop vacuous `except ValueError: return` in fuzz test (test_tracks.py:290); N6 `_refuse_dtd` decodes up to 5x (ok for TCX).
+- CI: "Install Playwright browser" sometimes ~11 min (needs a task allowed to edit workflows).
+- Milestone PR: TESTS.md status column (tests un-marked in T-002/T-003), PLAN.md ticks.

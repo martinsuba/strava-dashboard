@@ -14,7 +14,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from sdash import __version__, pipeline
+from sdash import __version__, importer, pipeline
 
 DEFAULT_DATA_DIR = Path("~/data/strava-export")
 
@@ -74,6 +74,12 @@ def _default_web_dir() -> Path:
     return Path(__file__).resolve().parents[1] / "web"
 
 
+def _cmd_import(data_dir: Path, source: str) -> int:
+    count = importer.import_source(source, data_dir)
+    print(f"imported {count} files into {data_dir / 'raw'}")
+    return 0
+
+
 def _cmd_parse(data_dir: Path) -> int:
     report = pipeline.parse_rides(data_dir)
     print(f"parsed {report.parsed} rides, {len(report.failed)} failed")
@@ -114,7 +120,7 @@ def _cmd_refresh(data_dir: Path, args: argparse.Namespace) -> int:
     return 0
 
 
-IMPLEMENTED = {"parse", "match", "build-data", "refresh"}
+IMPLEMENTED = {"import", "parse", "match", "build-data", "refresh"}
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -128,6 +134,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
     data_dir: Path = (args.data_dir or default_data_dir()).expanduser()
     try:
+        if command == "import":
+            try:
+                return _cmd_import(data_dir, args.source)
+            except pipeline.PipelineError:
+                raise
+            except Exception as exc:  # never show a traceback: it could carry the export link
+                raise pipeline.PipelineError(f"import failed ({type(exc).__name__})") from None
         if command == "parse":
             return _cmd_parse(data_dir)
         if command == "match":

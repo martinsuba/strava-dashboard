@@ -39,7 +39,6 @@ def _all_files(root: Path) -> list[Path]:
     return [p for p in root.rglob("*") if p.is_file()] if root.exists() else []
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req001_local_zip_keeps_only_ride_data(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path
 ) -> None:
@@ -61,7 +60,6 @@ UNSAFE = ["../evil-parent.txt", "../../evil-grandparent.txt", "activities/../../
 
 
 @pytest.mark.parametrize("entry", [*UNSAFE, "ABSOLUTE"])
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req001_unsafe_zip_entry_rejected(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path, entry: str
 ) -> None:
@@ -92,7 +90,6 @@ def _forge_uncompressed_size(zip_path: Path, entry: str, size: int) -> None:
     raise AssertionError(f"{entry} not found in central directory")
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req001_oversized_zip_fails_before_extracting(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path
 ) -> None:
@@ -142,7 +139,6 @@ class _CountingServer:
 
 
 @pytest.mark.parametrize("scheme", ["http", "ftp", "file"])
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req001_non_https_url_rejected_without_request(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path, scheme: str
 ) -> None:
@@ -262,7 +258,6 @@ def _https_env(ca: Path, allowed: str = "localhost") -> dict[str, str]:
     }
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req001_downloaded_zip_deleted_after_import(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path, base_env: dict[str, str]
 ) -> None:
@@ -290,7 +285,6 @@ def _payload(tmp_path: Path) -> bytes:
     return payload
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req001_redirect_to_disallowed_host_rejected(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path
 ) -> None:
@@ -310,7 +304,6 @@ def test_req001_redirect_to_disallowed_host_rejected(
     assert SECRET not in result.output + reports, "the export link (a credential) was logged"
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req001_allowlist_suffix_needs_dot_boundary(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path
 ) -> None:
@@ -329,7 +322,6 @@ def test_req001_allowlist_suffix_needs_dot_boundary(
     assert not (data_dir / "raw" / "activities.csv").exists()
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req001_newer_export_replaces_old_ride_files(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path
 ) -> None:
