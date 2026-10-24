@@ -132,11 +132,12 @@ def _first_pair(
     end: tuple[float, float],
     gate_m: float,
 ) -> tuple[Approach, Approach] | None:
-    ends = approaches(track, end, gate_m)
-    for s in approaches(track, start, gate_m):
-        e = next((x for x in ends if x.t > s.t), None)
-        if e is not None:
-            return s, e
+    """First end pass with a start pass before it, paired with the latest such start pass."""
+    starts = approaches(track, start, gate_m)
+    for e in approaches(track, end, gate_m):
+        before = [x for x in starts if x.t < e.t]
+        if before:
+            return before[-1], e
     return None
 
 
@@ -166,14 +167,20 @@ def reference_from(
     return Reference(length, tuple(points))
 
 
-def _in_bounding_box(track: Track, points: tuple[tuple[float, float], ...]) -> bool:
-    """False when some reference point is outside the ride's bounding box grown by PATH_M."""
-    lat_margin = PATH_M / _M_PER_DEG
-    lat_lo, lat_hi = min(track.lat) - lat_margin, max(track.lat) + lat_margin
-    ref_lat = points[0][0]
-    lon_margin = PATH_M / (_M_PER_DEG * max(0.01, math.cos(math.radians(ref_lat))))
-    lon_lo, lon_hi = min(track.lon) - lon_margin, max(track.lon) + lon_margin
-    return all(lat_lo <= la <= lat_hi and lon_lo <= lo <= lon_hi for la, lo in points)
+@dataclass(frozen=True)
+class _Box:
+    lat_lo: float
+    lat_hi: float
+    lon_lo: float
+    lon_hi: float
+
+    def grown(self, metres: float, lat: float) -> _Box:
+        dlat = metres / _M_PER_DEG
+        dlon = metres / (_M_PER_DEG * max(0.01, math.cos(math.radians(lat))))
+        return _Box(self.lat_lo - dlat, self.lat_hi + dlat, self.lon_lo - dlon, self.lon_hi + dlon)
+
+    def contains(self, lat: float, lon: float) -> bool:
+        return self.lat_lo <= lat <= self.lat_hi and self.lon_lo <= lon <= self.lon_hi
 
 
 def _path_ok(track: Track, s: Approach, e: Approach, ref: Reference) -> bool:
@@ -186,9 +193,15 @@ def _path_ok(track: Track, s: Approach, e: Approach, ref: Reference) -> bool:
     lons = [lo_s, *track.lon[s.leg + 1 : e.leg + 1], lo_e]
     xs = [(lo - lon0) * cos_lat * _M_PER_DEG for lo in lons]
     ys = [(la - lat0) * _M_PER_DEG for la in lats]
+    cursor = 0  # reference points are ordered along the ride: look near the last hit first
+    last = len(xs) - 1
     for la, lo in ref.points:
         px, py = (lo - lon0) * cos_lat * _M_PER_DEG, (la - lat0) * _M_PER_DEG
-        if distance_to_polyline_m(px, py, xs, ys, PATH_M) > PATH_M:
+        for i in itertools.chain(range(cursor, last), range(cursor)):
+            if point_segment_distance_m(px, py, xs[i], ys[i], xs[i + 1], ys[i + 1]) <= PATH_M:
+                cursor = i
+                break
+        else:
             return False
     return True
 
@@ -204,13 +217,19 @@ def find_efforts(
     """Efforts of `track` on the segment start -> end, in ride order, never overlapping."""
     if len(track.t) < 2:
         return []
-    if reference is not None and not _in_bounding_box(track, reference.points):
-        return []
+    box = _Box(min(track.lat), max(track.lat), min(track.lon), max(track.lon))
+    for gate in (start, end):
+        if not box.grown(gate_m, gate[0]).contains(*gate):
+            return []
+    if reference is not None:
+        wide = box.grown(PATH_M, reference.points[0][0])
+        if not all(wide.contains(la, lo) for la, lo in reference.points):
+            return []
     ends = approaches(track, end, gate_m)
     efforts: list[Effort] = []
     last_end_t = -math.inf
     for s in approaches(track, start, gate_m):
-        if s.t <= last_end_t:
+        if s.t < last_end_t:
             continue
         for e in ends:
             if e.t <= s.t:

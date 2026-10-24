@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from sdash.activities import Activity, read_activities
-from sdash.match import Reference, find_efforts, reference_from
+from sdash.match import GATE_M, Reference, find_efforts, reference_from
 from sdash.segments import Segment, SegmentError, load_segments
 from sdash.sitedata import SegmentResult, write_site_data
 from sdash.tracks import (
@@ -28,6 +28,7 @@ class PipelineError(Exception):
 class ParseReport:
     parsed: int
     failed: list[tuple[str, str]]  # (activity id, reason)
+    references: int = 0  # parsed non-ride reference tracks (not counted in `parsed`)
 
 
 _ACTIVITY_ID = re.compile(r"[0-9]+")
@@ -99,8 +100,10 @@ def parse_rides(data_dir: Path) -> ParseReport:
     """
     parsed = 0
     activities, failed = cycling_rides(data_dir)
-    activities = activities + reference_only_activities(data_dir, activities)
-    for act in activities:
+    extra = reference_only_activities(data_dir, activities)
+    references = 0
+    for act in activities + extra:
+        is_reference = act in extra
         if not act.filename:
             failed.append((act.id, "no file in activities.csv"))
             continue
@@ -109,7 +112,11 @@ def parse_rides(data_dir: Path) -> ParseReport:
             path = ride_file(data_dir, act.filename)
             stamp = source_stamp(path)
             if read_cache_if_fresh(cache, stamp) is not None:
-                parsed += 1  # unchanged (same size + mtime): not parsed again
+                # unchanged (same size + mtime): not parsed again
+                if is_reference:
+                    references += 1
+                else:
+                    parsed += 1
                 continue
             track = parse_track(path)
         except Exception as exc:  # one bad ride file must never abort the run
@@ -121,8 +128,11 @@ def parse_rides(data_dir: Path) -> ParseReport:
             failed.append((act.id, "no positions in file"))
             continue
         write_cache(cache, track, stamp)
-        parsed += 1
-    return ParseReport(parsed, failed)
+        if is_reference:
+            references += 1
+        else:
+            parsed += 1
+    return ParseReport(parsed, failed, references)
 
 
 def _read_cache(path: Path) -> Track:
@@ -143,6 +153,12 @@ def _reference(segment: Segment, ref: Track | None) -> Reference:
         raise PipelineError(
             f"segment {segment.name!r}: reference activity {segment.ref_activity} "
             "does not pass both start and end"
+        )
+    if reference.length_m < 2 * GATE_M:
+        raise PipelineError(
+            f"segment {segment.name!r}: reference activity {segment.ref_activity} gives a "
+            f"segment of only {reference.length_m:.0f} m (start and end are too close or the "
+            "track jitters at the gate)"
         )
     return reference
 

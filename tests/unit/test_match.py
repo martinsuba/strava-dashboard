@@ -274,7 +274,7 @@ def test_failed_pair_does_not_consume_the_end_pass() -> None:
 def test_efforts_never_overlap_in_time() -> None:
     track = walk([(0, -500), (0, 2000), (0, 0), (0, 2000), (0, 0), (0, 2500)])
     found = efforts_of(track)
-    assert len(found) >= 2
+    assert len(found) == 3
     for a, b in itertools.pairwise(found):
         assert a.start_t + a.elapsed_s <= b.start_t
 
@@ -329,3 +329,32 @@ def test_bounding_box_prefilter_keeps_true_matches_and_drops_far_rides() -> None
     assert len(efforts_of(narrow)) == 0  # gates 55 m away
     edge = walk([(25, -25), (25, 1000), (25, 2025)])
     assert len(efforts_of(edge)) == 1
+
+
+def test_consecutive_loop_laps_when_start_equals_end_give_every_lap() -> None:
+    lap = [(0, 0), (500, 0), (500, 500), (0, 500)]
+    ref = reference_from(walk([*lap, (0, 0)]), START, START)
+    assert ref is not None and abs(ref.length_m - 2000) <= 5
+    found = find_efforts(walk([*lap, *lap, *lap, (0, 0)]), START, START, "x", reference=ref)
+    assert len(found) == 3, found
+    for e in found:
+        assert abs(e.elapsed_s - 400) <= 3 and abs(e.distance_m - 2000) <= 25
+
+
+def test_hill_repeats_turning_inside_the_gate_give_every_repeat() -> None:
+    up_down = [(0, 0), (0, 1000)]
+    ref = reference_from(walk([*up_down, (0, 0)]), START, START)
+    assert ref is not None
+    found = find_efforts(
+        walk([*up_down, *up_down, *up_down, (0, 0)]), START, START, "x", reference=ref
+    )
+    assert len(found) == 3, found
+    assert all(abs(e.elapsed_s - 400) <= 3 for e in found)
+
+
+def test_reference_passing_the_start_gate_twice_uses_the_tightest_pair() -> None:
+    loop = [(0, 0), (800, 0), (800, 800), (0, 800), (0, 0)]  # 3200 m back through A
+    ref = reference_from(walk([*loop, (0, 2000)]), START, END)
+    assert ref is not None
+    assert abs(ref.length_m - 2000) <= 25
+    assert len(find_efforts(walk([(0, -500), (0, 2500)]), START, END, "x", reference=ref)) == 1
