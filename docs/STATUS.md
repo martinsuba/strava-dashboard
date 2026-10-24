@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M2 / T-014 (hardening leftovers from M1 reviews): in progress. Done in M2: T-013 (#13)
+Current task: M2 / T-015 (CI: mutation workflow + Playwright install time): in progress. Done in M2: T-013 (#13), T-014 (#14)
 Open PRs: –
 Blockers: –
-Next step: builder on T-014, then T-015, T-007…T-010; stop at M2 end
+Next step: builder on T-015 (workflow change -> test-reviewer), then T-007…T-010; stop at M2 end
 
 ## Decisions log
 - 2026-10-23: project created
@@ -70,3 +70,5 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-24: T-013 merged (PR #13), 0 fix rounds. Lead real-data check on the branch: 662/662 rides parsed (TCX fixed), 1 hike reference track, out-and-back 12 efforts (= prototype), one-way 26 + 26, exit 0, match 7 s.
 - T-013 reviewer non-blocking, folded into T-014 (same kind of hardening): invalid first "A" + valid later "A" warning wording; thousands regex must reject `0,500`; document the 60 m minimum segment length (ARCHITECTURE matching, TESTS segment add); clearer `segment add` message for too-short segments; consistent warning order in refresh/build-data. Acceptance tightening (`not out.exists()` in test_req003_unreadable_segments_yaml_is_a_hard_failure_exit_1) needs an explicitly allowed acceptance change: candidate for T-011 or a later plan.
 - Cleanup for Martin: reviewer worktree scratchpad/rev13 could not be removed by the reviewer (permission check); not removed by Lead either (agent denial).
+- 2026-10-24: T-014 merged (PR #14): 1 fix round (download deadline didn't stop a slow-drip server -> watchdog closes the socket at the deadline; import lock via flock on the data dir).
+- T-014 reviewer non-blocking: download that ends early but short of Content-Length is accepted (zip check usually rejects it; cheap Content-Length compare); _import_lock creates an empty data dir before validation.
