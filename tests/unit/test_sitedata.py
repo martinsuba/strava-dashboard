@@ -186,19 +186,31 @@ def test_average_is_rounded_mean(tmp_path: Path) -> None:
     assert _load(out / "rides" / "1.json")["efforts"][0]["avg_s"] == 302
 
 
-def test_per_year_uses_utc_calendar_year(tmp_path: Path) -> None:
-    # 2025-12-31 23:30 UTC is already 2026 in Europe/Bratislava; 2026-01-01 00:00 UTC is 2026.
-    dec31 = int(datetime(2025, 12, 31, 23, 30, tzinfo=UTC).timestamp())
-    jan1 = int(datetime(2026, 1, 1, 0, 0, tzinfo=UTC).timestamp())
-    before = int(datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC).timestamp())
-    effs = [_eff("1", dec31, 500), _eff("2", jan1, 450), _eff("3", before, 480)]
-    acts = [_act("1", 1, "A"), _act("2", 2, "B"), _act("3", 3, "C")]
+def test_per_year_uses_bratislava_calendar_year(tmp_path: Path) -> None:
+    def ts(*a: int) -> int:
+        return int(datetime(*a, tzinfo=UTC).timestamp())  # type: ignore[arg-type]
+
+    effs = [
+        _eff("1", ts(2025, 12, 31, 23, 30), 500),  # 00:30 on 1 Jan in Bratislava (+1 h)
+        _eff("2", ts(2025, 12, 31, 22, 59, 59), 480),  # 23:59:59 on 31 Dec: still 2025
+        _eff("3", ts(2026, 6, 30, 22, 30), 450),  # summer +2 h: 00:30 on 1 Jul, still 2026
+        _eff("4", ts(2026, 12, 31, 22, 30), 440),  # 23:30 on 31 Dec: 2026
+    ]
+    acts = [_act(str(i), i, "R") for i in range(1, 5)]
     out = _write(tmp_path, acts, [SegmentResult(SEG, 2000.0, effs)])
     seg = _load(out / "segments" / "river-path-north.json")
     assert seg["per_year"] == [
-        {"year": 2025, "count": 2, "best_s": 480},
-        {"year": 2026, "count": 1, "best_s": 450},
+        {"year": 2025, "count": 1, "best_s": 480},
+        {"year": 2026, "count": 3, "best_s": 440},
     ]
+
+
+def test_avg_kmh_matches_oracle_expression(tmp_path: Path) -> None:
+    # 900 m in 800 s: d/t*3.6 rounds to 4.0 but the oracle's d/1000/(t/3600) rounds to 4.1
+    effs = [Effort(activity_id="1", start_t=100, elapsed_s=800, distance_m=900.0)]
+    out = _write(tmp_path, [_act("1", 1, "A")], [SegmentResult(SEG, 900.0, effs)])
+    seg = _load(out / "segments" / "river-path-north.json")
+    assert seg["efforts"][0]["avg_kmh"] == 4.1
 
 
 def test_ride_without_efforts_and_no_activities(tmp_path: Path) -> None:

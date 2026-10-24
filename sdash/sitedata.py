@@ -3,7 +3,8 @@
 Deterministic: nothing here reads the clock, no set iteration. Definitions (see ARCHITECTURE.md):
 rank = position by elapsed time among all efforts of a segment (ties: earlier start wins);
 is_pr = rank 1; is_pr_at_time = faster than every earlier effort (first effort counts);
-avg_s = mean elapsed rounded to int; per_year buckets by the UTC calendar year of the effort start.
+avg_s = mean elapsed rounded to int; per_year buckets by the Europe/Bratislava calendar
+year of the effort start (D-007).
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sdash.activities import Activity
 from sdash.match import Effort
@@ -26,6 +28,9 @@ class SegmentResult:
     segment: Segment
     ref_length_m: float
     efforts: list[Effort]
+
+
+DISPLAY_TZ = ZoneInfo("Europe/Bratislava")
 
 
 def iso_utc(epoch_s: float) -> str:
@@ -64,7 +69,9 @@ def _segment_json(result: SegmentResult, ride_names: dict[str, str]) -> dict[str
                 "start_t": e.start_t,
                 "elapsed_s": e.elapsed_s,
                 "distance_m": e.distance_m,
-                "avg_kmh": round(e.distance_m / e.elapsed_s * 3.6, 1) if e.elapsed_s else 0.0,
+                "avg_kmh": round(e.distance_m / 1000 / (e.elapsed_s / 3600), 1)
+                if e.elapsed_s
+                else 0.0,
                 "rank": rank,
                 "gap_to_pr_s": e.elapsed_s - pr_s,
                 "is_pr_at_time": is_pr_at_time,
@@ -72,7 +79,7 @@ def _segment_json(result: SegmentResult, ride_names: dict[str, str]) -> dict[str
         )
     years: dict[int, list[int]] = defaultdict(list)
     for e, _, _ in ranked:
-        years[datetime.fromtimestamp(e.start_t, UTC).year].append(e.elapsed_s)
+        years[datetime.fromtimestamp(e.start_t, DISPLAY_TZ).year].append(e.elapsed_s)
     return {
         "name": result.segment.name,
         "ref_length_m": round(result.ref_length_m),
@@ -86,7 +93,7 @@ def _segment_json(result: SegmentResult, ride_names: dict[str, str]) -> dict[str
 def write_site_data(
     out: Path, activities: Sequence[Activity], results: Sequence[SegmentResult]
 ) -> None:
-    """Replace the JSON files in `out` with index.json and segments/<slug>.json."""
+    """Replace the JSON files in `out` with index.json, segments/<slug>.json and rides/<id>.json."""
     # Only the files this writer owns; anything else in `out` is left alone.
     for stale in [
         out / "index.json",

@@ -79,8 +79,8 @@ Data dir: `SDASH_DATA_DIR`, default `~/data/strava-export/` (`raw/`, `cache/`, `
   - Definitions (T-007, same as `tests/acceptance/web/make_site_data.py`): `rank` = position by elapsed time among all
     efforts of the segment (1 = PR; ties: earlier start wins); `of` = number of efforts; `gap_to_pr_s` = elapsed − PR;
     `is_pr` = rank 1; `is_pr_at_time` = faster than every earlier effort (first-ever effort counts); `avg_s` = mean
-    elapsed of all efforts, rounded to an integer; `pr_date` = date of the PR ride; `per_year` buckets by the UTC
-    calendar year of the effort start (display conversion to Europe/Bratislava, D-007, is the UI's job); `km` one
+    elapsed of all efforts, rounded to an integer; `pr_date` = date of the PR ride; `per_year` buckets by the
+    Europe/Bratislava calendar year of the effort start (D-007; timestamps stay UTC); `km` one
     decimal. `segments/*.json` efforts are chronological, `index.json` rides newest first, `rides/<id>.json` efforts in
     segment order; `rides/<id>.json` exists for every cycling ride; skipped segments get no JSON and no index entry.
 
