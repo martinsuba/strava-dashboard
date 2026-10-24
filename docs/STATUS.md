@@ -1,9 +1,9 @@
 # Status: strava-dashboard
-Phase: paused review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M1 / T-003 PR #7 in review (paused 2026-10-23: Claude usage limit near). Done: T-001 (PR #5), T-002 (PR #6)
+Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: M1 / T-003 PR #7: fix round 1 (reviewer findings) in progress. Done: T-001 (PR #5), T-002 (PR #6)
 Open PRs: #7 T-003 (branch task/T-003-formats-cache)
-Blockers: usage limit (pause requested by Martin)
-Next step: on resume, see "Resume here" below
+Blockers: –
+Next step: builder fix round 1 on T-003 -> reviewer -> test-reviewer -> merge; then T-004…T-006
 
 ## Decisions log
 - 2026-10-23: project created
@@ -42,8 +42,9 @@ Next step: on resume, see "Resume here" below
 - For T-003: test_req002_changed_ride_is_parsed_again must keep passing once the cache exists.
 - Milestone PR todo: TESTS.md status column (16 tests now passing after T-002), PLAN.md ticks.
 - 2026-10-23: paused on Martin's note "approaching claude limit". Task loop stopped mid-T-003.
+- 2026-10-24: resumed (Martin: "continue").
 
-## Resume here (written 2026-10-23 at pause)
+## Resume notes (written 2026-10-23 at pause; resumed 2026-10-24)
 State of T-003 / PR #7 (https://github.com/martinsuba/strava-dashboard/pull/7):
 - Builder done: code commit 9140e0a (FIT/TCX/.gz parsing, 200 MB bounded decompression, TCX DOCTYPE/ENTITY refusal, size+mtime cache). Local checks reported green: pytest unit 82 passed, acceptance 52 passed / 45 xfailed.
 - CI on 9140e0a: ci pass, screenshots pass, acceptance-guard fail (expected until test-review).
