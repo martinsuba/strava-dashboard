@@ -394,3 +394,53 @@ def test_lenient_load_of_a_non_mapping_entry(tmp_path: Path) -> None:
     segments, problems = load_segments_lenient(_write_yaml(tmp_path / "s.yaml", "- 5", GOOD))
     assert [s.name for s in segments] == ["Good"]
     assert len(problems) == 1 and "#1" in problems[0]
+
+
+# --- T-014: hardening -----------------------------------------------------------------------------
+
+
+def test_lenient_invalid_first_occurrence_reserves_the_name(tmp_path: Path) -> None:
+    bad = _entry(name="A", start=[95.0, -134.0])
+    path = _yaml(tmp_path, bad + _entry(name="A") + _entry(name="B"))
+    segments, problems = load_segments_lenient(path)
+    assert [s.name for s in segments] == ["B"]
+    assert len(problems) == 2
+    assert "range" in problems[0] and "duplicate" in problems[1], problems
+
+
+def test_yaml_integer_with_thousands_of_digits_is_a_clear_error(tmp_path: Path) -> None:
+    text = f"- name: A\n  ref_activity: {'9' * 5000}\n  start: [-47.0, -134.0]\n  end: [-46.9, -134.0]\n"
+    path = _yaml(tmp_path, text)
+    for load in (load_segments, load_segments_lenient):
+        with pytest.raises(SegmentError, match=r"segments\.yaml.*unreadable value"):
+            load(path)
+
+
+def test_integers_too_large_for_a_float_or_an_activity_id_are_segment_problems(
+    tmp_path: Path,
+) -> None:
+    big = "1" + "0" * 400
+    entries = [
+        ("A", "1", f"[-47.0, {big}]"),
+        ("B", "1", f"[{big}, -134.0]"),
+        ("C", "1" + "0" * 40, "[-47.0, -134.0]"),
+    ]
+    text = "".join(
+        f"- name: {n}\n  ref_activity: {r}\n  start: {pt}\n  end: [-46.9, -134.0]\n"
+        for n, r, pt in entries
+    )
+    path = _yaml(tmp_path, text)
+    with pytest.raises(SegmentError):
+        load_segments(path)
+    segments, problems = load_segments_lenient(path)
+    assert segments == [] and len(problems) == 3
+    assert all(n in p for n, p in zip("ABC", problems, strict=True)), problems
+
+
+@pytest.mark.parametrize("ref", ["1" * 20, "1" * 40, 10**19, 10**25])
+def test_ref_activity_longer_than_19_digits_is_rejected_the_same_way(ref: object) -> None:
+    entry = {"name": "A", "ref_activity": ref, "start": [-47.0, -134.0], "end": [-46.9, -134.0]}
+    with pytest.raises(SegmentError, match=r"ref_activity.*too large"):
+        segment_from_entry(entry)
+    ok = {**entry, "ref_activity": "1" * 19}
+    assert segment_from_entry(ok).ref_activity == "1" * 19

@@ -46,7 +46,7 @@ def parse_strava_date(text: str) -> datetime:
         raise ValueError(f"unrecognised activity date {text!r}") from exc
 
 
-_THOUSANDS = re.compile(r"-?\d{1,3}(,\d{3})+(\.\d+)?")
+_THOUSANDS = re.compile(r"-?[1-9]\d{0,2}(,\d{3})+(\.\d+)?")
 
 
 def _number(text: str, column: str = "number") -> float:

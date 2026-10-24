@@ -96,6 +96,11 @@ def _print_report(report: pipeline.MatchReport) -> int:
     """Per-segment effort lines, then one warning per skipped segment. Returns the exit code."""
     for r in report.results:
         print(f"{r.segment.name}: {len(r.efforts)} efforts")
+    return _print_problems(report)
+
+
+def _print_problems(report: pipeline.MatchReport) -> int:
+    """One warning per skipped segment. Returns the exit code."""
     for problem in report.problems:
         print(f"warning: {problem} (segment skipped)")
     return EXIT_WARNINGS if report.problems else 0
@@ -109,9 +114,7 @@ def _cmd_build_data(data_dir: Path, out: Path | None) -> int:
     target = out or _default_web_dir() / "public" / "data"
     report = pipeline.build_data(data_dir, target)
     print(f"wrote {len(report.results)} segments to {target}")
-    for problem in report.problems:
-        print(f"warning: {problem} (segment skipped)")
-    return EXIT_WARNINGS if report.problems else 0
+    return _print_problems(report)
 
 
 def _cmd_refresh(data_dir: Path, args: argparse.Namespace) -> int:
@@ -123,8 +126,10 @@ def _cmd_refresh(data_dir: Path, args: argparse.Namespace) -> int:
     _cmd_parse(data_dir)
     target = web_dir / "public" / "data"
     report = pipeline.build_data(data_dir, target)
-    status = _print_report(report)  # 2 when segments were skipped: still builds (and deploys)
+    for r in report.results:
+        print(f"{r.segment.name}: {len(r.efforts)} efforts")
     print(f"wrote {len(report.results)} segments to {target}")
+    status = _print_problems(report)  # 2 when segments were skipped: still builds (and deploys)
     npm = shutil.which("npm")
     if npm is None:
         raise pipeline.PipelineError("npm not found: cannot build the site")

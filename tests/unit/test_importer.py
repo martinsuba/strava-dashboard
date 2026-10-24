@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
+import os
+import shutil
+import socket
+import ssl
 import stat
+import subprocess
+import threading
+import time
 import zipfile
 from pathlib import Path
 
@@ -281,3 +288,213 @@ def test_url_never_in_output(
         cap = capsys.readouterr()
         assert "SECRETX" not in cap.out + cap.err
         assert "upn" not in cap.out + cap.err
+
+
+# --- T-014: hardening -----------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "order", [("activities/a", "activities/a/b"), ("activities/a/b", "activities/a")]
+)
+def test_file_directory_clash_names_the_entry(tmp_path: Path, order: tuple[str, str]) -> None:
+    zpath = make_zip(
+        tmp_path / "z.zip", {"activities.csv": b"id\n", order[0]: b"1", order[1]: b"2"}
+    )
+    with pytest.raises(ImportFailed, match=r"activities/a"):
+        importer.import_zip(zpath, tmp_path / "data")
+    assert not (tmp_path / "data" / "raw").exists()
+
+
+def test_entry_count_is_capped_before_anything_is_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(importer, "MAX_ENTRIES", 2)
+    zpath = make_zip(tmp_path / "z.zip", {**GOOD, "activities/2.gpx": b"x"})
+    with pytest.raises(ImportFailed, match=r"too many entries"):
+        importer.import_zip(zpath, tmp_path / "data")
+    assert not (tmp_path / "data").exists()
+    zpath = make_zip(tmp_path / "ok.zip", GOOD)
+    assert importer.import_zip(zpath, tmp_path / "data") == 2
+
+
+def test_existing_data_dir_is_made_private(tmp_path: Path) -> None:
+    data = tmp_path / "data"
+    data.mkdir(mode=0o755)
+    data.chmod(0o755)
+    importer.import_zip(make_zip(tmp_path / "z.zip", GOOD), data)
+    assert stat.S_IMODE(data.stat().st_mode) == 0o700
+
+
+def test_stale_importer_leftovers_are_removed_on_start_and_nothing_else(tmp_path: Path) -> None:
+    data = tmp_path / "data"
+    (data / ".raw-staging-abc" / "activities").mkdir(parents=True)
+    (data / ".raw-staging-abc" / "activities" / "x").write_bytes(b"x")
+    (data / ".raw-old-xyz").mkdir()
+    (data / ".download-q1.zip.tmp").write_bytes(b"partial")
+    keep = [".download-other.txt", ".raw-staging", "raw-old-x", "segments.yaml", "cache", ".rawx"]
+    for name in keep:
+        (data / name).write_bytes(b"k")
+    (data / "other").mkdir()
+    (data / "other" / ".raw-old-inner").mkdir()
+    importer.import_source(str(make_zip(tmp_path / "z.zip", GOOD)), data)
+    left = sorted(p.name for p in data.iterdir())
+    assert left == sorted([*keep, "other", "raw"])
+    assert (data / "other" / ".raw-old-inner").is_dir()
+
+
+class _SlowResp:
+    status = 200
+
+    def __init__(self, clock: list[float]) -> None:
+        self.clock = clock
+
+    def getheader(self, name: str) -> str | None:
+        return None
+
+    def read1(self, n: int) -> bytes:
+        self.clock[0] += 10.0  # every chunk "takes" ten seconds
+        return b"x" * 16
+
+
+def test_download_deadline_aborts_and_deletes_the_temp_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(importer.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(importer, "DEADLINE_S", 35.0)
+    with pytest.raises(ImportFailed, match=r"time limit"):
+        importer._stream_to_file(_SlowResp(clock), tmp_path, "strava.com", clock[0] + 35.0)  # type: ignore[arg-type]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_download_computes_the_deadline_from_the_constant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    clock = [0.0]
+    monkeypatch.setattr(importer.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(importer, "DEADLINE_S", 25.0)
+
+    class Conn:
+        def __init__(self, *a: object, **k: object) -> None: ...
+        def request(self, *a: object, **k: object) -> None: ...
+        def close(self) -> None: ...
+        def getresponse(self) -> _SlowResp:
+            return _SlowResp(clock)
+
+    monkeypatch.setattr(importer.http.client, "HTTPSConnection", Conn)
+    with pytest.raises(ImportFailed, match=r"time limit"):
+        importer.download("https://strava.com/a?t=SECRETX", tmp_path)
+    assert list(tmp_path.iterdir()) == []
+
+
+# --- T-014 review round 1: real HTTPS server, slow-drip bounds, import lock ----------------------
+
+
+@pytest.fixture
+def tls_cert(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
+    if shutil.which("openssl") is None:
+        pytest.skip("openssl CLI not available")
+    d = tmp_path_factory.mktemp("tls")
+    cert, key = d / "cert.pem", d / "key.pem"
+    subprocess.run(
+        ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", str(key),
+         "-out", str(cert), "-days", "2", "-subj", "/CN=localhost",
+         "-addext", "subjectAltName=IP:127.0.0.1"],
+        check=True, capture_output=True,
+    )  # fmt: skip
+    return cert, key
+
+
+def _drip_server(cert: Path, key: Path, mode: str) -> int:
+    """HTTPS server on 127.0.0.1 that sends 1 byte per 0.2 s for 8 s (body or header)."""
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(cert, key)
+
+    def serve() -> None:
+        try:
+            conn, _ = srv.accept()
+            tls = ctx.wrap_socket(conn, server_side=True)
+            tls.recv(4096)
+            if mode == "body":
+                tls.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 1000000\r\n\r\n")
+                payload = b"x" * 40
+            else:
+                payload = b"HTTP/1.1 200 OK\r\nX-Pad: " + b"a" * 30
+            for ch in payload:
+                tls.sendall(bytes([ch]))
+                time.sleep(0.2)
+            tls.close()
+        except OSError:
+            pass  # the client gave up: expected
+        finally:
+            srv.close()
+
+    threading.Thread(target=serve, daemon=True).start()
+    return int(srv.getsockname()[1])
+
+
+@pytest.mark.parametrize("mode", ["body", "header"])
+def test_slow_drip_server_is_cut_off_at_the_deadline(
+    tmp_path: Path, tls_cert: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    port = _drip_server(*tls_cert, mode)
+    monkeypatch.setenv("SSL_CERT_FILE", str(tls_cert[0]))
+    monkeypatch.setattr(importer, "DEADLINE_S", 1.0)
+    out = tmp_path / "out"
+    started = time.monotonic()
+    with pytest.raises(ImportFailed, match=r"time limit"):
+        importer.download(f"https://127.0.0.1:{port}/x", out, ("127.0.0.1",))
+    assert time.monotonic() - started < 3.0, "the deadline must bound the whole download"
+    assert not out.exists() or list(out.iterdir()) == []
+
+
+def test_handshake_stall_is_cut_off_at_the_deadline(
+    tmp_path: Path, tls_cert: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    held: list[socket.socket] = []
+    threading.Thread(target=lambda: held.append(srv.accept()[0]), daemon=True).start()
+    monkeypatch.setenv("SSL_CERT_FILE", str(tls_cert[0]))
+    monkeypatch.setattr(importer, "DEADLINE_S", 1.0)
+    started = time.monotonic()
+    with pytest.raises(ImportFailed, match=r"time limit"):
+        importer.download(
+            f"https://127.0.0.1:{srv.getsockname()[1]}/x", tmp_path / "o", ("127.0.0.1",)
+        )
+    assert time.monotonic() - started < 3.0
+    srv.close()
+    for h in held:
+        h.close()
+
+
+def test_duration_text_uses_seconds_below_a_minute(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert importer._duration_text(1.0) == "1 second"
+    assert importer._duration_text(45.0) == "45 seconds"
+    assert importer._duration_text(1800.0) == "30 minutes"
+
+
+def test_a_held_import_lock_refuses_a_second_import_and_keeps_its_files(tmp_path: Path) -> None:
+    import fcntl
+
+    data = tmp_path / "data"
+    data.mkdir(mode=0o700)
+    (data / ".download-live.zip.tmp").write_bytes(b"in progress")
+    (data / ".raw-staging-live").mkdir()
+    fd = os.open(data, os.O_RDONLY | os.O_DIRECTORY)
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        zpath = make_zip(tmp_path / "z.zip", GOOD)
+        with pytest.raises(ImportFailed, match="another import is running"):
+            importer.import_source(str(zpath), data)
+        assert (data / ".download-live.zip.tmp").exists()
+        assert (data / ".raw-staging-live").is_dir()
+    finally:
+        os.close(fd)
+    importer.import_source(str(zpath), data)  # lock released: works, and cleans the leftovers
+    assert not (data / ".download-live.zip.tmp").exists()
+    assert not (data / ".import.lock").exists()

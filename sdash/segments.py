@@ -53,6 +53,7 @@ STRAVA_HEADER = (
 
 
 MAX_NAME_LEN = 120
+MAX_REF_DIGITS = 19
 _BAD_CATEGORIES = {"Cc", "Cs", "Co", "Cn", "Zl", "Zp"}
 
 
@@ -85,7 +86,11 @@ def _check_name(name: object, label: str) -> str:
 def _number(value: object) -> float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    return float(value) if math.isfinite(value) else None
+    try:
+        number = float(value)
+    except OverflowError:  # an integer too large for a float
+        return None
+    return number if math.isfinite(number) else None
 
 
 def _point(entry: dict[str, Any], key: str, label: str) -> tuple[float, float]:
@@ -117,6 +122,10 @@ def segment_from_entry(entry: object, index: int = 0) -> Segment:
         )
     name = _check_name(entry["name"], label)
     ref = entry["ref_activity"]
+    if (isinstance(ref, int) and not isinstance(ref, bool) and abs(ref) >= 10**MAX_REF_DIGITS) or (
+        isinstance(ref, str) and len(ref) > MAX_REF_DIGITS
+    ):
+        raise SegmentError(f"{label}: ref_activity is too large to be an activity ID")
     if (
         isinstance(ref, bool)
         or not isinstance(ref, (int, str))
@@ -161,6 +170,8 @@ def _read_entries(path: Path) -> list[object]:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (yaml.YAMLError, UnicodeDecodeError) as exc:
         raise SegmentError(f"{path.name}: invalid YAML: {exc}") from exc
+    except ValueError as exc:  # e.g. an integer with thousands of digits
+        raise SegmentError(f"{path.name}: unreadable value in YAML: {exc}") from exc
     if data is None:
         data = []
     if not isinstance(data, list):
@@ -178,8 +189,9 @@ def load_segments_lenient(path: Path) -> tuple[list[Segment], list[str]]:
     """(valid segments, problems). One bad segment never hides the others.
 
     Invalid entries, later duplicate names and later slug collisions are skipped (the first
-    occurrence is kept); each is one problem message that names the segment. An unusable file
-    (missing, invalid YAML, not a list) still raises SegmentError.
+    occurrence is kept; an invalid entry still reserves its name); each is one problem message
+    that names the segment. An unusable file (missing, invalid YAML, not a list) still raises
+    SegmentError.
     """
     segments: list[Segment] = []
     problems: list[str] = []
@@ -190,6 +202,10 @@ def load_segments_lenient(path: Path) -> tuple[list[Segment], list[str]]:
             seg = segment_from_entry(entry, i)
         except SegmentError as exc:
             problems.append(str(exc))
+            # an invalid entry still reserves its name, so a later entry with the same name is
+            # reported as a duplicate instead of looking like the one the first message is about
+            if isinstance(entry, dict) and isinstance(entry.get("name"), str):
+                names.add(entry["name"])
             continue
         if seg.name in names:
             problems.append(f"segment {_short(seg.name)}: duplicate name")

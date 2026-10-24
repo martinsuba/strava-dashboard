@@ -13,21 +13,29 @@ Rules enforced here:
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import http.client
 import os
 import re
 import shutil
+import socket
 import ssl
 import stat
 import sys
 import tempfile
+import threading
+import time
 import urllib.parse
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path, PurePosixPath
 
 from sdash.pipeline import PipelineError
 
 MAX_BYTES = 3 * 1000**3  # download cap and total uncompressed cap ("3 GB")
+MAX_ENTRIES = 100_000  # zip entries (Strava's own export has a few thousand)
+DEADLINE_S = 30 * 60.0  # wall-clock limit for the whole download, redirects included
 MAX_REDIRECTS = 5
 TIMEOUT_S = 30.0
 CHUNK = 1 << 20
@@ -120,14 +128,104 @@ def _ssl_context() -> ssl.SSLContext:
     return ctx
 
 
+def _duration_text(seconds: float) -> str:
+    if seconds < 60:
+        n = f"{seconds:g}"
+        return f"{n} second" + ("" if n == "1" else "s")
+    minutes = f"{seconds / 60:.0f}"
+    return f"{minutes} minute" + ("" if minutes == "1" else "s")
+
+
+def _timeout_error() -> ImportFailed:
+    return ImportFailed(
+        f"download exceeded the time limit of {_duration_text(DEADLINE_S)}: aborted"
+    )
+
+
+class _Watchdog:
+    """Hard wall-clock bound: at the deadline it shuts the connection's socket down, which ends
+    any blocked connect/handshake/header/body read at once (a per-read timeout cannot)."""
+
+    def __init__(self, seconds: float) -> None:
+        self.expired = False
+        self._lock = threading.Lock()
+        self._socks: list[socket.socket] = []
+        self._timer = threading.Timer(max(seconds, 0.0), self._fire)
+        self._timer.daemon = True
+        self._timer.start()
+
+    def _fire(self) -> None:
+        with self._lock:
+            self.expired = True
+            for sock in self._socks:
+                with contextlib.suppress(OSError):
+                    sock.shutdown(socket.SHUT_RDWR)
+
+    def watch(self, sock: socket.socket) -> None:
+        """Watch a duplicate of the connection's socket (shutdown acts on the connection)."""
+        dup = sock.dup()
+        with self._lock:
+            self._socks.append(dup)
+            if self.expired:
+                with contextlib.suppress(OSError):
+                    dup.shutdown(socket.SHUT_RDWR)
+
+    def stop(self) -> None:
+        self._timer.cancel()
+        with self._lock:
+            for sock in self._socks:
+                sock.close()
+            self._socks.clear()
+
+
+def _connection_class(dog: _Watchdog) -> type[http.client.HTTPSConnection]:
+    base = http.client.HTTPSConnection  # looked up now so tests can replace it
+
+    class Conn(base):  # type: ignore[valid-type, misc]
+        def connect(self) -> None:
+            raw = self._create_connection((self.host, self.port), self.timeout, self.source_address)
+            dog.watch(raw)  # before the TLS handshake, so a stalled handshake is cut off too
+            raw.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
+
+    return Conn
+
+
 def download(url: str, dest_dir: Path, hosts: tuple[str, ...] | None = None) -> Path:
-    """Download to a private (0600) temp file in dest_dir. The caller must delete it."""
+    """Download to a private (0600) temp file in dest_dir. The caller must delete it.
+
+    The whole download (connect, TLS, every redirect hop, headers, body) must finish within
+    DEADLINE_S wall-clock seconds.
+    """
     hosts = allowed_hosts() if hosts is None else hosts
+    deadline = time.monotonic() + DEADLINE_S
+    dog = _Watchdog(DEADLINE_S)
+    try:
+        path = _download(url, dest_dir, hosts, deadline, dog)
+    except ImportFailed:
+        if dog.expired:
+            raise _timeout_error() from None
+        raise
+    finally:
+        dog.stop()
+    if dog.expired:  # the cut-off looked like a clean end of the stream
+        path.unlink(missing_ok=True)
+        raise _timeout_error()
+    return path
+
+
+def _download(
+    url: str, dest_dir: Path, hosts: tuple[str, ...], deadline: float, dog: _Watchdog
+) -> Path:
     current = url
     ctx = _ssl_context()
+    conn_class = _connection_class(dog)
     for _hop in range(MAX_REDIRECTS + 1):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise _timeout_error()
         host, port, target = _check_url(current, hosts)  # before any connection
-        conn = http.client.HTTPSConnection(host, port, timeout=TIMEOUT_S, context=ctx)
+        conn = conn_class(host, port, timeout=min(TIMEOUT_S, remaining), context=ctx)
         try:
             try:
                 conn.request("GET", target, headers={"User-Agent": "sdash"})
@@ -146,25 +244,29 @@ def download(url: str, dest_dir: Path, hosts: tuple[str, ...] | None = None) -> 
                 raise ImportFailed(
                     f"download failed: host {_norm_host(host)!r} answered HTTP {resp.status}"
                 )
-            return _stream_to_file(resp, dest_dir, host)
+            return _stream_to_file(resp, dest_dir, host, deadline)
         finally:
             conn.close()
     raise ImportFailed(f"too many redirects (more than {MAX_REDIRECTS})")
 
 
-def _stream_to_file(resp: http.client.HTTPResponse, dest_dir: Path, host: str) -> Path:
+def _stream_to_file(
+    resp: http.client.HTTPResponse, dest_dir: Path, host: str, deadline: float
+) -> Path:
     declared = resp.getheader("Content-Length")
     if declared and declared.isdigit() and int(declared) > MAX_BYTES:
         raise ImportFailed(f"download size exceeds the limit of {MAX_BYTES} bytes")
-    dest_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    _private_dir(dest_dir)
     fd, name = tempfile.mkstemp(prefix=".download-", suffix=".zip.tmp", dir=dest_dir)
     path = Path(name)
     try:
         total = 0
         with os.fdopen(fd, "wb") as out:
             while True:
+                if time.monotonic() > deadline:
+                    raise _timeout_error()
                 try:
-                    chunk = resp.read(CHUNK)
+                    chunk = resp.read1(CHUNK)  # returns what has arrived; read() would wait
                 except (OSError, http.client.HTTPException) as exc:
                     raise ImportFailed(
                         f"download failed for host {_norm_host(host)!r}: {type(exc).__name__}"
@@ -179,6 +281,30 @@ def _stream_to_file(resp: http.client.HTTPResponse, dest_dir: Path, host: str) -
         path.unlink(missing_ok=True)
         raise
     return path
+
+
+def _private_dir(path: Path) -> None:
+    """Create the data dir (0700), or tighten an existing one: it holds the account export."""
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with contextlib.suppress(OSError):  # not ours to change: the import itself fails or proceeds
+        path.chmod(0o700)
+
+
+_STALE = re.compile(r"\.(raw-staging-|raw-old-)[A-Za-z0-9_]+|\.download-[A-Za-z0-9_]+\.zip\.tmp")
+
+
+def clean_stale(data_dir: Path) -> None:
+    """Remove leftovers of an interrupted import: only this module's own temp names, directly in
+    data_dir (`.raw-staging-*`, `.raw-old-*`, `.download-*.zip.tmp`); nothing else is touched."""
+    if not data_dir.is_dir():
+        return
+    for entry in data_dir.iterdir():
+        if not _STALE.fullmatch(entry.name):
+            continue
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.rmtree(entry, ignore_errors=True)
+        else:
+            entry.unlink(missing_ok=True)
 
 
 # ---- zip handling -------------------------------------------------------------------------
@@ -199,6 +325,10 @@ def _validate_name(name: str) -> None:
 
 
 def _validate_entries(infos: list[zipfile.ZipInfo]) -> None:
+    if len(infos) > MAX_ENTRIES:
+        raise ImportFailed(
+            f"export has too many entries ({len(infos)}; the limit is {MAX_ENTRIES})"
+        )
     seen: set[str] = set()
     total = 0
     for info in infos:
@@ -225,6 +355,10 @@ def is_allowed_entry(name: str) -> bool:
     return name.startswith(prefix) and not name.endswith("/") and len(name) > len(prefix)
 
 
+def _is_clash(exc: BaseException) -> bool:
+    return isinstance(exc, (FileExistsError, IsADirectoryError, NotADirectoryError))
+
+
 def _extract(zf: zipfile.ZipFile, infos: list[zipfile.ZipInfo], staging: Path) -> int:
     budget = MAX_BYTES
     count = 0
@@ -235,9 +369,9 @@ def _extract(zf: zipfile.ZipFile, infos: list[zipfile.ZipInfo], staging: Path) -
         target = (staging / info.filename).resolve()
         if root not in target.parents:
             raise ImportFailed(f"unsafe zip entry {info.filename!r}: escapes the target")
-        target.parent.mkdir(parents=True, exist_ok=True)
         written = 0
         try:
+            target.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(info) as src, open(target, "xb") as out:
                 while chunk := src.read(CHUNK):
                     written += len(chunk)
@@ -249,8 +383,9 @@ def _extract(zf: zipfile.ZipFile, infos: list[zipfile.ZipInfo], staging: Path) -
                         )
                     out.write(chunk)
         except (zipfile.BadZipFile, OSError, EOFError, RuntimeError, NotImplementedError) as exc:
+            clash = " (a file and a directory share this path)" if _is_clash(exc) else ""
             raise ImportFailed(
-                f"cannot extract zip entry {info.filename!r}: {type(exc).__name__}"
+                f"cannot extract zip entry {info.filename!r}: {type(exc).__name__}{clash}"
             ) from None
         count += 1
     return count
@@ -267,7 +402,7 @@ def import_zip(zip_path: Path, data_dir: Path) -> int:
         _validate_entries(infos)  # nothing is written before this passes
         if not any(i.filename == "activities.csv" for i in infos):
             raise ImportFailed("not a Strava export: activities.csv is missing")
-        data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        _private_dir(data_dir)
         staging = Path(tempfile.mkdtemp(prefix=".raw-staging-", dir=data_dir))
         old: Path | None = None
         try:
@@ -291,18 +426,39 @@ def import_zip(zip_path: Path, data_dir: Path) -> int:
     return count
 
 
+@contextlib.contextmanager
+def _import_lock(data_dir: Path) -> Iterator[None]:
+    """Exclusive lock for a whole import (stale cleanup included): two imports in one data dir
+    would delete each other's temp files. The lock is on the data dir itself (no lock file: a
+    failed import must leave nothing behind)."""
+    _private_dir(data_dir)
+    fd = os.open(data_dir, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            raise ImportFailed("another import is running in this data dir") from None
+        yield
+    finally:
+        os.close(fd)  # also releases the lock
+
+
 def import_source(source: str, data_dir: Path) -> int:
     """`sdash import <zip|https-url>`; returns the number of extracted files."""
     if "://" in source:
         hosts = allowed_hosts()
         _check_url(source, hosts)  # https/host check before touching the disk or network
-        zip_path = download(source, data_dir, hosts)
-        try:
-            return import_zip(zip_path, data_dir)
-        finally:
-            zip_path.unlink(missing_ok=True)
+        with _import_lock(data_dir):
+            clean_stale(data_dir)  # before the download starts: its own temp file must survive
+            zip_path = download(source, data_dir, hosts)
+            try:
+                return import_zip(zip_path, data_dir)
+            finally:
+                zip_path.unlink(missing_ok=True)
     path = Path(source).expanduser()
     if not path.is_file():
         shown = "" if "?" in source else f": {source}"
         raise ImportFailed(f"zip file not found{shown}")
-    return import_zip(path, data_dir)
+    with _import_lock(data_dir):
+        clean_stale(data_dir)
+        return import_zip(path, data_dir)

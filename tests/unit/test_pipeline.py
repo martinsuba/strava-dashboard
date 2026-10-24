@@ -386,7 +386,7 @@ def test_add_segment_refuses_degenerate_reference(tmp_path: Path) -> None:
     from sdash.pipeline import add_segment
 
     data = _add_data(tmp_path)
-    with pytest.raises(PipelineError, match=r"Tiny.*does not pass"):
+    with pytest.raises(PipelineError, match=r"Tiny.*only 20 m.*minimum is 60 m"):
         add_segment(data, "Tiny", "5", 1.0, 1.02)  # 20 m: shorter than two gates
     assert not (data / "segments.yaml").exists()
 
@@ -501,3 +501,11 @@ def test_reference_lookup_reads_segments_leniently(tmp_path: Path) -> None:
         "  start: [-47.0, -134.0]\n  end: [-46.99, -134.0]\n"
     )
     assert parse_rides(data).references == 1
+
+
+def test_add_segment_too_short_never_rounds_up_to_the_minimum(tmp_path: Path) -> None:
+    from sdash.pipeline import add_segment
+
+    data = _add_data(tmp_path)
+    with pytest.raises(PipelineError, match=r"only 59 m long; the minimum is 60 m"):
+        add_segment(data, "Tiny", "5", 1.0, 1.0596)

@@ -95,3 +95,21 @@ def test_unreadable_segments_yaml_exits_1(tmp_path: Path) -> None:
     data = _add_data(tmp_path)
     (data / "segments.yaml").write_text("- name: [unclosed\n")
     assert main(["--data-dir", str(data), "match"]) == 1
+
+
+def test_refresh_and_build_data_print_warnings_after_the_wrote_line(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from sdash import cli
+
+    data = _data_with_bad_and_good_segment(tmp_path)
+    monkeypatch.setattr(cli.shutil, "which", lambda _name: None)  # refresh stops before npm
+    argv = [
+        ["--data-dir", str(data), "build-data", "--out", str(tmp_path / "site")],
+        ["--data-dir", str(data), "refresh", "--no-deploy", "--web-dir", str(tmp_path / "web")],
+    ]
+    for args in argv:
+        main(args)
+        out = capsys.readouterr().out
+        assert "wrote " in out and "warning:" in out, (args, out)
+        assert out.index("wrote ") < out.index("warning:"), (args, out)
