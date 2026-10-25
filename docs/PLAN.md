@@ -68,7 +68,7 @@ T-001 aligns the synthetic export with the recorded real header (Plan v2).
 ## M2: The site (index, segment, ride pages)
 M2 starts with three fix tasks from the M1 review (Plan v3), then the site tasks.
 
-### [ ] T-013: Real-data fixes from the M1 check  (size M)
+### [x] T-013: Real-data fixes from the M1 check  (size M)
 - Goal: (1) activities.csv numbers with thousands separators read correctly in all rows; reference-track lookup reports
   read errors instead of swallowing them. (2) Out-and-back reference: skip gate pairs shorter than a minimum (e.g.
   2 × gate = 60 m ridden distance) and use the next end pass. (3) Segment-level problems (invalid fields, duplicate
@@ -87,7 +87,7 @@ M2 starts with three fix tasks from the M1 review (Plan v3), then the site tasks
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review + test-review clean; Lead
   re-runs the private real-data check: Sitno hike segments get a reference, the otočka segment matches, 662/662 parsed.
 
-### [ ] T-014: Hardening leftovers from M1 reviews  (size S)
+### [x] T-014: Hardening leftovers from M1 reviews  (size S)
 - Goal: FIT failure reasons include the exception type; cache `_num_list` rejects Infinity; drop dead GPX
   `latitude is None` check (test: lat-less trkpt -> reported failure); DTD test `match="DTD"` + UTF-32 case; drop the
   vacuous `except ValueError: return` in the fuzz test; huge YAML integers -> clear error (catch ValueError in
@@ -99,7 +99,7 @@ M2 starts with three fix tasks from the M1 review (Plan v3), then the site tasks
 - Areas/files: sdash/, tests/unit/, docs/ARCHITECTURE.md (proxy note only)
 - Definition of done: code + unit tests, CI green, review clean
 
-### [ ] T-015: CI fixes: mutation workflow and Playwright install time  (size S)
+### [x] T-015: CI fixes: mutation workflow and Playwright install time  (size S)
 - Goal: mutation.yml + mutmut config produce a real score on sdash/match.py (verify locally that mutants are actually
   run; current run: 488 mutants all "not checked" because of deprecated config keys); speed up "Install Playwright
   browser" (Playwright container image or cached browsers + deps), keeping the `ci` job name and steps.
@@ -113,14 +113,14 @@ M2 starts with three fix tasks from the M1 review (Plan v3), then the site tasks
 
 All M2 UI tasks follow docs/DESIGN.md (tokens, type, layout, screens) and the reference mockups in docs/design/.
 Milestone review compares the screenshots with those mockups.
-### [ ] T-007: Site data complete: ranks, PR at the time, averages, per-year, determinism  (size M)
+### [x] T-007: Site data complete: ranks, PR at the time, averages, per-year, determinism  (size M)
 - Goal: full JSON schema from ARCHITECTURE.md, byte-identical rebuilds, no coordinates.
 - REQs: REQ-005
 - Acceptance tests to make pass: tests/acceptance/pipeline/test_sitedata*.py
 - Areas/files: sdash/sitedata.py
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
-### [ ] T-008: Base layout + design tokens + Index page  (size M)
+### [x] T-008: Base layout + design tokens + Index page  (size M)
 - Goal: `tokens.css` and base styles from docs/DESIGN.md, self-hosted Public Sans, header/nav, panel and table
   components, not-found route; then the Index page (segment list + ride list, links, empty state). T-002's segment page
   adopts the base layout.
@@ -130,14 +130,14 @@ Milestone review compares the screenshots with those mockups.
 - Notes: exactly one link per ride row (index.spec uses a strict `getByRole("link")`).
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
-### [ ] T-009: Segment page complete: ranks, gap to PR, sorting, per-year, trend chart  (size M)
+### [x] T-009: Segment page complete: ranks, gap to PR, sorting, per-year, trend chart  (size M)
 - Goal: REQ-007 in full with Chart.js, matching docs/design/segment-page.dc.html.
 - REQs: REQ-007
 - Acceptance tests to make pass: tests/acceptance/web/segment.spec.ts
 - Areas/files: web/src/pages/segment.ts
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
-### [ ] T-010: Ride page  (size M)
+### [x] T-010: Ride page  (size M)
 - Goal: ride summary + matched efforts vs PR/average with the position bar, PR-at-the-time marking, empty state,
   matching docs/design/ride-page.dc.html. Dates/times in Europe/Bratislava (D-007).
 - Also: **explicitly allowed acceptance change**: add the REQ-008 time-zone criterion test to

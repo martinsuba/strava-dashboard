@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M2 / T-010 (ride page, last M2 task): in progress. Done in M2: T-013, T-014, T-015, T-007, T-008, T-009 (#13, #14, #15, #17, #18, #19)
-Open PRs: –
+Current task: M2 done (T-013, T-014, T-015, T-007…T-010: PRs #13–#20). Milestone PR open, waiting for Martin's review
+Open PRs: M2 milestone PR (chore/milestone-M2, Martin merges)
 Blockers: –
-Next step: builder on T-010; then M2 milestone PR (review, screenshots, mutation, TESTS/PLAN ticks) and stop for Martin
+Next step: Martin reviews + merges M2 PR; decide Plan v4 (chart bug fix first, M2 review decisions); then "go M3"
 
 ## Decisions log
 - 2026-10-23: project created
@@ -86,3 +86,6 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-24: resumed (Martin: "continue"); T-009 builder resumed on its uncommitted work.
 - 2026-10-24: T-009 merged (PR #19): 2 fix rounds (CI: chart destroyed right after drawing by a late lazy-import dispose -> synchronous per-route cleanup; then reviewer non-blocking items incl. 13 px orange chart label). Chart.js lazy-loaded (main 5.3 kB gz, chart chunk 50.5 kB gz).
 - T-009 follow-ups (non-blocking): at exactly 375 px the efforts table still scrolls ~23 px inside its box; mobile ride names truncated to 80 px (Martin to judge at M2 review); cleanup.test.ts "does nothing without hooks" case is vacuous.
+- 2026-10-24: T-010 merged (PR #20): 1 fix round (stuck "Loading…" on trailing-slash/percent-encoded URLs on ride AND segment pages -> isCurrentRoute). M2 complete.
+- 2026-10-24: M2 real-data check by Lead (private build ~/data/m2-check/site-m2, never committed): index/segment/ride render, no page errors, no horizontal scroll at 390 px, Czech names fine, Bratislava times correct. **Bug found: segment chart draws the effort points at wrong x positions (compressed toward the start of the axis, still moving after 5 s), while the PR label is placed correctly** — with real data (3 years) only; synthetic 8-year fixture looked fine. Must-fix -> Plan v4.
+- M2 review decisions for Martin: (1) chart bug (must-fix); (2) y axis squashed by efforts with long stops (up to 1.5 h): cap/zoom the y axis or show moving time?; (3) "Average" on the ride page skewed by stops (25:56 vs median ~17:52) -> show median instead?; (4) position bar scale without slowest effort (add slowest_s to site data?); (5) mobile ride names truncated to 80 px; (6) duplicate "Segments" heading on index.
