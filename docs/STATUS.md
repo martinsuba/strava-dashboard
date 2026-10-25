@@ -1,9 +1,9 @@
 # Status: strava-dashboard
-Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M2 done (T-013, T-014, T-015, T-007…T-010: PRs #13–#20). Milestone PR open, waiting for Martin's review
-Open PRs: M2 milestone PR (chore/milestone-M2, Martin merges)
-Blockers: –
-Next step: Martin reviews + merges M2 PR; decide Plan v4 (chart bug fix first, M2 review decisions); then "go M3"
+Phase: paused   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: M2 done (milestone PR #21 merged 2026-10-25). Plan v4 PR #22 open. M3 not started
+Open PRs: #22 Plan v4 (Martin merges)
+Blockers: paused by Martin (session will be cleared; resume from a fresh session)
+Next step: on resume: check #22 merged (git pull main) -> show M3 list (T-016, T-017, T-018, T-011, T-012) -> wait for Martin's "go M3" -> next-task loop
 
 ## Decisions log
 - 2026-10-23: project created
@@ -89,3 +89,6 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-24: T-010 merged (PR #20): 1 fix round (stuck "Loading…" on trailing-slash/percent-encoded URLs on ride AND segment pages -> isCurrentRoute). M2 complete.
 - 2026-10-24: M2 real-data check by Lead (private build ~/data/m2-check/site-m2, never committed): index/segment/ride render, no page errors, no horizontal scroll at 390 px, Czech names fine, Bratislava times correct. **Bug found: segment chart draws the effort points at wrong x positions (compressed toward the start of the axis, still moving after 5 s), while the PR label is placed correctly** — with real data (3 years) only; synthetic 8-year fixture looked fine. Must-fix -> Plan v4.
 - M2 review decisions for Martin: (1) chart bug (must-fix); (2) y axis squashed by efforts with long stops (up to 1.5 h): cap/zoom the y axis or show moving time?; (3) "Average" on the ride page skewed by stops (25:56 vs median ~17:52) -> show median instead?; (4) position bar scale without slowest effort (add slowest_s to site data?); (5) mobile ride names truncated to 80 px; (6) duplicate "Segments" heading on index.
+- 2026-10-25: M2 milestone PR #21 merged by Martin (mutation score 81.7 %, 91 survivors).
+- 2026-10-25: Martin's M2 review answers -> Plan v4 (PR #22): 1 chart bug fix first (T-016); 2 y axis "choose what is easier" -> cap at ~2x median + outlier markers/count (T-016); 3 median instead of average on ride page and 4 bar PR->slowest, both "up to you" -> T-017 (median_s, slowest_s in rides JSON); 5 no more mobile work, desktop-first; 6 mutation-survivor tests (T-018, target >= 90 %).
+- 2026-10-25: paused by Martin after #21; he will clear the session and resume from a fresh one.
