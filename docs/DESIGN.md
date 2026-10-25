@@ -4,7 +4,7 @@ Canvas (private, for Martin): https://claude.ai/artifact/1ajnh1ZBL2wfpKTQrSAhs7 
 Reference mockups (synthetic data) in the repo: `docs/design/segment-page.dc.html`, `docs/design/ride-page.dc.html`.
 They are mockup markup, not production code: re-implement in `web/` (plain TS + CSS), keep the look.
 
-Light only (no dark mode). No Strava logo or name anywhere: only the colour.
+Light only (no dark mode). Desktop-first (Plan v4): mobile only needs to stay usable (no page-level horizontal scroll). No Strava logo or name anywhere: only the colour.
 
 ## Tokens (CSS custom properties in `web/src/styles/tokens.css`)
 | Token | Value | Use |
@@ -45,7 +45,7 @@ say "PR" in text.
 2. Summary strip (4 cells, auto-fit grid): Personal record (orange time, date, km/h) · Median (+gap to PR) ·
    Latest (date, +gap to PR) · This year (count, best).
 3. "Time by date" chart: Chart.js scatter, x = date (year ticks), y = elapsed time reversed (faster is higher),
-   efforts `--effort`, PR as a larger orange dot with a white ring and a "PR m:ss" label.
+   efforts `--effort`, PR as a larger orange dot with a white ring and a "PR m:ss" label. Y axis capped at about 2× the median elapsed time (Plan v4); efforts beyond the cap are drawn as small triangle markers on the slow edge at their date, and the panel header says "N slower efforts above the cap".
 4. Two panels side by side: **All efforts** (sort toggle Fastest/Newest; columns Rank, Date, Ride (link), Time, km/h,
    Gap; rank 1 = orange "PR" badge, 2 = "2nd" outlined ink, 3 = "3rd" outlined grey; first 12 rows, then
    "Show all N efforts") and **By year** (Year, Efforts, Best; the PR year's best in orange).
@@ -56,7 +56,7 @@ say "PR" in text.
    Europe/Bratislava time (D-007), never the viewer's zone.
 2. Summary strip: Distance · Moving time · Elapsed time · Segments (with "N new PR" in orange when > 0).
 3. Panel **Segments on this ride**, one row per effort: Segment (link, "NEW PR" chip if PR at the time) · Today ·
-   PR · Average · vs PR · position bar (track from PR on the left to slowest on the right, grey tick = average,
+   PR · Median · vs PR · position bar (track from PR on the left to slowest on the right, grey tick = median,
    dot = today: orange if PR, else ink) · Rank "8 / 24". Legend in the panel header.
 4. Empty state: "No segments matched on this ride."
 

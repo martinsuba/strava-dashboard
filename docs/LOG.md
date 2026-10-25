@@ -47,3 +47,6 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-24 | M2 | resumed after token-limit pause ("continue") | n: budget decision
 2026-10-24 | M2 | (none) T-009 merged after 2 fix rounds | y: done by agents
 2026-10-24 | M2 | (none) T-010 merged; M2 complete; Lead real-data check found a chart bug synthetic tests missed (again) | y: done by Lead. Framework idea (2nd time): real-data smoke check as a standard milestone step, ideally automated
+2026-10-25 | M2 gate | merged M2 milestone PR #21 | n: gate decision
+2026-10-25 | M2 review | answered 6 review questions (chart fix, axis cap, median, bar, desktop-first, mutation tests) -> Plan v4 | partly: 3 of 6 were "up to you"/"easier" -> Lead could propose defaults and ask only for real preferences
+2026-10-25 | M3 | paused before M3 (session reset) | n: budget/session decision

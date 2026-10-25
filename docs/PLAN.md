@@ -148,6 +148,46 @@ Milestone review compares the screenshots with those mockups.
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
 ## M3: One-command refresh and deploy
+M3 starts with the M2 review fixes (Plan v4), then the refresh/deploy tasks.
+
+### [ ] T-016: Segment chart: correct dot positions + capped time axis  (size M)
+- Goal: (1) fix the M2 real-data bug: on a segment with efforts over ~3 years (Oct 2019 – May 2021) the effort dots are
+  drawn squeezed toward the start of the time axis (and keep moving after load), while the "PR m:ss" label is at the
+  correct date; dots must be at their actual dates. Reproduce first with a synthetic segment of that shape. (2) Cap the
+  y axis at about 2× the median elapsed time; efforts beyond it are triangle markers on the slow edge at their date; the
+  panel header says "N slower efforts above the cap"; the canvas aria-label mentions it.
+- REQs: REQ-007 (Plan v4 criteria)
+- Acceptance tests to make pass: **explicitly allowed acceptance change** (needs test-reviewer): add to
+  tests/acceptance/web/make_site_data.py one synthetic segment spanning ~3 years with one effort > 2× median (+ its
+  rides), regenerate site-data deterministically, and add segment.spec.ts tests: (a) the PR dot is drawn within the
+  horizontal band of its date's year (pixel check between year gridlines or via an exposed chart-model attribute),
+  (b) the header/aria-label state the number of efforts above the cap. No other acceptance edits.
+- Areas/files: web/src/lib/segment-chart.ts, web/src/lib/segment-data.ts, web/src/pages/segment.ts, tests
+- Definition of done: code + unit tests, listed acceptance tests pass, CI green, review + test-review clean; Lead
+  re-checks the real-data segment page privately.
+
+### [ ] T-017: Ride page: median instead of average, position bar PR -> slowest  (size M)
+- Goal: site data adds `median_s` and `slowest_s` per effort in rides/<id>.json (sdash/sitedata.py, ARCHITECTURE
+  definitions); the ride page shows "Median" instead of "Average", the bar runs from PR to slowest with a median tick,
+  legend "bar: PR on the left, slowest on the right · | median · ● today".
+- REQs: REQ-008, REQ-005
+- Acceptance tests to make pass: **explicitly allowed acceptance change** (needs test-reviewer): make_site_data.py adds
+  `median_s` and `slowest_s` (same definitions as ARCHITECTURE), regenerate site-data; in ride.spec.ts the test
+  "REQ-008: each matched effort shows time, PR, average, gap to PR and rank" becomes "…median…" with the median values
+  instead of the average values (same rows, same other assertions). No other acceptance edits.
+- Areas/files: sdash/sitedata.py, docs/ARCHITECTURE.md, web/src/pages/ride.ts, web/src/lib/ride-data.ts, tests
+- Definition of done: code + unit tests, listed acceptance tests pass, CI green, review + test-review clean
+
+### [ ] T-018: Matcher tests for surviving mutants  (size S)
+- Goal: targeted unit tests that kill the M2 mutation survivors in sdash/match.py (91 survived of 498; mostly
+  `reference_from` 23, `find_efforts` 19, `distance_to_polyline_m` 13); no production behaviour change unless a test
+  exposes a real bug (then fix + note). Target: mutation score ≥ 90 % in the next milestone run.
+- REQs: REQ-004
+- Acceptance tests to make pass: none newly; all stay green
+- Areas/files: tests/unit/test_match.py (+ sdash/match.py only for real bugs)
+- Definition of done: unit tests, local mutmut run on the targeted functions at low parallelism (or a CI dispatch of
+  the mutation workflow) shows the survivors killed; CI green, review clean
+
 ### [ ] T-011: `sdash refresh` full chain + output guard + report  (size M)
 - Goal: import → parse → match → build-data → `npm run build` → guard; stops on any failure; report with rides parsed,
   failures, efforts per segment; `--no-deploy`; segments.yaml backups (D-004).
