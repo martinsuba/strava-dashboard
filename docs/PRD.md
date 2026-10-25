@@ -1,5 +1,5 @@
 # PRD: strava-dashboard
-Status: approved (Plan v1, PR #1); Plan v2 + v3 amendments · Last update: 2026-10-23
+Status: approved (Plan v1, PR #1); Plan v2 + v3 + v4 amendments · Last update: 2026-10-23
 
 ## Problem & why
 Martin wants to compare **all his own times on every segment over time**. Strava shows this only with a paid
@@ -17,7 +17,7 @@ Martin only, as the single rider and data owner. The site is public (GitHub Page
 - G1: one command turns a Strava export link (or a local zip) into an updated, deployed site, with no manual steps.
 - G2: every cycling ride in the export (662 rides, 2016–2026) is parsed; unparseable files are listed, never silently dropped.
 - G3: for each defined segment, the site lists every effort over all years with its rank, gap to PR and a trend chart.
-- G4: for each ride, the site shows how each matched segment compares with the PR and the average ("was this a good day?").
+- G4: for each ride, the site shows how each matched segment compares with the PR and the typical (median) time ("was this a good day?").
 - G5: no raw export data (FIT/GPX files, messages, contacts, media) ever lands in Git or on the site.
 
 ## Non-goals (explicitly out of scope for the MVP)
@@ -102,12 +102,14 @@ Acceptance criteria:
 - Given the efforts, Then a chart shows elapsed time against date, with the PR highlighted.
 - Given the efforts, Then a summary shows effort count per year and best time per year.
 - Given a segment with no efforts, Then the page says so instead of showing an empty table or chart.
+- Given efforts spread over several years, When the chart is drawn, Then every dot is drawn at its effort's actual date on the time axis. (Plan v4, M2 real-data finding)
+- Given a few efforts far slower than the rest (e.g. long stops included in elapsed time), When the chart is drawn, Then the time axis is capped at about twice the median elapsed time, slower efforts are shown as markers at the edge of the chart, and the chart states how many efforts are beyond the cap. (Plan v4)
 Priority: must
 
 ### REQ-008: Activity page
 Acceptance criteria:
 - Given a ride, When opening its page, Then it shows date, name, distance, moving/elapsed time and gear from `activities.csv`.
-- Given a ride with matched segments, Then each matched effort shows elapsed time, PR time, average time, gap to PR, rank among all efforts, and is marked when it is the PR (or the PR at the time it was ridden).
+- Given a ride with matched segments, Then each matched effort shows elapsed time, PR time, median time (of all efforts of that segment), gap to PR, rank among all efforts, a position bar from the PR (left) to the slowest effort (right), and is marked when it is the PR (or the PR at the time it was ridden).
 - Given a ride with no matched segments, Then the page says so.
 - Given a ride that started at 15:05 UTC on a summer day, When any viewer opens its page (whatever their browser time zone), Then its start time shows as 17:05, because all dates and times are shown in Europe/Bratislava time (D-007).
 Priority: must
@@ -129,6 +131,7 @@ Acceptance criteria:
 Priority: must
 
 ## Constraints (budget, privacy, data, platforms)
+- Desktop-first (Martin, 2026-10-25): the site is used ~99 % on desktop. Mobile only has to stay usable (no page-level horizontal scroll); no further mobile optimisation.
 - Cost: free. GitHub Pages needs a **public repo** on the free plan (Martin decided: make it public).
 - Privacy: Martin accepts that all ride data may be public. The MVP publishes no GPS data at all (no maps).
   The export also contains personal data (messages, contacts, logins, media): deleted right after extraction, never committed.
