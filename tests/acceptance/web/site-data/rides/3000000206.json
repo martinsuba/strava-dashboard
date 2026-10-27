@@ -1,0 +1,23 @@
+{
+  "id": "3000000206",
+  "date": "2020-11-14T11:00:00Z",
+  "name": "Cold ride",
+  "km": 20.0,
+  "elapsed_s": 3100,
+  "moving_s": 3000,
+  "gear": "Road bike",
+  "efforts": [
+    {
+      "slug": "ridge-track",
+      "name": "Ridge track",
+      "elapsed_s": 312,
+      "pr_s": 290,
+      "avg_s": 362,
+      "gap_to_pr_s": 22,
+      "rank": 7,
+      "of": 8,
+      "is_pr": false,
+      "is_pr_at_time": false
+    }
+  ]
+}

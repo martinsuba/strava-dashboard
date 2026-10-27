@@ -31,6 +31,36 @@ RIDES = [
     ("3000000109", "2026-09-01T12:00:00Z", "Recovery spin", 18.0, 2700, 2760, "Road bike"),
 ]
 
+# Chart fixture (T-016): reachable by URL only, deliberately NOT listed in index.json so the index
+# tests (3 segments, 9 rides) stay valid. Efforts span Oct 2019 - May 2021; one is > 2x the median.
+HIDDEN_RIDES = [
+    ("3000000201", "2019-10-12T09:00:00Z", "Autumn ride", 20.0, 3000, 3100, "Road bike"),
+    ("3000000202", "2020-01-25T10:00:00Z", "Winter ride", 20.0, 3000, 3100, "Road bike"),
+    ("3000000203", "2020-04-11T09:30:00Z", "Spring ride", 20.0, 3000, 3100, "Road bike"),
+    ("3000000204", "2020-06-20T08:00:00Z", "Summer ride", 20.0, 3000, 3100, "Road bike"),
+    ("3000000205", "2020-09-05T08:30:00Z", "Late summer ride", 20.0, 3000, 3100, "Road bike"),
+    ("3000000206", "2020-11-14T11:00:00Z", "Cold ride", 20.0, 3000, 3100, "Road bike"),
+    ("3000000207", "2021-02-27T10:30:00Z", "Slow winter ride", 20.0, 3000, 3100, "Road bike"),
+    ("3000000208", "2021-05-09T07:45:00Z", "Spring spin", 20.0, 3000, 3100, "Road bike"),
+]
+HIDDEN_SEGMENTS = [
+    (
+        "ridge-track",
+        "Ridge track",
+        1500,
+        {
+            "3000000201": 310,
+            "3000000202": 305,
+            "3000000203": 298,
+            "3000000204": 290,  # PR, mid-2020
+            "3000000205": 296,
+            "3000000206": 312,
+            "3000000207": 780,  # > 2x median (303): above the y cap
+            "3000000208": 301,
+        },
+    ),
+]
+
 # slug, name, ref_length_m, efforts: ride id -> elapsed_s (segment start = ride start + offset)
 SEGMENTS = [
     (
@@ -75,13 +105,14 @@ def dump(path: Path, data: object) -> None:
 
 
 def main() -> None:
-    rides = {r[0]: r for r in RIDES}
-    ride_efforts: dict[str, list[dict[str, object]]] = {r[0]: [] for r in RIDES}
+    all_rides = RIDES + HIDDEN_RIDES
+    rides = {r[0]: r for r in all_rides}
+    ride_efforts: dict[str, list[dict[str, object]]] = {r[0]: [] for r in all_rides}
     index_segments = []
     if OUT.exists():
         shutil.rmtree(OUT)
 
-    for slug, name, length, efforts in SEGMENTS:
+    for slug, name, length, efforts in SEGMENTS + HIDDEN_SEGMENTS:
         chrono = sorted(efforts.items(), key=lambda kv: rides[kv[0]][1])
         by_time = sorted(efforts.items(), key=lambda kv: (kv[1], rides[kv[0]][1]))
         rank = {rid: i + 1 for i, (rid, _) in enumerate(by_time)}
@@ -132,11 +163,18 @@ def main() -> None:
             {"name": name, "ref_length_m": length, "efforts": seg_efforts, "per_year": per_year},
         )
         pr_date = rides[by_time[0][0]][1] if by_time else None
-        index_segments.append(
-            {"slug": slug, "name": name, "efforts": len(efforts), "pr_s": pr_s, "pr_date": pr_date}
-        )
+        if (slug, name, length, efforts) in SEGMENTS:
+            index_segments.append(
+                {
+                    "slug": slug,
+                    "name": name,
+                    "efforts": len(efforts),
+                    "pr_s": pr_s,
+                    "pr_date": pr_date,
+                }
+            )
 
-    for rid, date, name, km, moving, elapsed, gear in RIDES:
+    for rid, date, name, km, moving, elapsed, gear in all_rides:
         dump(
             OUT / "rides" / f"{rid}.json",
             {

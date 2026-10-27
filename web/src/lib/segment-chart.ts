@@ -49,6 +49,15 @@ function prLabelPlugin(model: ChartModel): Plugin<"scatter"> {
   };
 }
 
+/** Publishes the plot area (CSS px, canvas-relative) as data attributes; used by acceptance tests. */
+const plotAreaPlugin: Plugin<"scatter"> = {
+  id: "plotArea",
+  afterDraw(chart) {
+    chart.canvas.dataset["plotLeft"] = String(chart.chartArea.left);
+    chart.canvas.dataset["plotRight"] = String(chart.chartArea.right);
+  },
+};
+
 export function mountSegmentChart(
   canvas: HTMLCanvasElement,
   model: ChartModel,
@@ -70,6 +79,16 @@ export function mountSegmentChart(
           borderWidth: 0,
           pointRadius: 4.5,
           pointHoverRadius: 6,
+        },
+        {
+          label: "Slower efforts above the cap",
+          data: model.capped,
+          backgroundColor: EFFORT,
+          borderWidth: 0,
+          pointStyle: "triangle",
+          pointRadius: 6,
+          pointHoverRadius: 7,
+          clip: false,
         },
         {
           label: "PR",
@@ -128,14 +147,14 @@ export function mountSegmentChart(
           callbacks: {
             title: (items) => (items[0] ? formatDate((items[0].parsed.x ?? 0) / 1000) : ""),
             label: (item) => {
-              const p = item.raw as { y: number; ride: string };
-              return `${formatDuration(p.y)} · ${p.ride}`;
+              const p = item.raw as { y: number; ride: string; actual?: number };
+              return `${formatDuration(p.actual ?? p.y)} · ${p.ride}`;
             },
           },
         },
       },
     },
-    plugins: [prLabelPlugin(model)],
+    plugins: [prLabelPlugin(model), plotAreaPlugin],
   });
   const chart = current;
   void document.fonts?.ready?.then(() => {

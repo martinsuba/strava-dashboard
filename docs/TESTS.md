@@ -185,6 +185,8 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `segment.spec.ts` "REQ-007: chart of elapsed time against date with the PR highlighted" | T-009 | passing |
 | | `segment.spec.ts` "REQ-007: summary shows effort count and best time per year" | T-009 | passing |
 | | `segment.spec.ts` "REQ-007: a segment with no efforts says so instead of an empty table or chart" | T-009 | passing |
+| | `segment.spec.ts` "REQ-007: the PR dot is drawn within the horizontal band of its date's year" (fixture `ridge-track`, by URL only, not in index.json; canvas `data-plot-left/right`) | T-016 | passing |
+| | `segment.spec.ts` "REQ-007: the panel header and the chart label state the efforts above the cap" | T-016 | passing |
 | REQ-008 ride page | `ride.spec.ts` "REQ-008: shows date, name, distance, moving/elapsed time and gear" | T-010 | passing |
 | | `ride.spec.ts` "REQ-008: each matched effort shows time, PR, average, gap to PR and rank" | T-010 | passing |
 | | `ride.spec.ts` "REQ-008: an effort is marked when it is the PR or was the PR at the time" | T-010 | passing |

@@ -6,6 +6,7 @@ import { formatDate, formatDuration, formatKm } from "../lib/format";
 import type { IndexData } from "../lib/index-data";
 import { isCurrentRoute, rideHref } from "../lib/router";
 import {
+  capNote,
   chartLabel,
   chartModel,
   formatGap,
@@ -83,6 +84,7 @@ function chartPanel(efforts: Effort[]): { node: HTMLElement; canvas: HTMLCanvasE
     "faster is higher · ",
     h("span", { class: "chart-hint__dot", "aria-hidden": "true" }, "●"),
     " PR",
+    capNote(efforts) ? ` · ${capNote(efforts)}` : "",
   );
   const node = panel(
     "trend-h",
