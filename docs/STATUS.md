@@ -1,9 +1,9 @@
 # Status: strava-dashboard
-Phase: paused   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M2 done (milestone PR #21 merged 2026-10-25). Plan v4 PR #22 open. M3 not started
-Open PRs: #22 Plan v4 (Martin merges)
-Blockers: paused by Martin (session will be cleared; resume from a fresh session)
-Next step: on resume: check #22 merged (git pull main) -> show M3 list (T-016, T-017, T-018, T-011, T-012) -> wait for Martin's "go M3" -> next-task loop
+Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: M3 started; T-016 in progress (builder)
+Open PRs: none yet (T-016 PR to come)
+Blockers: none
+Next step: T-016 -> T-017 -> T-018 -> T-011 -> T-012 (next-task loop), then M3 milestone PR
 
 ## Decisions log
 - 2026-10-23: project created
@@ -92,3 +92,4 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-25: M2 milestone PR #21 merged by Martin (mutation score 81.7 %, 91 survivors).
 - 2026-10-25: Martin's M2 review answers -> Plan v4 (PR #22): 1 chart bug fix first (T-016); 2 y axis "choose what is easier" -> cap at ~2x median + outlier markers/count (T-016); 3 median instead of average on ride page and 4 bar PR->slowest, both "up to you" -> T-017 (median_s, slowest_s in rides JSON); 5 no more mobile work, desktop-first; 6 mutation-survivor tests (T-018, target >= 90 %).
 - 2026-10-25: paused by Martin after #21; he will clear the session and resume from a fresh one.
+- 2026-10-27: resumed after /clear; Plan v4 (#22) merged 2026-10-25. Martin: "go M3". Task loop started with T-016.
