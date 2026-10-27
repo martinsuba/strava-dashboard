@@ -748,7 +748,9 @@ def test_find_efforts_on_a_two_point_track() -> None:
 
 
 def test_find_efforts_gate_radius_applies_to_start_and_end_gates() -> None:
-    track = northbound(-500, 2500, x=20)  # rides 20 m east of the gate line
+    # Rides 20 m east of the gate line, then wanders far west (so the bounding-box prefilter,
+    # which only looks at the extent of the ride, cannot be what rejects the gates).
+    track = walk([(20, -500), (20, 2500), (-400, 2700)])
     off_start, off_end = (lat_at(0), lon_at(0)), (lat_at(2000), lon_at(0))
     on_start, on_end = (lat_at(0), lon_at(20)), (lat_at(2000), lon_at(20))
     assert len(find_efforts(track, off_start, off_end)) == 1  # default 30 m gates
