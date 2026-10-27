@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import UTC, datetime
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -45,36 +46,72 @@ class DeployError(Exception):
     """Deploying failed (after the guard passed)."""
 
 
-def _coordinate_keys(obj: Any) -> set[str]:
+LATLON_KEYS = frozenset({"lat", "lon", "lng", "latitude", "longitude", "latlng"})
+JSON_SUFFIXES = (".json", ".geojson")
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool)
+
+
+def _looks_like_pair(items: list[Any]) -> bool:
+    """Two numbers, at least one non-integer, within lat/lon ranges: a coordinate pair."""
+    if len(items) != 2 or not all(_is_number(x) for x in items):
+        return False
+    a, b = items
+    return (
+        all(isfinite(x) for x in items)
+        and any(x != int(x) for x in items)
+        and abs(a) <= 90
+        and abs(b) <= 180
+    )
+
+
+def _coordinate_findings(obj: Any, keys: frozenset[str], pairs: bool) -> set[str]:
     found: set[str] = set()
     if isinstance(obj, dict):
         for key, value in obj.items():
-            if str(key).lower() in COORD_KEYS:
-                found.add(str(key))
-            found |= _coordinate_keys(value)
+            if str(key).lower() in keys:
+                found.add(f"field {key}")
+            found |= _coordinate_findings(value, keys, pairs)
     elif isinstance(obj, list):
+        if pairs and _looks_like_pair(obj):
+            found.add("lat/lon-like number pair")
         for value in obj:
-            found |= _coordinate_keys(value)
+            found |= _coordinate_findings(value, keys, pairs)
     return found
 
 
 def check_site(dist: Path) -> list[str]:
-    """One line per problem: raw ride/export files anywhere, coordinate keys in data/**/*.json."""
+    """One line per problem: raw files, symlinks, and coordinates in any JSON/GeoJSON file.
+
+    Under data/ the full key list and the lat/lon pair shape are checked; elsewhere (e.g. Vite
+    manifests) only lat/lon-style keys. Symlinks are flagged and never followed.
+    """
     problems: list[str] = []
-    for root, _dirs, files in os.walk(dist):
+    for root, dirs, files in os.walk(dist):
+        for name in sorted(dirs + files):
+            path = Path(root) / name
+            if path.is_symlink():
+                problems.append(f"{path.relative_to(dist).as_posix()}: symlink")
         for name in sorted(files):
             path = Path(root) / name
             rel = path.relative_to(dist).as_posix()
+            if path.is_symlink():
+                continue
             if name.lower().endswith(RAW_SUFFIXES):
                 problems.append(f"{rel}: raw ride/export file")
-            elif name.lower().endswith(".json") and rel.startswith("data/"):
+            elif name.lower().endswith(JSON_SUFFIXES):
+                in_data = rel.startswith("data/")
                 try:
-                    keys = _coordinate_keys(json.loads(path.read_text(encoding="utf-8")))
+                    data = json.loads(path.read_text(encoding="utf-8"))
                 except (OSError, ValueError):
-                    problems.append(f"{rel}: unreadable JSON, cannot verify it has no coordinates")
+                    if in_data:
+                        problems.append(f"{rel}: unreadable JSON, cannot verify no coordinates")
                     continue
-                if keys:
-                    problems.append(f"{rel}: coordinate field(s) {', '.join(sorted(keys))}")
+                found = _coordinate_findings(data, COORD_KEYS if in_data else LATLON_KEYS, in_data)
+                if found:
+                    problems.append(f"{rel}: coordinates ({', '.join(sorted(found))})")
     return sorted(problems)
 
 

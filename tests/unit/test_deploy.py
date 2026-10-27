@@ -90,7 +90,7 @@ def test_guard_without_dist_fails(tmp_path: Path) -> None:
         deploy.guard(tmp_path / "dist")
 
 
-def test_guard_ignores_symlinks_but_flags_them_when_raw(tmp_path: Path) -> None:
+def test_symlinks_in_dist_are_flagged(tmp_path: Path) -> None:
     dist = _site(tmp_path)
     (dist / "link.gpx").symlink_to(tmp_path / "nowhere")
     assert any("link.gpx" in b for b in deploy.check_site(dist))
@@ -115,3 +115,47 @@ def test_backup_skips_identical_content_and_missing_file(tmp_path: Path) -> None
     assert deploy.backup_segments(seg) is not None
     assert deploy.backup_segments(seg) is None
     assert len(list((tmp_path / "segments.bak").iterdir())) == 1
+
+
+def test_symlinks_are_flagged_files_and_dirs_alike(tmp_path: Path) -> None:
+    dist = _site(tmp_path)
+    (tmp_path / "outside").mkdir()
+    (tmp_path / "outside" / "a.json").write_text("{}")
+    (dist / "dirlink").symlink_to(tmp_path / "outside", target_is_directory=True)
+    (dist / "ok.txt").symlink_to(tmp_path / "outside" / "a.json")
+    bad = deploy.check_site(dist)
+    assert sorted(b.split(":")[0] for b in bad) == ["dirlink", "ok.txt"]
+
+
+def test_unlisted_key_holding_coordinate_pairs_is_flagged(tmp_path: Path) -> None:
+    payload = json.dumps({"trace": [[-47.25, -134.75], [-47.26, -134.76]]})
+    dist = _site(tmp_path, data__r=payload)
+    (dist / "data" / "r").rename(dist / "data" / "r.json")
+    bad = deploy.check_site(dist)
+    assert len(bad) == 1 and "data/r.json" in bad[0] and "pair" in bad[0]
+
+
+@pytest.mark.parametrize(
+    "value", [[1, 2], [3600.5, 7.0, 1.5], [95.5, 10.5], [10.5, 181.5], [True, 1.5], ["a", 1.5]]
+)
+def test_non_coordinate_lists_are_not_pairs(tmp_path: Path, value: list) -> None:
+    dist = _site(tmp_path)
+    (dist / "data" / "ok.json").write_text(json.dumps({"series": [value]}))
+    assert deploy.check_site(dist) == []
+
+
+def test_lat_key_outside_data_is_flagged_but_start_is_not(tmp_path: Path) -> None:
+    dist = _site(tmp_path)
+    (dist / "other").mkdir()
+    (dist / "other" / "c.json").write_text(json.dumps({"lat": -47.2}))
+    (dist / "manifest.json").write_text(json.dumps({"start": "/", "p": [1.5, 2.5]}))
+    bad = deploy.check_site(dist)
+    assert len(bad) == 1 and "other/c.json" in bad[0]
+
+
+def test_geojson_is_scanned(tmp_path: Path) -> None:
+    dist = _site(tmp_path)
+    geo = {"type": "LineString", "coordinates": [[-134.75, -47.25], [-134.76, -47.26]]}
+    (dist / "data" / "x.geojson").write_text(json.dumps(geo))
+    bad = deploy.check_site(dist)
+    assert len(bad) == 1 and "x.geojson" in bad[0]

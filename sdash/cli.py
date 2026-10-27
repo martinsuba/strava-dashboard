@@ -130,6 +130,7 @@ def _build_site(web_dir: Path) -> None:
     npm = shutil.which("npm")
     if npm is None:
         raise pipeline.PipelineError("npm not found: cannot build the site")
+    sys.stdout.flush()  # keep the report above the build log when piped
     build = subprocess.run([npm, "run", "build"], cwd=web_dir, check=False)
     if build.returncode != 0:
         raise pipeline.PipelineError("site build failed")
@@ -153,7 +154,12 @@ def _cmd_deploy(args: argparse.Namespace) -> int:
 def _cmd_refresh(data_dir: Path, args: argparse.Namespace) -> int:
     """Each step must succeed (PipelineError -> exit 1, nothing deployed); segment warnings -> 2."""
     web_dir: Path = args.web_dir or _default_web_dir()
-    deploy.backup_segments(data_dir / "segments.yaml")
+    try:
+        deploy.backup_segments(data_dir / "segments.yaml")
+    except OSError as exc:
+        raise pipeline.PipelineError(
+            f"cannot back up segments.yaml ({type(exc).__name__}: {exc.strerror})"
+        ) from None
     if args.source:
         _import_quietly(data_dir, args.source)
     _cmd_parse(data_dir)
@@ -230,6 +236,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _cmd_refresh(data_dir, args)
     except pipeline.PipelineError as exc:
         print(f"sdash {command}: {exc}", file=sys.stderr)
+        return 1
+    except OSError as exc:  # e.g. unwritable data dir: one line, no traceback
+        print(f"sdash {command}: {type(exc).__name__}: {exc.strerror or exc}", file=sys.stderr)
         return 1
 
 
