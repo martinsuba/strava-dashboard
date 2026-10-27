@@ -33,15 +33,32 @@ sdash refresh '<export link>'      # or a local zip path, or no argument to rebu
 `refresh` imports, parses, matches, builds the site, runs the output guard, and pushes `web/dist` as a new commit on
 `gh-pages` (never a force-push, never main). The export link is passed only on the command line, never logged or saved.
 
+`sdash deploy [--web-dir W] [--remote R]` does only the last step on an already built `web/dist`
+(`npm --prefix web run build` first). `refresh --no-deploy` stops before it. Details:
+- `--remote` is a git remote name, URL or path; default `origin`. Tests use a local bare repo.
+- The guard runs first; on any finding nothing is committed or pushed.
+- The commit is built in a temporary git worktree (removed afterwards, also on failure) on top of the remote's
+  `gh-pages` (a root commit if it does not exist yet). It contains only the contents of `web/dist` plus an empty
+  `.nojekyll`. The push is a plain fast-forward of `gh-pages`; a rejected push is an error (exit 1), never retried with force.
+- If `web/dist` is identical to what `gh-pages` has, nothing is committed and the command prints `nothing to deploy`.
+
 ## Smoke checks after deploy
 - `curl -sf https://martinsuba.github.io/strava-dashboard/ | grep -q '<title>'` (Pages may take ~1 min).
 - `curl -sf https://martinsuba.github.io/strava-dashboard/data/index.json` and check the ride count = the report's count.
-- Open one segment page and one ride page (Playwright smoke against the live URL: `npm --prefix web run smoke -- --base <url>`).
+- Open one segment page and one ride page: `npm --prefix web run smoke -- --base https://martinsuba.github.io/strava-dashboard/`
+  (Playwright; finds a segment and a ride link on the index; fails on page errors, console errors, failed requests or
+  HTTP >= 400). Also works against the staging preview: `--base http://localhost:4173/strava-dashboard/`.
 - The deployed files contain no coordinates: the guard runs before the push; re-check with `grep -rE '"(lat|lon|start|end)"' web/dist/data` → no matches.
 
 ## Rollback
-`gh-pages` has one commit per deploy. Rollback = `git revert` the latest `gh-pages` commit and push it (a normal push).
-Pages serves the previous build within ~1 min.
+`gh-pages` has one commit per deploy. Rollback = a new commit that undoes the bad one, pushed normally (never force):
+```
+git fetch origin gh-pages
+git worktree add /tmp/gh-pages-rollback origin/gh-pages --detach
+cd /tmp/gh-pages-rollback && git revert --no-edit HEAD && git push origin HEAD:refs/heads/gh-pages
+cd - && git worktree remove /tmp/gh-pages-rollback
+```
+Pages serves the previous build within ~1 min. Alternatively fix the data/code and run `sdash refresh` again.
 
 ## Secrets needed (names only; values set by Martin in GitHub/target)
 None in GitHub. The deploy pushes with the VPS's existing `gh` login. The export link is a short-lived credential:

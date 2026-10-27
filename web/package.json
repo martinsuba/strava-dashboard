@@ -15,6 +15,7 @@
     "format:check": "prettier --check . ../tests/acceptance/web ../tests/screenshots",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "smoke": "node scripts/smoke.mjs",
     "fixtures:site-data": "node scripts/copy-site-data.mjs",
     "test:acceptance": "npm run fixtures:site-data && npm run build && playwright test --project=acceptance",
     "screenshots": "npm run fixtures:site-data && npm run build && playwright test --project=screenshots"
