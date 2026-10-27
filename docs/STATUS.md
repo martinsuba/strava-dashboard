@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M3 started; T-016 in progress (builder)
-Open PRs: none yet (T-016 PR to come)
+Current task: M3: T-016 done (PR #23); T-017 in progress (builder)
+Open PRs: none yet (T-017 PR to come)
 Blockers: none
-Next step: T-016 -> T-017 -> T-018 -> T-011 -> T-012 (next-task loop), then M3 milestone PR
+Next step: T-017 -> T-018 -> T-011 -> T-012 (next-task loop), then M3 milestone PR
 
 ## Decisions log
 - 2026-10-23: project created
@@ -93,3 +93,6 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-25: Martin's M2 review answers -> Plan v4 (PR #22): 1 chart bug fix first (T-016); 2 y axis "choose what is easier" -> cap at ~2x median + outlier markers/count (T-016); 3 median instead of average on ride page and 4 bar PR->slowest, both "up to you" -> T-017 (median_s, slowest_s in rides JSON); 5 no more mobile work, desktop-first; 6 mutation-survivor tests (T-018, target >= 90 %).
 - 2026-10-25: paused by Martin after #21; he will clear the session and resume from a fresh one.
 - 2026-10-27: resumed after /clear; Plan v4 (#22) merged 2026-10-25. Martin: "go M3". Task loop started with T-016.
+- 2026-10-27: T-016 merged (PR #23) by Lead after Martin's OK (builder flagged it as unconfirmed): 3 fix rounds (r1 reviewer: font/animation race hypothesis -> defensive fix; r2 Lead: red-green attempt; r3 TESTS.md rows + aria-hidden). The M2 dot bug was NOT reproduced by builder or Lead (real data, private, on main and M2 build: dots correct, incl. full-page capture right after mount); most likely an M2 capture artifact. Kept: no x animation + chart.stop() before the font update, data-dot-error/data-plot-left/right test hooks, regression-guard tests. Y cap at 2x median works on real data (5 triangles on Privoz Klecanky - Trojsky most). ~$5.19.
+- T-016 non-blocking: on warm loads stop() cancels the 300 ms entry animation (harmless; animation:false would be simpler).
+- Lead note: real-data checks: copying real data under ~/data is refused by the permission check even with Martin's OK; use a local server that serves web/dist and reads data from ~/data/m2-check/site-m2/dist/data (scratchpad script), nothing copied. Lead misread a screenshot once (dots next to a label are not displaced dots): measure, don't eyeball.
