@@ -1,9 +1,9 @@
 # Status: strava-dashboard
-Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M3 done (T-016, T-017, T-018, T-011, T-012 merged: PRs #23-#27). Milestone PR chore/milestone-M3 open (Martin merges)
-Open PRs: M3 milestone PR (chore/milestone-M3), Martin merges
-Blockers: none (waiting for Martin: M3 PR review + decision on Plan v5 follow-ups vs deploy)
-Next step: after Martin merges the M3 PR: /clear, then propose Plan v5 (follow-ups T-a..T-e below, plan skill) OR go to the deploy phase (deploy skill, DEPLOY.md) as Martin decides. All PLAN tasks M1-M3 are done; no M4 in PLAN.
+Phase: plan review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: Plan v5 (branch plan/5): M4 deploy readiness = T-019 smoke, T-020 deploy provenance (D-008), T-021 one median, T-022 acceptance tests bar/cap markers; DEPLOY.md fixed in the plan PR
+Open PRs: Plan v5 (plan/5), Martin merges
+Blockers: none (waiting for Martin: Plan v5 review/merge)
+Next step: after Martin merges Plan v5: /clear, then "go M4" (next-task). After M4: deploy phase (deploy skill, DEPLOY.md).
 
 ## Decisions log
 - 2026-10-23: project created
@@ -105,6 +105,8 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - For T-012 (deploy.py): geojson -> full coordinate key list anywhere; unreadable JSON anywhere -> fail closed; un-xfail the two refresh tests + T-012 deploy tests; xfail reason text in test_refresh.py:17 still says T-011. Known guard bypasses accepted (backstop only): [lat,lon,ele] triples, {a,b} objects, string/int pairs.
 - 2026-10-27: T-012 merged (PR #27): 1 fix round (git hardening: GIT_* env stripped, own worktree only, exact refs/heads/gh-pages, parent = ls-remote SHA, real non-fast-forward test, smoke not-found check). All pipeline acceptance tests pass (111, 0 xfail). No gh-pages branch on the real remote yet (first deploy = deploy phase). ~$3.26.
 - 2026-10-27: M3 complete. Milestone review (Opus reviewer): "ready with follow-ups", no code defects. M3 usage ~$17.79 (lead 39 %, reviewer 29 %, builder 26 %, test-reviewer 7 %).
+- 2026-10-27: M3 milestone PR #28 merged by Martin.
+- 2026-10-27: Plan v5 scope (Martin): M3 review must + should (T-b, T-c, T-a, T-d -> T-019..T-022), deploy prep only (no new features), DEPLOY.md drift (T-e) fixed in the plan PR. Nice-to-haves stay open (below).
 
 ## M3 review findings (-> Plan v5 / deploy prep; Martin decides)
 Must-fix before the first real deploy (cheap):
