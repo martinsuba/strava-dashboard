@@ -19,7 +19,7 @@ Light only (no dark mode). Desktop-first (Plan v4): mobile only needs to stay us
 | `--control-line` | `#C4C4CF` | outlined buttons, chart axes |
 | `--orange` | `#FC4C02` | brand: wordmark, active nav underline, links, PR (badge bg, PR time, PR chart dot, best-year time), "NEW PR" chip |
 | `--orange-hover` | `#D63F00` | link hover |
-| `--effort` | `#8A8A96` | normal effort dots in charts, average tick |
+| `--effort` | `#8A8A96` | normal effort dots in charts, median tick |
 | `--rank2` / `--rank3` | `#242428` / `#8A8A96` | outlined "2nd" / "3rd" badges |
 
 Accessibility note (Martin's choice, 2026-10-23): orange `#FC4C02` is ~3:1 against white. Keep orange text at ≥ 14 px

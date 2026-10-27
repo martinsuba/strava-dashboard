@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barPositions, newPrCount, prMark, rankOf } from "./ride-data";
+import { barLabel, barPositions, newPrCount, prMark, rankOf } from "./ride-data";
 
 describe("barPositions", () => {
   it("runs from the PR (0) to the slowest effort (100)", () => {
@@ -45,5 +45,13 @@ describe("labels", () => {
 
   it("counts new PRs", () => {
     expect(newPrCount([{ is_pr_at_time: true }, { is_pr_at_time: false }] as never)).toBe(1);
+  });
+});
+
+describe("barLabel", () => {
+  it("spells out today, PR, median and slowest", () => {
+    expect(barLabel({ elapsed_s: 377, pr_s: 341, median_s: 374, slowest_s: 456 })).toBe(
+      "Today 6:17, PR 5:41, median 6:14, slowest 7:36",
+    );
   });
 });

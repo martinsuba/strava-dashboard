@@ -1,5 +1,7 @@
 // Ride page data and pure helpers (REQ-008). Schema: docs/ARCHITECTURE.md "Site JSON" rides/<id>.json.
 
+import { formatDuration } from "./format";
+
 export interface RideEffort {
   slug: string;
   name: string;
@@ -41,6 +43,13 @@ export function barPositions(
   const scale = (s: number): number =>
     Math.round(Math.min(100, Math.max(0, ((s - e.pr_s) / span) * 100)) * 10) / 10;
   return { medianPct: scale(e.median_s), todayPct: scale(e.elapsed_s) };
+}
+
+/** Accessible text of the position bar, e.g. "Today 6:17, PR 5:41, median 6:14, slowest 7:36". */
+export function barLabel(
+  e: Pick<RideEffort, "pr_s" | "median_s" | "slowest_s" | "elapsed_s">,
+): string {
+  return `Today ${formatDuration(e.elapsed_s)}, PR ${formatDuration(e.pr_s)}, median ${formatDuration(e.median_s)}, slowest ${formatDuration(e.slowest_s)}`;
 }
 
 /** Rank as "8 / 24". */

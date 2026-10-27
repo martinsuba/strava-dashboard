@@ -3,6 +3,7 @@ import { fetchJson, NotFoundError } from "../lib/data";
 import { h } from "../lib/dom";
 import { formatDateTime, formatDuration, formatKm } from "../lib/format";
 import {
+  barLabel,
   barPositions,
   newPrCount,
   prMark,
@@ -57,8 +58,8 @@ function positionBar(e: RideEffort): HTMLElement {
   dot.style.left = `${todayPct}%`;
   const tick = h("span", { class: "posbar__median" });
   tick.style.left = `${medianPct}%`;
-  // Decorative: the same information is in the Today, PR, Median, vs PR and Rank cells.
-  return h("span", { class: "posbar", "aria-hidden": "true" }, tick, dot);
+  // Not decorative: the slowest time is shown nowhere else, so the bar has a text alternative.
+  return h("span", { class: "posbar", role: "img", "aria-label": barLabel(e) }, tick, dot);
 }
 
 function effortRow(e: RideEffort): HTMLElement {
