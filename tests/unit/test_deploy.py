@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -295,3 +296,83 @@ def test_deploy_default_remote_is_origin(tmp_path: Path) -> None:
     _publish(web, remote)
     deploy.deploy(web, None)
     assert "gh-pages" in _git("branch", "--list", cwd=remote)
+
+
+def test_repo_redirecting_env_is_ignored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    web, remote, work = _repo(tmp_path)
+    _publish(web, remote)
+    index_before = (work / ".git" / "index").read_bytes()
+    monkeypatch.setenv("GIT_INDEX_FILE", str(tmp_path / "bogus-index"))
+    monkeypatch.setenv("GIT_DIR", str(tmp_path / "bogus-dir"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(tmp_path / "bogus-tree"))
+    monkeypatch.setenv("GIT_OBJECT_DIRECTORY", str(tmp_path / "bogus-objects"))
+    assert deploy.deploy(web, str(remote)) is True
+    monkeypatch.delenv("GIT_INDEX_FILE")
+    monkeypatch.delenv("GIT_DIR")
+    monkeypatch.delenv("GIT_WORK_TREE")
+    monkeypatch.delenv("GIT_OBJECT_DIRECTORY")
+    assert (work / ".git" / "index").read_bytes() == index_before
+    assert not (tmp_path / "bogus-index").exists()
+    assert "index.html" in _git("ls-tree", "-r", "--name-only", "gh-pages", cwd=remote)
+
+
+def test_other_stale_worktrees_are_not_pruned(tmp_path: Path) -> None:
+    web, remote, work = _repo(tmp_path)
+    stale = tmp_path / "stale-wt"
+    _git("worktree", "add", "--detach", str(stale), cwd=work)
+    shutil.rmtree(stale)
+    _publish(web, remote)
+    deploy.deploy(web, str(remote))
+    assert str(stale) in _git("worktree", "list", "--porcelain", cwd=work)
+
+
+def test_suffix_named_branch_is_not_taken_for_gh_pages(tmp_path: Path) -> None:
+    web, remote, work = _repo(tmp_path)
+    _git("push", "-q", str(remote), "main:refs/heads/x/gh-pages", cwd=work)
+    _publish(web, remote)
+    assert deploy.deploy(web, str(remote)) is True
+    assert _git("rev-list", "--count", "refs/heads/gh-pages", cwd=remote) == "1"
+
+
+def test_fallback_identity_when_git_has_none(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    web, remote, _ = _repo(tmp_path)
+    _publish(web, remote)
+    for var in ("NAME", "EMAIL"):
+        for role in ("AUTHOR", "COMMITTER"):
+            monkeypatch.delenv(f"GIT_{role}_{var}")
+    monkeypatch.setenv("EMAIL", "")
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("HOME", str(tmp_path / "nohome"))
+    assert deploy.deploy(web, str(remote)) is True
+    assert _git("log", "-1", "--format=%an <%ae>", "gh-pages", cwd=remote) == (
+        "sdash deploy <sdash@localhost>"
+    )
+
+
+def test_real_non_fast_forward_race_is_a_clean_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    web, remote, work = _repo(tmp_path)
+    _publish(web, remote, "first")
+    deploy.deploy(web, str(remote))
+    subprocess.run(["git", "config", "receive.denyNonFastForwards", "true"], cwd=remote, check=True)
+    other = tmp_path / "other"
+    _git("clone", "-q", "-b", "gh-pages", str(remote), str(other), cwd=tmp_path)
+    (other / "extra.txt").write_text("someone else")
+    _git("add", "-A", cwd=other)
+    _git("commit", "-q", "-m", "other", cwd=other)
+    _publish(web, remote, "second")
+    real_git = deploy._git
+
+    def racing(args: list[str], cwd: Path, **kw: Any) -> Any:
+        if args[0] == "push":  # the remote moves after we fetched, before we push
+            _git("push", "-q", "origin", "gh-pages", cwd=other)
+        return real_git(args, cwd, **kw)
+
+    monkeypatch.setattr(deploy, "_git", racing)
+    with pytest.raises(deploy.DeployError, match="rejected"):
+        deploy.deploy(web, str(remote))
+    assert _git("log", "-1", "--format=%s", "gh-pages", cwd=remote) == "other"
+    assert _git("worktree", "list", "--porcelain", cwd=work).count("worktree ") == 1

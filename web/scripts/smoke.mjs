@@ -46,8 +46,13 @@ async function main() {
     ]) {
       await page.goto(new URL(hash, base).href, { waitUntil: "networkidle" });
       await page.waitForSelector(selector, { timeout: 15_000 });
-      const text = (await page.locator("body").innerText()).toLowerCase();
-      if (text.includes("not found")) throw new Error(`${label} ${hash} shows "not found"`);
+      // The app's not-found view: h1 exactly "Not found" next to its fixed explanatory line.
+      const notFound = page
+        .locator("h1", { hasText: /^Not found$/ })
+        .locator("xpath=..")
+        .getByText("There is nothing at this address.");
+      if ((await notFound.count()) > 0)
+        throw new Error(`${label} ${hash} shows the not-found view`);
       steps.push(`${label} ${hash}`);
     }
   } catch (err) {

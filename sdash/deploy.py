@@ -7,6 +7,7 @@ with a plain fast-forward push: never --force, never main.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -133,6 +134,14 @@ def guard(dist: Path) -> None:
 DEFAULT_REMOTE = "origin"
 BRANCH = "gh-pages"
 COMMIT_MESSAGE = "Deploy site"
+# Repository-redirecting variables (set e.g. by git hooks/aliases) must never reach our git calls:
+# they would make `add -A` act on the user's real index or work tree.
+_REPO_ENV = frozenset(
+    {
+        "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_COMMON_DIR", "GIT_NAMESPACE", "GIT_PREFIX",
+    }
+)  # fmt: skip
 _URL_CREDENTIALS = re.compile(r"(://)[^/@\s]+@")
 
 
@@ -140,7 +149,8 @@ def _git(
     args: list[str], cwd: Path, *, ok: tuple[int, ...] = (0,)
 ) -> subprocess.CompletedProcess[str]:
     """Run git with a fixed argv (no shell); a failure becomes a DeployError without credentials."""
-    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+    env = {k: v for k, v in os.environ.items() if k not in _REPO_ENV}
+    env["GIT_TERMINAL_PROMPT"] = "0"
     try:
         proc = subprocess.run(
             ["git", *args], cwd=cwd, env=env, capture_output=True, text=True, check=False
@@ -170,11 +180,15 @@ def deploy(web_dir: Path, remote: str | None) -> bool:
     work = tmp / "wt"
     registered = False
     try:
-        listing = _git(["ls-remote", "--exit-code", "--heads", target, BRANCH], repo, ok=(0, 2))
+        ref = f"refs/heads/{BRANCH}"
+        listing = _git(["ls-remote", "--exit-code", target, ref], repo, ok=(0, 2))
         parent: str | None = None
         if listing.returncode == 0:
-            _git(["fetch", "--no-tags", "-q", target, f"refs/heads/{BRANCH}"], repo)
-            parent = _git(["rev-parse", "FETCH_HEAD^{commit}"], repo).stdout.strip()
+            parent = listing.stdout.split()[0]
+            _git(["fetch", "--no-tags", "-q", target, ref], repo)
+            have = _git(["cat-file", "-e", f"{parent}^{{commit}}"], repo, ok=(0, 1, 128))
+            if have.returncode != 0:
+                raise DeployError(f"{BRANCH} changed while fetching; nothing deployed, try again")
         _git(["worktree", "add", "--detach", "--no-checkout", str(work), "HEAD"], repo)
         registered = True
         shutil.copytree(dist, work, symlinks=True, dirs_exist_ok=True)
@@ -198,11 +212,13 @@ def deploy(web_dir: Path, remote: str | None) -> bool:
         return True
     finally:
         if registered:
-            subprocess.run(
-                ["git", "worktree", "remove", "--force", str(work)],
-                cwd=repo, capture_output=True, check=False,
-            )  # fmt: skip
-            subprocess.run(["git", "worktree", "prune"], cwd=repo, capture_output=True, check=False)
+            try:
+                _git(["worktree", "remove", "--force", str(work)], repo)
+            except DeployError:
+                # Fallback only: drop our directory, then let git forget the now-missing worktree.
+                shutil.rmtree(work, ignore_errors=True)
+                with contextlib.suppress(DeployError):
+                    _git(["worktree", "prune"], repo)
         shutil.rmtree(tmp, ignore_errors=True)
 
 

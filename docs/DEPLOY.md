@@ -40,6 +40,9 @@ sdash refresh '<export link>'      # or a local zip path, or no argument to rebu
 - The commit is built in a temporary git worktree (removed afterwards, also on failure) on top of the remote's
   `gh-pages` (a root commit if it does not exist yet). It contains only the contents of `web/dist` plus an empty
   `.nojekyll`. The push is a plain fast-forward of `gh-pages`; a rejected push is an error (exit 1), never retried with force.
+- Git calls ignore `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE` and similar variables from the environment, and only the
+  deploy's own worktree is removed (other worktrees are never pruned). If git has no commit identity configured, the
+  commit is authored as `sdash deploy <sdash@localhost>`.
 - If `web/dist` is identical to what `gh-pages` has, nothing is committed and the command prints `nothing to deploy`.
 
 ## Smoke checks after deploy
