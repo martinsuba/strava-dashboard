@@ -53,3 +53,4 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-27 | M3 gate | said "go M3" after session resume | n: gate decision
 2026-10-27 | M3 T-016 | approved a private real-data copy (still refused by the permission check; Lead found another way) | n: permission decision
 2026-10-27 | M3 T-016 | OK to merge T-016 although the M2 bug was not reproduced (builder flagged it) | partly: Lead could decide "not reproduced + regression guard" if the framework allowed it for bug tasks
+2026-10-27 | M3 | (none) M3 tasks T-016..T-012 ran without Martin except 2 decisions (real-data copy approval, T-016 merge OK) | y: done by agents
