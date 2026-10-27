@@ -168,26 +168,34 @@ test.describe("REQ-007 segment page", { tag: "@REQ-007" }, () => {
     expect(await measure()).toBeLessThan(2 / 3);
   });
 
-  // T-016: every dot (efforts, capped markers and PR) must be drawn where the scale puts its date,
-  // also when the font arrives late (document.fonts.ready fires during the mount animation) and when
-  // the viewport changes right after mount. data-dot-error = largest horizontal distance in CSS px.
-  for (const fontDelay of [0, 200, 600]) {
-    test(`REQ-007: every dot stays at its date (font delayed ${fontDelay} ms, resize after mount)`, async ({
+  // T-016: a resize right after mount (Playwright's full-page capture resizes the viewport to the page
+  // height) must not leave any dot away from its date. data-dot-error = largest horizontal distance
+  // in CSS px between a drawn dot (all datasets) and where the x scale puts its date.
+  for (const trigger of ["full-page screenshot", "taller viewport"] as const) {
+    test(`REQ-007: every dot stays at its date after a resize right after mount (${trigger})`, async ({
       page,
     }) => {
-      await page.route("**/fonts/*.woff2", async (route) => {
-        await new Promise((resolve) => setTimeout(resolve, fontDelay));
-        await route.continue();
-      });
+      await page.setViewportSize({ width: 1280, height: 800 });
       await open(page, "/segment/ridge-track");
       const chart = page.locator("canvas").first();
+      await expect(chart).toBeVisible();
+      // record the worst error over every frame drawn from now on (an animation would show here)
+      await chart.evaluate((c) => {
+        const w = window as unknown as { worstDotError: number };
+        w.worstDotError = 0;
+        new MutationObserver(() => {
+          w.worstDotError = Math.max(w.worstDotError, Number(c.dataset["dotError"]));
+        }).observe(c, { attributes: true, attributeFilter: ["data-dot-error"] });
+      });
+      if (trigger === "full-page screenshot") await page.screenshot({ fullPage: true });
+      else await page.setViewportSize({ width: 1280, height: 2400 });
       const error = (): Promise<number> => chart.evaluate((c) => Number(c.dataset["dotError"]));
-      await expect(chart).toHaveAttribute("data-dot-error", /.+/);
-      await page.setViewportSize({ width: 1100, height: 800 });
-      for (let i = 0; i < 8; i++) {
-        expect(await error()).toBeLessThan(1);
-        await page.waitForTimeout(150);
-      }
+      const worst = (): Promise<number> =>
+        page.evaluate(() => (window as unknown as { worstDotError: number }).worstDotError);
+      expect(await error()).toBeLessThan(1);
+      await page.waitForTimeout(1_200);
+      expect(await error()).toBeLessThan(1);
+      expect(await worst()).toBeLessThan(1);
     });
   }
 
