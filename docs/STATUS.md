@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M3: T-016, T-017, T-018 done; T-011 in progress (builder)
-Open PRs: none yet (T-011 PR to come)
+Current task: M3: T-016, T-017, T-018, T-011 done; T-012 in progress (builder), last M3 task
+Open PRs: none yet (T-012 PR to come)
 Blockers: none
-Next step: T-011 -> T-012 (next-task loop), then M3 milestone PR
+Next step: T-012 (next-task loop), then M3 milestone PR (Opus review, screenshots, mutation, usage)
 
 ## Decisions log
 - 2026-10-23: project created
@@ -101,3 +101,5 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - T-017 accepted as is: ride legend has no "·" separators (layout from T-010, glyphs aria-hidden).
 - 2026-10-27: T-018 merged (PR #25): 1 fix round (2 tests outside the synthetic area moved in; _path_ok #20 was not equivalent -> killed). CI mutation run 40493790859: 481 killed, 15 survived (all argued equivalent, reviewer spot-checked all), 2 timeout = 97.0 % (M2: 81.7 %). Tests only, no production change, no bug found. ~$3.02.
 - T-011 scope kept to PLAN text: the STATUS ideas "tighten test_req003_unreadable_segments_yaml_is_a_hard_failure_exit_1 (not out.exists())" and "importer Content-Length compare" are NOT in T-011 (acceptance change not explicitly allowed by PLAN; importer outside T-011 areas) -> remain follow-ups for the M3 review / next plan.
+- 2026-10-27: T-011 merged (PR #26): 1 fix round (Lead had reviewer's guard gaps closed in-PR: all *.json/*.geojson scanned, lat/lon pairs under data/, symlinks flagged; stdout flush; OSError clean exit). 17 acceptance cases un-xfailed; test_req009_refresh_from_zip_builds_deploys_and_reports + test_req009_invalid_segment_exits_2_and_still_deploys_the_valid_one stay xfail until T-012 (need the gh-pages push). Lead ran the new guard read-only on the private real-data M2 build: 0 findings (no false positives). ~$3.00.
+- For T-012 (deploy.py): geojson -> full coordinate key list anywhere; unreadable JSON anywhere -> fail closed; un-xfail the two refresh tests + T-012 deploy tests; xfail reason text in test_refresh.py:17 still says T-011. Known guard bypasses accepted (backstop only): [lat,lon,ele] triples, {a,b} objects, string/int pairs.

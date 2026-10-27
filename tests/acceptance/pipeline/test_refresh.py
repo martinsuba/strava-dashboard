@@ -14,7 +14,6 @@ from _synth import Activity, Ride, export_files, segments_yaml, write_raw, write
 from conftest import SdashRunner, SiteRepo, git, load_json, require_web_toolchain
 
 pytestmark = pytest.mark.req("REQ-009")
-NOT_DONE = "REQ-009 refresh not implemented (T-011)"
 CORRUPT_ID = "1000000009"
 
 
@@ -42,7 +41,6 @@ def _main_sha(repo: SiteRepo) -> str:
     return git("rev-parse", "main", cwd=repo.remote)
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req009_refresh_from_zip_builds_deploys_and_reports(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path, site_repo: SiteRepo
 ) -> None:
@@ -127,7 +125,6 @@ def _bad_and_good_segments() -> list[dict]:
     return [sc.segment(name="Broken segment", ref="1000000099"), sc.segment()]  # no such reference
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req009_invalid_segment_exits_2_and_still_deploys_the_valid_one(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path, site_repo: SiteRepo
 ) -> None:
