@@ -168,6 +168,29 @@ test.describe("REQ-007 segment page", { tag: "@REQ-007" }, () => {
     expect(await measure()).toBeLessThan(2 / 3);
   });
 
+  // T-016: every dot (efforts, capped markers and PR) must be drawn where the scale puts its date,
+  // also when the font arrives late (document.fonts.ready fires during the mount animation) and when
+  // the viewport changes right after mount. data-dot-error = largest horizontal distance in CSS px.
+  for (const fontDelay of [0, 200, 600]) {
+    test(`REQ-007: every dot stays at its date (font delayed ${fontDelay} ms, resize after mount)`, async ({
+      page,
+    }) => {
+      await page.route("**/fonts/*.woff2", async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, fontDelay));
+        await route.continue();
+      });
+      await open(page, "/segment/ridge-track");
+      const chart = page.locator("canvas").first();
+      const error = (): Promise<number> => chart.evaluate((c) => Number(c.dataset["dotError"]));
+      await expect(chart).toHaveAttribute("data-dot-error", /.+/);
+      await page.setViewportSize({ width: 1100, height: 800 });
+      for (let i = 0; i < 8; i++) {
+        expect(await error()).toBeLessThan(1);
+        await page.waitForTimeout(150);
+      }
+    });
+  }
+
   test("REQ-007: the panel header and the chart label state the efforts above the cap", async ({
     page,
   }) => {

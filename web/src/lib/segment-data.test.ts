@@ -174,10 +174,17 @@ describe("y axis cap (T-016)", () => {
     expect(chartLabel(set)).toContain("1 slower effort above the cap");
     expect(chartLabel(set.slice(0, 4))).not.toContain("cap");
   });
-  it("keeps every dot at its date on a ~3 year segment", () => {
-    const m = chartModel(set);
-    const xs = [...(m?.efforts ?? []), m?.pr].map((p) => p?.x);
-    expect(xs).toContain(T(0) * 1000);
-    expect(m?.xMin).toBe(Date.UTC(2020, 0, 1));
+  it("spans the whole ~3 years Oct 2019 - May 2021 on the x axis", () => {
+    const long = [
+      effort("a", Date.UTC(2019, 9, 12) / 1000, 310),
+      effort("b", Date.UTC(2020, 5, 20) / 1000, 290),
+      effort("c", Date.UTC(2021, 4, 9) / 1000, 301),
+    ];
+    const m = chartModel(long);
+    expect(m?.years).toEqual([2019, 2020, 2021, 2022]);
+    expect(m?.xMin).toBe(Date.UTC(2019, 0, 1));
+    expect(m?.xMax).toBe(Date.UTC(2022, 0, 1));
+    expect(m?.efforts.map((p) => p.x)).toEqual([Date.UTC(2019, 9, 12), Date.UTC(2021, 4, 9)]);
+    expect(m?.pr.x).toBe(Date.UTC(2020, 5, 20));
   });
 });

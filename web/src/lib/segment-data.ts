@@ -122,8 +122,9 @@ export function chartLabel(efforts: readonly Effort[]): string {
   if (!pr || !latest || !oldest) return "No efforts";
   const from = yearOf(oldest.start_t);
   const to = yearOf(latest.start_t);
+  const note = capNote(efforts);
   const range = from === to ? `in ${from}` : `from ${from} to ${to}`;
-  return `Elapsed time for ${efforts.length} ${efforts.length === 1 ? "effort" : "efforts"} ${range}; PR ${formatDuration(pr.elapsed_s)} on ${formatDate(pr.start_t)}${capNote(efforts) ? `; ${capNote(efforts)}` : ""}`;
+  return `Elapsed time for ${efforts.length} ${efforts.length === 1 ? "effort" : "efforts"} ${range}; PR ${formatDuration(pr.elapsed_s)} on ${formatDate(pr.start_t)}${note ? `; ${note}` : ""}`;
 }
 
 /** Year ticks thinned to fit `width` px (about 44 px per label); always keeps the first year. */

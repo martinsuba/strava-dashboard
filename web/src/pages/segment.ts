@@ -78,13 +78,14 @@ function chartPanel(efforts: Effort[]): { node: HTMLElement; canvas: HTMLCanvasE
   const canvas = document.createElement("canvas");
   canvas.setAttribute("role", "img");
   canvas.setAttribute("aria-label", chartLabel(efforts));
+  const note = capNote(efforts);
   const hint = h(
     "span",
     { class: "chart-hint" },
     "faster is higher · ",
     h("span", { class: "chart-hint__dot", "aria-hidden": "true" }, "●"),
     " PR",
-    capNote(efforts) ? ` · ${capNote(efforts)}` : "",
+    note ? ` · ▲ ${note}` : "",
   );
   const node = panel(
     "trend-h",
