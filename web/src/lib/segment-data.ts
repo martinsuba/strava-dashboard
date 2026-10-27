@@ -99,7 +99,22 @@ export function metaLine(data: SegmentData): string {
   return parts.join(" · ");
 }
 
-/** aria-label of the chart canvas (contract: contains "PR m:ss"). */
+/** The y axis is capped at this multiple of the median elapsed time. */
+export const CAP_FACTOR = 2;
+
+/** Efforts slower than the cap (CAP_FACTOR x median); they are drawn as markers on the slow edge. */
+export function aboveCapCount(efforts: readonly Effort[]): number {
+  const cap = CAP_FACTOR * medianSeconds(efforts);
+  return efforts.filter((e) => e.elapsed_s > cap).length;
+}
+
+/** "3 slower efforts above the cap" (empty when there are none). */
+export function capNote(efforts: readonly Effort[]): string {
+  const n = aboveCapCount(efforts);
+  return n === 0 ? "" : `${n} slower ${n === 1 ? "effort" : "efforts"} above the cap`;
+}
+
+/** aria-label of the chart canvas (contract: contains "PR m:ss"; mentions efforts above the cap). */
 export function chartLabel(efforts: readonly Effort[]): string {
   const pr = prOf(efforts);
   const latest = sortEfforts(efforts, "newest")[0];
@@ -107,8 +122,9 @@ export function chartLabel(efforts: readonly Effort[]): string {
   if (!pr || !latest || !oldest) return "No efforts";
   const from = yearOf(oldest.start_t);
   const to = yearOf(latest.start_t);
+  const note = capNote(efforts);
   const range = from === to ? `in ${from}` : `from ${from} to ${to}`;
-  return `Elapsed time for ${efforts.length} ${efforts.length === 1 ? "effort" : "efforts"} ${range}; PR ${formatDuration(pr.elapsed_s)} on ${formatDate(pr.start_t)}`;
+  return `Elapsed time for ${efforts.length} ${efforts.length === 1 ? "effort" : "efforts"} ${range}; PR ${formatDuration(pr.elapsed_s)} on ${formatDate(pr.start_t)}${note ? `; ${note}` : ""}`;
 }
 
 /** Year ticks thinned to fit `width` px (about 44 px per label); always keeps the first year. */
@@ -122,10 +138,12 @@ export interface ChartPoint {
   x: number; // epoch ms
   y: number; // elapsed seconds
   ride: string;
+  actual?: number; // real elapsed seconds of a capped marker (y is then the axis edge)
 }
 
 export interface ChartModel {
-  efforts: ChartPoint[]; // without the PR
+  efforts: ChartPoint[]; // without the PR and the capped efforts
+  capped: ChartPoint[]; // efforts above the cap, at the slow edge (y = yMax)
   pr: ChartPoint;
   xMin: number;
   xMax: number;
@@ -146,7 +164,8 @@ export function chartModel(efforts: readonly Effort[]): ChartModel | null {
     y: e.elapsed_s,
     ride: e.ride_name,
   });
-  const times = efforts.map((e) => e.elapsed_s);
+  const cap = CAP_FACTOR * medianSeconds(efforts);
+  const times = efforts.map((e) => e.elapsed_s).filter((t) => t <= cap);
   const lo = Math.min(...times);
   const hi = Math.max(...times);
   const yStep = STEPS.find((st) => (hi - lo) / st <= 4) ?? 7200;
@@ -158,8 +177,12 @@ export function chartModel(efforts: readonly Effort[]): ChartModel | null {
   const years: number[] = [];
   for (let y = firstYear; y <= lastYear + 1; y++) years.push(y);
   const prIndex = efforts.indexOf(pr);
+  const rest = efforts.filter((_, i) => i !== prIndex);
   return {
-    efforts: efforts.filter((_, i) => i !== prIndex).map(toPoint),
+    efforts: rest.filter((e) => e.elapsed_s <= cap).map(toPoint),
+    capped: rest
+      .filter((e) => e.elapsed_s > cap)
+      .map((e) => ({ ...toPoint(e), y: yMax, actual: e.elapsed_s })),
     pr: toPoint(pr),
     xMin: Date.UTC(firstYear, 0, 1),
     xMax: Date.UTC(lastYear + 1, 0, 1),

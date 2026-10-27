@@ -49,6 +49,25 @@ function prLabelPlugin(model: ChartModel): Plugin<"scatter"> {
   };
 }
 
+/** Publishes the plot area (CSS px, canvas-relative) as data attributes; used by acceptance tests. */
+const plotAreaPlugin: Plugin<"scatter"> = {
+  id: "plotArea",
+  afterDraw(chart) {
+    // Largest horizontal distance (CSS px) between a drawn point and where the scale puts its date.
+    const xs = chart.scales["x"];
+    let worst = 0;
+    chart.data.datasets.forEach((ds, i) => {
+      chart.getDatasetMeta(i).data.forEach((el, j) => {
+        const raw = ds.data[j] as { x: number } | undefined;
+        if (xs && raw) worst = Math.max(worst, Math.abs(el.x - xs.getPixelForValue(raw.x)));
+      });
+    });
+    chart.canvas.dataset["dotError"] = worst.toFixed(2);
+    chart.canvas.dataset["plotLeft"] = String(chart.chartArea.left);
+    chart.canvas.dataset["plotRight"] = String(chart.chartArea.right);
+  },
+};
+
 export function mountSegmentChart(
   canvas: HTMLCanvasElement,
   model: ChartModel,
@@ -72,6 +91,16 @@ export function mountSegmentChart(
           pointHoverRadius: 6,
         },
         {
+          label: "Slower efforts above the cap",
+          data: model.capped,
+          backgroundColor: EFFORT,
+          borderWidth: 0,
+          pointStyle: "triangle",
+          pointRadius: 6,
+          pointHoverRadius: 7,
+          clip: false,
+        },
+        {
           label: "PR",
           data: [model.pr],
           backgroundColor: ORANGE,
@@ -86,7 +115,9 @@ export function mountSegmentChart(
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      // Only the vertical position animates: a dot can never move away from its date horizontally.
       animation: reduced ? false : { duration: 300 },
+      animations: { x: { duration: 0 } },
       layout: { padding: { right: 12, top: 8 } },
       scales: {
         x: {
@@ -128,18 +159,22 @@ export function mountSegmentChart(
           callbacks: {
             title: (items) => (items[0] ? formatDate((items[0].parsed.x ?? 0) / 1000) : ""),
             label: (item) => {
-              const p = item.raw as { y: number; ride: string };
-              return `${formatDuration(p.y)} · ${p.ride}`;
+              const p = item.raw as { y: number; ride: string; actual?: number };
+              return `${formatDuration(p.actual ?? p.y)} · ${p.ride}`;
             },
           },
         },
       },
     },
-    plugins: [prLabelPlugin(model)],
+    plugins: [prLabelPlugin(model), plotAreaPlugin],
   });
   const chart = current;
   void document.fonts?.ready?.then(() => {
-    if (current === chart) chart.update("none");
+    if (current !== chart) return;
+    // update("none") writes positions straight onto the points but leaves a running animation alone,
+    // which would then finish at targets from the layout before the font arrived.
+    chart.stop();
+    chart.update("none");
   });
   return disposeSegmentChart;
 }

@@ -121,4 +121,96 @@ test.describe("REQ-007 segment page", { tag: "@REQ-007" }, () => {
     await expect(page.locator("canvas")).toHaveCount(0);
     await expect(page.getByRole("table")).toHaveCount(0);
   });
+  // T-016: chart fixture ridge-track (8 efforts, Oct 2019 - May 2021, one at 13:00 above the cap).
+  // Not listed on the index; opened by URL. Plot area exposed as data-plot-left / data-plot-right
+  // (CSS px, canvas-relative) so that the drawn dot can be compared with its date.
+  test("REQ-007: the PR dot is drawn within the horizontal band of its date's year", async ({
+    page,
+  }) => {
+    await open(page, "/segment/ridge-track");
+    const chart = page.locator("canvas").first();
+    await expect(chart).toHaveAttribute("aria-label", /PR 4:50/);
+    // PR is on 20 Jun 2020; x axis runs 1 Jan 2019 - 1 Jan 2022, i.e. 2020 is the middle third.
+    // Poll: the dot must be there once the animation is over and must stay there.
+    const measure = (): Promise<number> =>
+      chart.evaluate((c: HTMLCanvasElement) => {
+        const ctx = c.getContext("2d");
+        if (!ctx) return -1;
+        const dpr = c.width / c.getBoundingClientRect().width;
+        const { data } = ctx.getImageData(0, 0, c.width, c.height);
+        let minX = Infinity;
+        for (let y = 0; y < c.height; y++) {
+          for (let x = 0; x < c.width; x++) {
+            const i = (y * c.width + x) * 4;
+            const r = data[i] ?? 0;
+            const g = data[i + 1] ?? 0;
+            const b = data[i + 2] ?? 0;
+            if (
+              (data[i + 3] ?? 0) > 200 &&
+              Math.abs(r - 252) < 16 &&
+              Math.abs(g - 76) < 20 &&
+              b < 40
+            ) {
+              minX = Math.min(minX, x);
+              break;
+            }
+          }
+        }
+        const left = Number(c.dataset["plotLeft"]);
+        const right = Number(c.dataset["plotRight"]);
+        // leftmost orange pixel = dot centre - radius 8; fraction of the plot width
+        return ((minX / dpr + 8 - left) / (right - left)) as number;
+      });
+    await expect.poll(measure, { timeout: 5_000 }).toBeGreaterThan(1 / 3);
+    await expect.poll(measure, { timeout: 5_000 }).toBeLessThan(2 / 3);
+    await page.waitForTimeout(1_000);
+    expect(await measure()).toBeGreaterThan(1 / 3);
+    expect(await measure()).toBeLessThan(2 / 3);
+  });
+
+  // T-016: a resize right after mount (Playwright's full-page capture resizes the viewport to the page
+  // height) must not leave any dot away from its date. data-dot-error = largest horizontal distance
+  // in CSS px between a drawn dot (all datasets) and where the x scale puts its date.
+  for (const trigger of ["full-page screenshot", "taller viewport"] as const) {
+    test(`REQ-007: every dot stays at its date after a resize right after mount (${trigger})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await open(page, "/segment/ridge-track");
+      const chart = page.locator("canvas").first();
+      await expect(chart).toBeVisible();
+      // record the worst error over every frame drawn from now on (an animation would show here)
+      await chart.evaluate((c) => {
+        const w = window as unknown as { worstDotError: number };
+        w.worstDotError = 0;
+        new MutationObserver(() => {
+          w.worstDotError = Math.max(w.worstDotError, Number(c.dataset["dotError"]));
+        }).observe(c, { attributes: true, attributeFilter: ["data-dot-error"] });
+      });
+      if (trigger === "full-page screenshot") await page.screenshot({ fullPage: true });
+      else await page.setViewportSize({ width: 1280, height: 2400 });
+      const error = (): Promise<number> => chart.evaluate((c) => Number(c.dataset["dotError"]));
+      const worst = (): Promise<number> =>
+        page.evaluate(() => (window as unknown as { worstDotError: number }).worstDotError);
+      expect(await error()).toBeLessThan(1);
+      await page.waitForTimeout(1_200);
+      expect(await error()).toBeLessThan(1);
+      expect(await worst()).toBeLessThan(1);
+    });
+  }
+
+  test("REQ-007: the panel header and the chart label state the efforts above the cap", async ({
+    page,
+  }) => {
+    await open(page, "/segment/ridge-track");
+    await expect(page.getByText("1 slower effort above the cap")).toBeVisible();
+    await expect(page.locator("canvas").first()).toHaveAttribute(
+      "aria-label",
+      /1 slower effort above the cap/,
+    );
+    // a segment without such efforts says nothing about a cap
+    await open(page, HILL);
+    await expect(page.getByText(/above the cap/)).toHaveCount(0);
+    await expect(page.locator("canvas").first()).not.toHaveAttribute("aria-label", /cap/);
+  });
 });

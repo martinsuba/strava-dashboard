@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  aboveCapCount,
+  capNote,
   chartLabel,
   chartModel,
   formatGap,
@@ -138,5 +140,51 @@ describe("visibleYears", () => {
   it("thins out years on a narrow plot", () => {
     expect(visibleYears(years, 280)).toEqual([2019, 2021, 2023, 2025, 2027]);
     expect(visibleYears(years, 100)).toEqual([2019, 2024]);
+  });
+});
+
+describe("y axis cap (T-016)", () => {
+  const T = (m: number): number => Date.UTC(2020, m, 1) / 1000;
+  const set = [
+    effort("a", T(0), 300),
+    effort("b", T(1), 310),
+    effort("c", T(2), 320),
+    effort("d", T(3), 290),
+    effort("slow", T(4), 900),
+  ];
+  it("counts efforts above 2x the median (median 310 -> cap 620)", () => {
+    expect(aboveCapCount(set)).toBe(1);
+    expect(
+      aboveCapCount([effort("a", T(0), 620), effort("b", T(1), 100), effort("c", T(2), 620)]),
+    ).toBe(0);
+  });
+  it("words the note in singular and plural, empty for none", () => {
+    expect(capNote(set)).toBe("1 slower effort above the cap");
+    expect(capNote([...set, effort("s2", T(5), 1000)])).toBe("2 slower efforts above the cap");
+    expect(capNote(set.slice(0, 4))).toBe("");
+  });
+  it("puts capped efforts on the slow edge at their date and sizes the axis without them", () => {
+    const m = chartModel(set);
+    expect(m?.capped).toHaveLength(1);
+    expect(m?.capped[0]).toMatchObject({ x: T(4) * 1000, y: m?.yMax, actual: 900 });
+    expect(m?.efforts.map((p) => p.y)).toEqual([300, 310, 320]);
+    expect(m && m.yMax < 900).toBe(true);
+  });
+  it("mentions the cap in the chart label only when needed", () => {
+    expect(chartLabel(set)).toContain("1 slower effort above the cap");
+    expect(chartLabel(set.slice(0, 4))).not.toContain("cap");
+  });
+  it("spans the whole ~3 years Oct 2019 - May 2021 on the x axis", () => {
+    const long = [
+      effort("a", Date.UTC(2019, 9, 12) / 1000, 310),
+      effort("b", Date.UTC(2020, 5, 20) / 1000, 290),
+      effort("c", Date.UTC(2021, 4, 9) / 1000, 301),
+    ];
+    const m = chartModel(long);
+    expect(m?.years).toEqual([2019, 2020, 2021, 2022]);
+    expect(m?.xMin).toBe(Date.UTC(2019, 0, 1));
+    expect(m?.xMax).toBe(Date.UTC(2022, 0, 1));
+    expect(m?.efforts.map((p) => p.x)).toEqual([Date.UTC(2019, 9, 12), Date.UTC(2021, 4, 9)]);
+    expect(m?.pr.x).toBe(Date.UTC(2020, 5, 20));
   });
 });

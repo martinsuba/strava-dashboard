@@ -128,6 +128,11 @@ test-reviewer (or a plan PR), not silently in code.
 - Segment page: rank in the first cell (`PR`, `2nd`, `3rd`, then numbers); sort buttons named Fastest/Newest
   (or containing "time"/"date"); chart = a `<canvas>` with `aria-label` containing `PR m:ss`, PR dot drawn in
   `#FC4C02`. Empty state: text containing "no efforts", no table, no canvas.
+  Chart canvas test hooks (T-016): `data-plot-left` / `data-plot-right` = plot area edges in CSS px,
+  canvas-relative; `data-dot-error` = largest horizontal distance in CSS px between any drawn dot
+  (efforts, capped markers, PR) and where the x scale puts its date, updated on every draw.
+  Chart fixture `ridge-track` (8 efforts Oct 2019 - May 2021, one above 2x median) is reachable by URL
+  only and deliberately not listed in `index.json`.
 - Ride page: rank cell `5 / 8`; a PR mark is a cell text containing the word `PR` (e.g. "NEW PR"); empty state text
   containing "no segments matched", no table.
 - Index: rides sorted newest first by the UI (the fixture JSON is deliberately unsorted); empty segment list
@@ -185,6 +190,9 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `segment.spec.ts` "REQ-007: chart of elapsed time against date with the PR highlighted" | T-009 | passing |
 | | `segment.spec.ts` "REQ-007: summary shows effort count and best time per year" | T-009 | passing |
 | | `segment.spec.ts` "REQ-007: a segment with no efforts says so instead of an empty table or chart" | T-009 | passing |
+| | `segment.spec.ts` "REQ-007: the PR dot is drawn within the horizontal band of its date's year" (fixture `ridge-track`, by URL only, not in index.json; canvas `data-plot-left/right`) | T-016 | passing |
+| | `segment.spec.ts` "REQ-007: the panel header and the chart label state the efforts above the cap" (also checks `hill-road-climb` says nothing about a cap) | T-016 | passing |
+| | `segment.spec.ts` "REQ-007: every dot stays at its date after a resize right after mount (full-page screenshot)" and "(taller viewport)" - regression guard: they also pass on the pre-T-016 code, the M2 symptom was not reproduced | T-016 | passing |
 | REQ-008 ride page | `ride.spec.ts` "REQ-008: shows date, name, distance, moving/elapsed time and gear" | T-010 | passing |
 | | `ride.spec.ts` "REQ-008: each matched effort shows time, PR, average, gap to PR and rank" | T-010 | passing |
 | | `ride.spec.ts` "REQ-008: an effort is marked when it is the PR or was the PR at the time" | T-010 | passing |

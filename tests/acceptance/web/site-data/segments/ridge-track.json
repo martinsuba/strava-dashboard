@@ -1,0 +1,119 @@
+{
+  "name": "Ridge track",
+  "ref_length_m": 1500,
+  "efforts": [
+    {
+      "segment_slug": "ridge-track",
+      "activity_id": "3000000201",
+      "ride_name": "Autumn ride",
+      "start_t": 1570871700,
+      "elapsed_s": 310,
+      "distance_m": 1500,
+      "avg_kmh": 17.4,
+      "rank": 6,
+      "gap_to_pr_s": 20,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "ridge-track",
+      "activity_id": "3000000202",
+      "ride_name": "Winter ride",
+      "start_t": 1579947300,
+      "elapsed_s": 305,
+      "distance_m": 1500,
+      "avg_kmh": 17.7,
+      "rank": 5,
+      "gap_to_pr_s": 15,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "ridge-track",
+      "activity_id": "3000000203",
+      "ride_name": "Spring ride",
+      "start_t": 1586598300,
+      "elapsed_s": 298,
+      "distance_m": 1500,
+      "avg_kmh": 18.1,
+      "rank": 3,
+      "gap_to_pr_s": 8,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "ridge-track",
+      "activity_id": "3000000204",
+      "ride_name": "Summer ride",
+      "start_t": 1592640900,
+      "elapsed_s": 290,
+      "distance_m": 1500,
+      "avg_kmh": 18.6,
+      "rank": 1,
+      "gap_to_pr_s": 0,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "ridge-track",
+      "activity_id": "3000000205",
+      "ride_name": "Late summer ride",
+      "start_t": 1599295500,
+      "elapsed_s": 296,
+      "distance_m": 1500,
+      "avg_kmh": 18.2,
+      "rank": 2,
+      "gap_to_pr_s": 6,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "ridge-track",
+      "activity_id": "3000000206",
+      "ride_name": "Cold ride",
+      "start_t": 1605352500,
+      "elapsed_s": 312,
+      "distance_m": 1500,
+      "avg_kmh": 17.3,
+      "rank": 7,
+      "gap_to_pr_s": 22,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "ridge-track",
+      "activity_id": "3000000207",
+      "ride_name": "Slow winter ride",
+      "start_t": 1614422700,
+      "elapsed_s": 780,
+      "distance_m": 1500,
+      "avg_kmh": 6.9,
+      "rank": 8,
+      "gap_to_pr_s": 490,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "ridge-track",
+      "activity_id": "3000000208",
+      "ride_name": "Spring spin",
+      "start_t": 1620547200,
+      "elapsed_s": 301,
+      "distance_m": 1500,
+      "avg_kmh": 17.9,
+      "rank": 4,
+      "gap_to_pr_s": 11,
+      "is_pr_at_time": false
+    }
+  ],
+  "per_year": [
+    {
+      "year": 2019,
+      "count": 1,
+      "best_s": 310
+    },
+    {
+      "year": 2020,
+      "count": 5,
+      "best_s": 290
+    },
+    {
+      "year": 2021,
+      "count": 2,
+      "best_s": 301
+    }
+  ]
+}
