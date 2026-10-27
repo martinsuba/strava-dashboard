@@ -1,31 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { barPositions, newPrCount, prMark, rankOf } from "./ride-data";
+import { barLabel, barPositions, newPrCount, prMark, rankOf } from "./ride-data";
 
 describe("barPositions", () => {
-  it("puts the PR at the left end and scales to the slower of average and today", () => {
-    // span = 60 s, bar covers 75 s
-    expect(barPositions({ pr_s: 100, avg_s: 130, elapsed_s: 160 })).toEqual({
-      avgPct: 40,
-      todayPct: 80,
+  it("runs from the PR (0) to the slowest effort (100)", () => {
+    expect(barPositions({ pr_s: 100, median_s: 130, slowest_s: 200, elapsed_s: 160 })).toEqual({
+      medianPct: 30,
+      todayPct: 60,
     });
   });
 
-  it("puts today on the left end when it is the PR", () => {
-    expect(barPositions({ pr_s: 100, avg_s: 120, elapsed_s: 100 })).toEqual({
-      avgPct: 80,
+  it("puts today on the left end when it is the PR and on the right end when slowest", () => {
+    expect(
+      barPositions({ pr_s: 100, median_s: 120, slowest_s: 200, elapsed_s: 100 }).todayPct,
+    ).toBe(0);
+    expect(
+      barPositions({ pr_s: 100, median_s: 120, slowest_s: 200, elapsed_s: 200 }).todayPct,
+    ).toBe(100);
+  });
+
+  it("keeps everything at 0 when PR and slowest coincide (single effort)", () => {
+    expect(barPositions({ pr_s: 100, median_s: 100, slowest_s: 100, elapsed_s: 100 })).toEqual({
+      medianPct: 0,
       todayPct: 0,
     });
   });
 
-  it("keeps everything at 0 when PR, average and today coincide", () => {
-    expect(barPositions({ pr_s: 100, avg_s: 100, elapsed_s: 100 })).toEqual({
-      avgPct: 0,
-      todayPct: 0,
-    });
-  });
-
-  it("clamps an average below the PR (inconsistent data) into the bar", () => {
-    expect(barPositions({ pr_s: 100, avg_s: 90, elapsed_s: 110 }).avgPct).toBe(0);
+  it("clamps values outside PR..slowest (inconsistent data) into the bar", () => {
+    const p = barPositions({ pr_s: 100, median_s: 90, slowest_s: 200, elapsed_s: 300 });
+    expect(p).toEqual({ medianPct: 0, todayPct: 100 });
   });
 });
 
@@ -43,5 +45,13 @@ describe("labels", () => {
 
   it("counts new PRs", () => {
     expect(newPrCount([{ is_pr_at_time: true }, { is_pr_at_time: false }] as never)).toBe(1);
+  });
+});
+
+describe("barLabel", () => {
+  it("spells out today, PR, median and slowest", () => {
+    expect(barLabel({ elapsed_s: 377, pr_s: 341, median_s: 374, slowest_s: 456 })).toBe(
+      "Today 6:17, PR 5:41, median 6:14, slowest 7:36",
+    );
   });
 });

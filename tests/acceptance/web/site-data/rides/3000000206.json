@@ -13,6 +13,8 @@
       "elapsed_s": 312,
       "pr_s": 290,
       "avg_s": 362,
+      "median_s": 303,
+      "slowest_s": 780,
       "gap_to_pr_s": 22,
       "rank": 7,
       "of": 8,

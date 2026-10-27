@@ -67,7 +67,7 @@
   background: var(--line);
 }
 
-.posbar__avg {
+.posbar__median {
   position: absolute;
   top: 2px;
   width: 2px;

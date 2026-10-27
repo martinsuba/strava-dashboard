@@ -1,11 +1,15 @@
 // Ride page data and pure helpers (REQ-008). Schema: docs/ARCHITECTURE.md "Site JSON" rides/<id>.json.
 
+import { formatDuration } from "./format";
+
 export interface RideEffort {
   slug: string;
   name: string;
   elapsed_s: number;
   pr_s: number;
   avg_s: number;
+  median_s: number;
+  slowest_s: number;
   gap_to_pr_s: number;
   rank: number;
   of: number;
@@ -24,25 +28,28 @@ export interface RideData {
   efforts: RideEffort[];
 }
 
-/** Extra room right of the slower of average and today, so neither marker sits on the bar's end. */
-export const BAR_MARGIN = 1.25;
-
 export interface BarPositions {
-  /** Percent from the left end (the PR) for the average tick and today's dot, 0..100. */
-  avgPct: number;
+  /** Percent from the left end (the PR) for the median tick and today's dot, 0..100. */
+  medianPct: number;
   todayPct: number;
 }
 
-/**
- * Position bar: the PR is the left end. rides/<id>.json has no slowest time (and a page fetches only
- * its own JSON, D-005), so the right end is PR + BAR_MARGIN x the larger of (average, today) - PR.
- */
-export function barPositions(e: Pick<RideEffort, "pr_s" | "avg_s" | "elapsed_s">): BarPositions {
-  const span = Math.max(e.avg_s, e.elapsed_s, e.pr_s) - e.pr_s;
-  if (span <= 0) return { avgPct: 0, todayPct: 0 };
+/** Position bar: the PR is the left end (0), the slowest effort of the segment the right end (100). */
+export function barPositions(
+  e: Pick<RideEffort, "pr_s" | "median_s" | "slowest_s" | "elapsed_s">,
+): BarPositions {
+  const span = e.slowest_s - e.pr_s;
+  if (span <= 0) return { medianPct: 0, todayPct: 0 };
   const scale = (s: number): number =>
-    Math.round(Math.min(100, Math.max(0, ((s - e.pr_s) / (span * BAR_MARGIN)) * 100)) * 10) / 10;
-  return { avgPct: scale(e.avg_s), todayPct: scale(e.elapsed_s) };
+    Math.round(Math.min(100, Math.max(0, ((s - e.pr_s) / span) * 100)) * 10) / 10;
+  return { medianPct: scale(e.median_s), todayPct: scale(e.elapsed_s) };
+}
+
+/** Accessible text of the position bar, e.g. "Today 6:17, PR 5:41, median 6:14, slowest 7:36". */
+export function barLabel(
+  e: Pick<RideEffort, "pr_s" | "median_s" | "slowest_s" | "elapsed_s">,
+): string {
+  return `Today ${formatDuration(e.elapsed_s)}, PR ${formatDuration(e.pr_s)}, median ${formatDuration(e.median_s)}, slowest ${formatDuration(e.slowest_s)}`;
 }
 
 /** Rank as "8 / 24". */

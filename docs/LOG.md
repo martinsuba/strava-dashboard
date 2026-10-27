@@ -51,3 +51,5 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-25 | M2 review | answered 6 review questions (chart fix, axis cap, median, bar, desktop-first, mutation tests) -> Plan v4 | partly: 3 of 6 were "up to you"/"easier" -> Lead could propose defaults and ask only for real preferences
 2026-10-25 | M3 | paused before M3 (session reset) | n: budget/session decision
 2026-10-27 | M3 gate | said "go M3" after session resume | n: gate decision
+2026-10-27 | M3 T-016 | approved a private real-data copy (still refused by the permission check; Lead found another way) | n: permission decision
+2026-10-27 | M3 T-016 | OK to merge T-016 although the M2 bug was not reproduced (builder flagged it) | partly: Lead could decide "not reproduced + regression guard" if the framework allowed it for bug tasks

@@ -171,7 +171,7 @@ def test_pr_at_time_sequence_and_ride_effort_fields(tmp_path: Path) -> None:
     ride = _load(out / "rides" / "4.json")
     assert ride["efforts"] == [
         {"slug": "river-path-north", "name": "River path north", "elapsed_s": 395, "pr_s": 380,
-         "avg_s": 397, "gap_to_pr_s": 15, "rank": 3, "of": 5, "is_pr": False,
+         "avg_s": 397, "median_s": 395, "slowest_s": 420, "gap_to_pr_s": 15, "rank": 3, "of": 5, "is_pr": False,
          "is_pr_at_time": False}
     ]  # fmt: skip
     assert list(ride) == [
@@ -184,6 +184,29 @@ def test_average_is_rounded_mean(tmp_path: Path) -> None:
     effs = [_eff("1", 100, 301), _eff("2", 200, 304)]  # mean 302.5 -> 302 (round half even)
     out = _write(tmp_path, acts, [SegmentResult(SEG, 2000.0, effs)])
     assert _load(out / "rides" / "1.json")["efforts"][0]["avg_s"] == 302
+
+
+def _ride_effort(tmp_path: Path, times: list[int]) -> dict[str, int]:
+    acts = [_act(str(i), i, f"R{i}") for i in range(1, len(times) + 1)]
+    effs = [_eff(str(i), 1000 * i, t) for i, t in enumerate(times, 1)]
+    out = _write(tmp_path, acts, [SegmentResult(SEG, 2000.0, effs)])
+    e = _load(out / "rides" / "1.json")["efforts"][0]
+    return {"median_s": e["median_s"], "slowest_s": e["slowest_s"]}
+
+
+def test_median_and_slowest_odd_count(tmp_path: Path) -> None:
+    assert _ride_effort(tmp_path, [500, 300, 900]) == {"median_s": 500, "slowest_s": 900}
+
+
+def test_median_even_count_mean_of_middle_rounded_half_even(tmp_path: Path) -> None:
+    # middle values 301 and 304 -> 302.5 -> 302 (half even)
+    assert _ride_effort(tmp_path, [300, 301, 304, 999])["median_s"] == 302
+    # middle values 302 and 305 -> 303.5 -> 304 (half even)
+    assert _ride_effort(tmp_path, [300, 302, 305, 999])["median_s"] == 304
+
+
+def test_median_and_slowest_single_effort(tmp_path: Path) -> None:
+    assert _ride_effort(tmp_path, [412]) == {"median_s": 412, "slowest_s": 412}
 
 
 def test_per_year_uses_bratislava_calendar_year(tmp_path: Path) -> None:

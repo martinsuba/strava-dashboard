@@ -75,7 +75,7 @@ Data dir: `SDASH_DATA_DIR`, default `~/data/strava-export/` (`raw/`, `cache/`, `
   - `segments/<slug>.json`: `{name, ref_length_m, efforts: [{segment_slug, activity_id, ride_name, start_t, elapsed_s,
     distance_m, avg_kmh, rank, gap_to_pr_s, is_pr_at_time}], per_year: [{year, count, best_s}]}` (`ride_name` so the page
     needs no second fetch, D-005)
-  - `rides/<id>.json`: `{id, date, name, km, elapsed_s, moving_s, gear, efforts: [{slug, name, elapsed_s, pr_s, avg_s, median_s, slowest_s, gap_to_pr_s, rank, of, is_pr, is_pr_at_time}]}` (Plan v4: `median_s` = median elapsed of all efforts of the segment, mean of the two middle values when even, rounded half-even to seconds; `slowest_s` = slowest elapsed of the segment)``
+  - `rides/<id>.json`: `{id, date, name, km, elapsed_s, moving_s, gear, efforts: [{slug, name, elapsed_s, pr_s, avg_s, median_s, slowest_s, gap_to_pr_s, rank, of, is_pr, is_pr_at_time}]}` (Plan v4: `median_s` = median elapsed of all efforts of the segment, mean of the two middle values when even, rounded half-even to seconds; `slowest_s` = slowest elapsed of the segment)
   - Definitions (T-007, same as `tests/acceptance/web/make_site_data.py`): `rank` = position by elapsed time among all
     efforts of the segment (1 = PR; ties: earlier start wins); `of` = number of efforts; `gap_to_pr_s` = elapsed − PR;
     `is_pr` = rank 1; `is_pr_at_time` = faster than every earlier effort (first-ever effort counts); `avg_s` = mean
