@@ -12,7 +12,6 @@ import pytest
 from conftest import SdashRunner, SiteRepo, git
 
 pytestmark = pytest.mark.req("REQ-009")
-NOT_DONE = "REQ-009 deploy not implemented (T-012 deploy, T-011 guard)"
 
 
 def _dist(
@@ -45,7 +44,6 @@ def remote(site_repo: SiteRepo) -> SiteRepo:
     return site_repo
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req009_deploy_pushes_dist_to_gh_pages_only(sdash: SdashRunner, remote: SiteRepo) -> None:
     main_before = git("rev-parse", "main", cwd=remote.remote)
     _dist(remote.web)
@@ -55,7 +53,6 @@ def test_req009_deploy_pushes_dist_to_gh_pages_only(sdash: SdashRunner, remote: 
     assert git("rev-parse", "main", cwd=remote.remote) == main_before, "deploy touched main"
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req009_redeploy_adds_a_commit_without_force(sdash: SdashRunner, remote: SiteRepo) -> None:
     _dist(remote.web, "first")
     sdash("deploy", "--web-dir", remote.web, "--remote", remote.remote).ok()
@@ -96,7 +93,6 @@ def test_req009_guard_aborts_deploy_on_raw_files_or_coordinates(
     assert remote.remote_branches() == {"main"}, "something was pushed despite the guard"
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req009_guard_passes_clean_site(sdash: SdashRunner, remote: SiteRepo) -> None:
     """Control for the guard tests: a clean site with ride times and names is deployed."""
     ride = {"id": "1", "date": "2026-10-20T03:45:46Z", "name": "Synthetic", "km": 25.3, "elapsed_s": 3600,

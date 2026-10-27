@@ -140,7 +140,8 @@ def _guard_and_deploy(web_dir: Path, remote: str | None, publish: bool) -> None:
     try:
         deploy.guard(web_dir / "dist")
         if publish:
-            deploy.deploy(web_dir, remote)
+            pushed = deploy.deploy(web_dir, remote)
+            print(f"deployed {web_dir / 'dist'} to gh-pages" if pushed else "nothing to deploy")
     except (deploy.GuardError, deploy.DeployError) as exc:
         raise pipeline.PipelineError(str(exc)) from exc
 

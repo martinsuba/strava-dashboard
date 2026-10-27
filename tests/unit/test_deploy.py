@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -159,3 +162,136 @@ def test_geojson_is_scanned(tmp_path: Path) -> None:
     (dist / "data" / "x.geojson").write_text(json.dumps(geo))
     bad = deploy.check_site(dist)
     assert len(bad) == 1 and "x.geojson" in bad[0]
+
+
+def test_geojson_outside_data_is_checked_against_the_full_key_list(tmp_path: Path) -> None:
+    dist = _site(tmp_path)
+    (dist / "map.geojson").write_text(json.dumps({"type": "Feature", "coordinates": "x"}))
+    (dist / "manifest.json").write_text(json.dumps({"coordinates": "x"}))
+    bad = deploy.check_site(dist)
+    assert len(bad) == 1 and "map.geojson" in bad[0]
+
+
+def test_unparseable_json_outside_data_fails_closed(tmp_path: Path) -> None:
+    dist = _site(tmp_path)
+    (dist / "manifest.json").write_text("{not json")
+    (dist / "bin.json").write_bytes(b"\xff\xfe\x00")
+    bad = deploy.check_site(dist)
+    assert len(bad) == 2 and all("unreadable JSON" in b for b in bad)
+
+
+# --- publishing to gh-pages (local bare repos only) ---
+
+
+def _git(*args: str, cwd: Path) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=cwd, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+@pytest.fixture(autouse=True)
+def _git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var, val in (("NAME", "T"), ("EMAIL", "t@example.invalid")):
+        monkeypatch.setenv(f"GIT_AUTHOR_{var}", val)
+        monkeypatch.setenv(f"GIT_COMMITTER_{var}", val)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", os.devnull)
+
+
+def _repo(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """(web_dir, bare remote, working repo containing web/)."""
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    work = tmp_path / "work"
+    (work / "web").mkdir(parents=True)
+    _git("init", "-q", "-b", "main", cwd=work)
+    (work / "README").write_text("r")
+    _git("add", "-A", cwd=work)
+    _git("commit", "-q", "-m", "init", cwd=work)
+    return work / "web", remote, work
+
+
+def _publish(web: Path, remote: Path, title: str = "a") -> None:
+    _site(web.parent / "tmpdist", **{"index.html": f"<title>{title}</title>"})
+    shutil.rmtree(web / "dist", ignore_errors=True)
+    shutil.copytree(web.parent / "tmpdist" / "dist", web / "dist")
+
+
+def test_deploy_creates_orphan_gh_pages_and_cleans_worktree(tmp_path: Path) -> None:
+    web, remote, work = _repo(tmp_path)
+    _publish(web, remote)
+    assert deploy.deploy(web, str(remote)) is True
+    files = set(_git("ls-tree", "-r", "--name-only", "gh-pages", cwd=remote).split())
+    assert files == {
+        "index.html",
+        "assets/app.js",
+        "data/index.json",
+        "data/rides/1.json",
+        ".nojekyll",
+    }
+    assert _git("rev-list", "--count", "gh-pages", cwd=remote) == "1"
+    assert _git("worktree", "list", "--porcelain", cwd=work).count("worktree ") == 1
+    assert "main" in _git("branch", "--list", cwd=work)  # local branches untouched
+    assert "gh-pages" not in _git("branch", "--list", cwd=work)
+
+
+def test_deploy_second_run_fast_forwards_and_replaces_contents(tmp_path: Path) -> None:
+    web, remote, _ = _repo(tmp_path)
+    _publish(web, remote, "first")
+    deploy.deploy(web, str(remote))
+    first = _git("rev-parse", "gh-pages", cwd=remote)
+    _publish(web, remote, "second")
+    (web / "dist" / "assets" / "app.js").unlink()
+    assert deploy.deploy(web, str(remote)) is True
+    _git("merge-base", "--is-ancestor", first, "gh-pages", cwd=remote)
+    assert "app.js" not in _git("ls-tree", "-r", "--name-only", "gh-pages", cwd=remote)
+
+
+def test_deploy_unchanged_site_makes_no_commit(tmp_path: Path) -> None:
+    web, remote, _ = _repo(tmp_path)
+    _publish(web, remote)
+    deploy.deploy(web, str(remote))
+    before = _git("rev-parse", "gh-pages", cwd=remote)
+    assert deploy.deploy(web, str(remote)) is False
+    assert _git("rev-parse", "gh-pages", cwd=remote) == before
+
+
+def test_deploy_rejected_push_is_a_clean_error_and_never_forced(tmp_path: Path) -> None:
+    web, remote, work = _repo(tmp_path)
+    _publish(web, remote, "mine")
+    deploy.deploy(web, str(remote))
+    # someone else advances gh-pages after we fetched: simulate by a racing remote hook
+    hook = remote / "hooks" / "pre-receive"
+    hook.write_text("#!/bin/sh\necho 'rejected: non-fast-forward' >&2\nexit 1\n")
+    hook.chmod(0o755)
+    tip = _git("rev-parse", "gh-pages", cwd=remote)
+    _publish(web, remote, "newer")
+    with pytest.raises(deploy.DeployError, match="push"):
+        deploy.deploy(web, str(remote))
+    assert _git("rev-parse", "gh-pages", cwd=remote) == tip
+    assert _git("worktree", "list", "--porcelain", cwd=work).count("worktree ") == 1
+
+
+def test_deploy_guard_failure_creates_nothing(tmp_path: Path) -> None:
+    web, remote, _ = _repo(tmp_path)
+    _publish(web, remote)
+    (web / "dist" / "leak.fit").write_bytes(b"x")
+    with pytest.raises(deploy.GuardError):
+        deploy.deploy(web, str(remote))
+    assert _git("for-each-ref", "refs/heads", cwd=remote) == ""
+
+
+def test_deploy_does_not_include_files_outside_dist(tmp_path: Path) -> None:
+    web, remote, _ = _repo(tmp_path)
+    _publish(web, remote)
+    (web / "secret.txt").write_text("no")
+    deploy.deploy(web, str(remote))
+    assert "secret.txt" not in _git("ls-tree", "-r", "--name-only", "gh-pages", cwd=remote)
+
+
+def test_deploy_default_remote_is_origin(tmp_path: Path) -> None:
+    web, remote, work = _repo(tmp_path)
+    _git("remote", "add", "origin", str(remote), cwd=work)
+    _publish(web, remote)
+    deploy.deploy(web, None)
+    assert "gh-pages" in _git("branch", "--list", cwd=remote)
