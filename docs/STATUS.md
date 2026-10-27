@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M3: T-016 done (PR #23); T-017 in progress (builder)
-Open PRs: none yet (T-017 PR to come)
+Current task: M3: T-016, T-017 done; T-018 in progress (builder)
+Open PRs: none yet (T-018 PR to come)
 Blockers: none
-Next step: T-017 -> T-018 -> T-011 -> T-012 (next-task loop), then M3 milestone PR
+Next step: T-018 -> T-011 -> T-012 (next-task loop), then M3 milestone PR
 
 ## Decisions log
 - 2026-10-23: project created
@@ -96,3 +96,6 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-27: T-016 merged (PR #23) by Lead after Martin's OK (builder flagged it as unconfirmed): 3 fix rounds (r1 reviewer: font/animation race hypothesis -> defensive fix; r2 Lead: red-green attempt; r3 TESTS.md rows + aria-hidden). The M2 dot bug was NOT reproduced by builder or Lead (real data, private, on main and M2 build: dots correct, incl. full-page capture right after mount); most likely an M2 capture artifact. Kept: no x animation + chart.stop() before the font update, data-dot-error/data-plot-left/right test hooks, regression-guard tests. Y cap at 2x median works on real data (5 triangles on Privoz Klecanky - Trojsky most). ~$5.19.
 - T-016 non-blocking: on warm loads stop() cancels the 300 ms entry animation (harmless; animation:false would be simpler).
 - Lead note: real-data checks: copying real data under ~/data is refused by the permission check even with Martin's OK; use a local server that serves web/dist and reads data from ~/data/m2-check/site-m2/dist/data (scratchpad script), nothing copied. Lead misread a screenshot once (dots next to a label are not displaced dots): measure, don't eyeball.
+- 2026-10-27: T-017 merged (PR #24): 1 fix round (reviewer non-blocking items done: DESIGN.md "median tick", bar role=img + aria-label "Today, PR, median, slowest", ARCHITECTURE stray backticks). median_s/slowest_s in rides JSON; avg_s kept (unused by web). ~$2.16.
+- Follow-up (needs a task, candidate for the M3 review / next plan): segment page median (web/src/lib/segment-data.ts:59) rounds half up, ride page median_s rounds half-even (ARCHITECTURE) -> 1 s mismatch on even counts; visible in the fixture: Hill Road climb median 374.5 s = 6:15 on the segment page vs 6:14 on the ride page. Fix: one rule (half-even per ARCHITECTURE) on both pages.
+- T-017 accepted as is: ride legend has no "·" separators (layout from T-010, glyphs aria-hidden).

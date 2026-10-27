@@ -5,10 +5,21 @@ from __future__ import annotations
 import itertools
 import math
 
+import pytest
+
+from sdash import match
 from sdash.match import (
+    _M_PER_DEG,
     GATE_M,
     PATH_M,
+    Approach,
     Reference,
+    _Box,
+    _closest_on_leg,
+    _first_pair,
+    _path_ok,
+    _position,
+    approaches,
     distance_to_polyline_m,
     find_efforts,
     point_segment_distance_m,
@@ -401,3 +412,462 @@ def test_ride_with_jitter_at_the_gate_gets_one_full_effort() -> None:
 def test_a_start_end_pair_shorter_than_two_gates_is_never_an_effort() -> None:
     near_end = (lat_at(40), lon_at(0))  # 40 m north of the start: ridden 40 m < 2 x gate
     assert find_efforts(northbound(-500, 500), START, near_end) == []
+
+
+# --- T-018: targeted tests for mutation survivors ------------------------------------------------
+
+
+def test_point_segment_distance_uses_both_coordinates_and_projection() -> None:
+    # Offset segment, point beside its middle: only the true projection gives exactly 3.
+    assert point_segment_distance_m(5, 7, 2, 4, 8, 4) == 3
+    # Slanted 45-degree segment: the foot of the perpendicular is inside the segment.
+    assert math.isclose(
+        point_segment_distance_m(0, 5, 0, 0, 10, 10), 5 / math.sqrt(2), abs_tol=1e-9
+    )
+    # Beyond B on a segment that does not start at the origin: the distance is to B.
+    assert point_segment_distance_m(14, 7, 2, 3, 10, 3) == math.hypot(4, 4)
+    # Beyond A on a segment that does not start at the origin: the distance is to A.
+    assert point_segment_distance_m(-1, 7, 2, 3, 10, 3) == math.hypot(3, 4)
+    # Degenerate segment away from the origin.
+    assert point_segment_distance_m(6, 8, 3, 4, 3, 4) == 5
+    # A vertical segment (dy only).
+    assert point_segment_distance_m(4, 1, 1, 0, 1, 10) == 3
+
+
+def test_distance_to_polyline_single_point() -> None:
+    assert distance_to_polyline_m(4, 6, [1.0], [2.0]) == 5
+
+
+def test_distance_to_polyline_takes_the_nearest_segment() -> None:
+    # Staircase: distances from (15, 0) are 10.3 (top), 5.4 (vertical riser), 2 (low step).
+    xs, ys = [0.0, 10.0, 10.0, 20.0], [9.0, 9.0, 2.0, 2.0]
+    assert distance_to_polyline_m(15, 0, xs, ys) == 2
+    # Nearest segment first, in the middle, and last; later ones farther do not replace it.
+    assert distance_to_polyline_m(0, 0, [0.0, 10.0, 20.0], [1.0, 5.0, 8.0]) == 1
+    assert distance_to_polyline_m(0, 0, [0.0, 0.0, 0.0, 0.0], [1.0, 5.0, 9.0, 20.0]) == 1
+    assert distance_to_polyline_m(25, 0, [0.0, 10.0, 10.0, 30.0], [8.0, 8.0, 1.0, 1.0]) == 1
+    assert distance_to_polyline_m(15, 0, [0.0, 30.0, 30.0], [8.0, 8.0, 3.0]) == 8
+
+
+def test_distance_to_polyline_stops_early_once_below_the_threshold() -> None:
+    # Distances from (5, 0): 5 (top), 5.39 (riser), 2 (low step, last).
+    xs, ys = [0.0, 10.0, 10.0, 0.0], [5.0, 5.0, 2.0, 2.0]
+    assert distance_to_polyline_m(5, 0, xs, ys) == 2  # default: full scan
+    assert distance_to_polyline_m(5, 0, xs, ys, stop_below=5) == 5  # <= : stops at the first
+    assert distance_to_polyline_m(5, 0, xs, ys, stop_below=4.99) == 2
+    assert distance_to_polyline_m(5, 0, xs, ys, stop_below=100) == 5
+    # The default threshold never stops the scan: an exact hit on the first segment is returned.
+    assert distance_to_polyline_m(5, 5, xs, ys) == 0
+
+
+def _leg_track() -> Track:
+    """Two legs: 100 m north in 20 s (x = 0), then a stationary leg (same spot, 10 s later)."""
+    return Track(
+        t=[100, 120, 130],
+        lat=[lat_at(0), lat_at(100), lat_at(100)],
+        lon=[lon_at(0)] * 3,
+        d=[0.0, 100.0, 100.0],
+    )
+
+
+def test_closest_on_leg_interpolates_distance_time_and_position() -> None:
+    gate = (lat_at(25), lon_at(30))  # 30 m east of the leg, 25 m along it
+    dist, t, d, u = _closest_on_leg(_leg_track(), 0, gate[0], gate[1], math.cos(math.radians(LAT0)))
+    assert math.isclose(dist, 30.0, rel_tol=2e-4)
+    assert math.isclose(u, 0.25, rel_tol=2e-4)
+    assert math.isclose(t, 105.0, rel_tol=2e-4)
+    assert math.isclose(d, 25.0, rel_tol=2e-4)
+
+
+def test_closest_on_leg_clamps_to_the_leg_ends() -> None:
+    cos_lat = math.cos(math.radians(LAT0))
+    beyond = (lat_at(150), lon_at(0))  # 50 m past the end of leg 0
+    dist, t, d, u = _closest_on_leg(_leg_track(), 0, beyond[0], beyond[1], cos_lat)
+    assert (u, t, d) == (1.0, 120.0, 100.0)
+    assert math.isclose(dist, 50.0, rel_tol=2e-4)
+    before = (lat_at(-40), lon_at(0))
+    dist, t, d, u = _closest_on_leg(_leg_track(), 0, before[0], before[1], cos_lat)
+    assert (u, t, d) == (0.0, 100.0, 0.0)
+    assert math.isclose(dist, 40.0, rel_tol=2e-4)
+
+
+def test_closest_on_leg_of_zero_length_uses_the_start_of_the_leg() -> None:
+    gate = (lat_at(100), lon_at(10))
+    dist, t, d, u = _closest_on_leg(_leg_track(), 1, gate[0], gate[1], math.cos(math.radians(LAT0)))
+    assert (u, t, d) == (0.0, 120.0, 100.0)
+    assert math.isclose(dist, 10.0, rel_tol=2e-4)
+
+
+def test_approaches_includes_a_point_exactly_on_the_gate_radius() -> None:
+    track = northbound(0, 100, step=20)
+    vertex = (track.lat[2], track.lon[2])
+    (a,) = approaches(track, vertex, gate_m=0.0)  # a zero-radius gate: only an exact hit counts
+    assert a.dist_m == 0.0
+    assert a.d == 40.0
+
+
+def test_approaches_keeps_the_first_of_two_equally_close_points_in_one_pass() -> None:
+    # Gate at (-47, -134), a straight track along lat -46.9375 with lon -134.5, -134.0, -133.5
+    # (binary-exact offsets): the vertex at lon -134 is the closest point of both legs, at exactly
+    # the same distance. The earlier leg (reached at u = 1) is kept.
+    track = Track(
+        t=[0, 10, 20], lat=[-46.9375] * 3, lon=[-134.5, -134.0, -133.5], d=[0.0, 100.0, 200.0]
+    )
+    (a,) = approaches(track, (-47.0, -134.0), gate_m=10_000.0)
+    assert (a.leg, a.u, a.t, a.d) == (0, 1.0, 10.0, 100.0)
+
+
+def test_position_interpolates_between_the_leg_points() -> None:
+    track = northbound(0, 60, step=20)  # 4 points
+    la, lo = _position(track, Approach(t=0, d=0, dist_m=0, leg=1, u=0.5))
+    assert math.isclose(la, (track.lat[1] + track.lat[2]) / 2, abs_tol=1e-12)
+    assert lo == track.lon[1]
+    # On the last leg, and (defensively) on the last point itself.
+    la, _ = _position(track, Approach(t=0, d=0, dist_m=0, leg=2, u=0.5))
+    assert math.isclose(la, (track.lat[2] + track.lat[3]) / 2, abs_tol=1e-12)
+    assert _position(track, Approach(t=0, d=0, dist_m=0, leg=3, u=0.0)) == (
+        track.lat[3],
+        track.lon[3],
+    )
+
+
+def test_position_interpolates_longitude_too() -> None:
+    track = Track(t=[0, 1], lat=[-47.0, -46.0], lon=[-135.0, -133.0], d=[0.0, 1.0])
+    assert _position(track, Approach(t=0, d=0, dist_m=0, leg=0, u=0.25)) == (-46.75, -134.5)
+
+
+def test_box_grown_converts_metres_to_degrees() -> None:
+    box = _Box(-47.0, -46.0, -134.0, -133.0).grown(111_195.0, 0.0)
+    assert math.isclose(box.lat_lo, -48.0, abs_tol=1e-3)
+    assert math.isclose(box.lat_hi, -45.0, abs_tol=1e-3)
+    assert math.isclose(box.lon_lo, -135.0, abs_tol=1e-3)  # at the equator 1 deg lon = 1 deg lat
+    at_60 = _Box(0.0, 0.0, 0.0, 0.0).grown(111_195.0, 60.0)
+    assert math.isclose(at_60.lon_hi, 2.0, abs_tol=1e-3)  # longitude degrees are twice as wide
+
+
+def test_box_contains_is_inclusive_on_every_edge_and_needs_both_axes() -> None:
+    box = _Box(1.0, 2.0, 10.0, 20.0)
+    for lat, lon in [(1, 10), (1, 20), (2, 10), (2, 20), (1.5, 15)]:
+        assert box.contains(lat, lon)
+    for lat, lon in [(0.9, 15), (2.1, 15), (1.5, 9.9), (1.5, 20.1), (0.9, 9.9), (1.5, 25), (5, 15)]:
+        assert not box.contains(lat, lon)
+
+
+def test_first_pair_uses_the_given_gate_radius() -> None:
+    track = northbound(-100, 400, step=5)
+    start, end = (lat_at(0), lon_at(0)), (lat_at(60), lon_at(0))
+    # 60 m apart: a pair for gate 30 (>= 2 x 30), none for gate 40 (needs 80 m).
+    assert _first_pair(track, start, end, 30.0) is not None
+    assert _first_pair(track, start, end, 40.0) is None
+    # With a 10 m gate the passes are tight: the start pass is near y = 0, the end near y = 60.
+    pair = _first_pair(track, start, end, 10.0)
+    assert pair is not None
+    assert abs(pair[0].d - 100) <= 5 and abs(pair[1].d - 160) <= 5
+
+
+def test_first_pair_gap_of_exactly_two_gates_counts_and_three_gates_is_not_needed() -> None:
+    track = northbound(0, 30, step=10)  # vertices exactly at 0, 10, 20, 30 m
+    start, end = (track.lat[0], track.lon[0]), (track.lat[2], track.lon[2])
+    pair = _first_pair(track, start, end, 10.0)  # 20 m apart == 2 x gate
+    assert pair is not None
+    assert (pair[0].d, pair[1].d) == (0.0, 20.0)
+    assert _first_pair(track, start, end, 10.5) is None
+
+
+def test_first_pair_gap_is_a_difference_not_a_sum() -> None:
+    far_in = (lat_at(500), lon_at(0))
+    near = (lat_at(540), lon_at(0))  # 40 m < 60 m apart, though 1040 m from the origin
+    assert _first_pair(northbound(0, 1000), far_in, near, GATE_M) is None
+    assert reference_from(northbound(0, 1000), far_in, near) is None
+    # Between two and three gates apart is enough.
+    ok = (lat_at(580), lon_at(0))
+    assert _first_pair(northbound(0, 1000), far_in, ok, GATE_M) is not None
+
+
+def test_first_pair_needs_the_start_pass_strictly_before_the_end_pass() -> None:
+    # A jump of 200 m within the same second: the end pass has the same time as the start pass.
+    track = Track(
+        t=[0, 10, 10, 20],
+        lat=[lat_at(-100), lat_at(100), lat_at(300), lat_at(500)],
+        lon=[lon_at(0)] * 4,
+        d=[0.0, 200.0, 400.0, 600.0],
+    )
+    assert _first_pair(track, (lat_at(100), lon_at(0)), (lat_at(300), lon_at(0)), GATE_M) is None
+
+
+def test_first_pair_passes_the_gate_radius_to_both_gates() -> None:
+    track = northbound(-500, 2500, x=20)  # rides 20 m east of x = 0
+    on_line = (lat_at(0), lon_at(20))
+    off_line = (lat_at(2000), lon_at(0))  # 20 m from the ride: inside 30 m, outside 10 m
+    on_line_end = (lat_at(2000), lon_at(20))
+    off_line_start = (lat_at(0), lon_at(0))
+    assert _first_pair(track, off_line_start, on_line_end, 30.0) is not None
+    assert _first_pair(track, off_line_start, on_line_end, 10.0) is None  # start gate missed
+    assert _first_pair(track, on_line, off_line, 30.0) is not None
+    assert _first_pair(track, on_line, off_line, 10.0) is None  # end gate missed
+
+
+def test_reference_points_follow_the_ride_around_a_bend() -> None:
+    # Sparse corners only: the reference must include the corners that lie between the gates and
+    # sample every 50 m along the path from the start pass to the end pass, nothing else.
+    ride = _path([(0, -100), (0, 0), (0, 100), (200, 100), (200, 300), (200, 400)])
+    start = (lat_at(0), lon_at(0))
+    end = (lat_at(230), lon_at(200))
+    ref = reference_from(ride, start, end)
+    assert ref is not None
+    assert math.isclose(ref.length_m, 430.0, abs_tol=0.05)
+    expected = [  # (x east, y north) in metres
+        (0, 0),
+        (0, 50),
+        (0, 100),
+        (50, 100),
+        (100, 100),
+        (150, 100),
+        (200, 100),
+        (200, 150),
+        (200, 200),
+        (200, 230),
+    ]
+    assert len(ref.points) == len(expected), ref.points
+    for (la, lo), (x, y) in zip(ref.points, expected, strict=True):
+        assert math.isclose(la, lat_at(y), abs_tol=1e-7)  # 1e-7 deg ~ 1 cm
+        assert math.isclose(lo, lon_at(x), abs_tol=1e-7)
+
+
+def test_reference_points_with_gates_in_the_middle_of_legs() -> None:
+    # Start pass inside the first leg, end pass inside a leg that runs east: the start and end
+    # points are the gate passes themselves, the corners between them are all included.
+    ride = _path([(0, -100), (0, 110), (200, 110), (200, 310), (400, 310), (400, 500)])
+    ref = reference_from(ride, (lat_at(10), lon_at(0)), (lat_at(310), lon_at(310)))
+    assert ref is not None
+    assert math.isclose(ref.length_m, 610.0, abs_tol=0.05)
+    expected = [  # (x east, y north) in metres
+        (0, 10),
+        (0, 60),
+        (0, 110),
+        (50, 110),
+        (100, 110),
+        (150, 110),
+        (200, 110),
+        (200, 160),
+        (200, 210),
+        (200, 260),
+        (200, 310),
+        (250, 310),
+        (300, 310),
+        (310, 310),
+    ]
+    assert len(ref.points) == len(expected), ref.points
+    for (la, lo), (x, y) in zip(ref.points, expected, strict=True):
+        assert math.isclose(la, lat_at(y), abs_tol=1e-7)
+        assert math.isclose(lo, lon_at(x), abs_tol=1e-7)
+
+
+def test_reference_points_start_on_a_later_east_bound_leg() -> None:
+    # The start pass is in leg 2 (of 5) and heads east: no vertex before the pass may be included.
+    ride = _path([(-300, 0), (-200, 0), (-100, 0), (100, 0), (100, 200), (100, 400)])
+    ref = reference_from(ride, (lat_at(0), lon_at(0)), (lat_at(230), lon_at(100)))
+    assert ref is not None
+    assert math.isclose(ref.length_m, 330.0, abs_tol=0.05)
+    expected = [
+        (0, 0),
+        (50, 0),
+        (100, 0),
+        (100, 50),
+        (100, 100),
+        (100, 150),
+        (100, 200),
+        (100, 230),
+    ]
+    assert len(ref.points) == len(expected), ref.points
+    for (la, lo), (x, y) in zip(ref.points, expected, strict=True):
+        assert math.isclose(la, lat_at(y), abs_tol=1e-7)
+        assert math.isclose(lo, lon_at(x), abs_tol=1e-7)
+
+
+def test_path_ok_tolerance_is_inclusive_at_exactly_the_path_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A float distance of exactly 60.0 m cannot be built from lat/lon, so the limit is set to the
+    # exact distance of a binary-exact offset (0.0625 deg of latitude) instead.
+    limit = 0.0625 * _M_PER_DEG
+    monkeypatch.setattr(match, "PATH_M", limit)
+    track = Track(t=[0, 100], lat=[-47.0, -47.0], lon=[-134.0, -133.99], d=[0.0, 1000.0])
+    s = Approach(t=0, d=0, dist_m=0, leg=0, u=0.0)
+    e = Approach(t=100, d=1000, dist_m=0, leg=0, u=1.0)
+    on_limit = Reference(1000.0, ((-47.0, -134.0), (-46.9375, -134.0)))
+    beyond = Reference(1000.0, ((-47.0, -134.0), (math.nextafter(-46.9375, 0.0), -134.0)))
+    assert _path_ok(track, s, e, on_limit)
+    assert not _path_ok(track, s, e, beyond)
+
+
+def test_path_ok_path_ends_at_the_end_pass_not_at_the_next_track_point() -> None:
+    # North-bound ride 0/100/200/300/1300 m; the end pass is 200 m into the long last leg
+    # (d = 300 + 0.2 * 1000 = 500). A reference point 300 m beyond the end pass is
+    # not near the ride path between the passes, although it is on the track after the pass.
+    ys = [0, 100, 200, 300, 1300]
+    track = Track(
+        t=[0, 20, 40, 60, 260],
+        lat=[lat_at(y) for y in ys],
+        lon=[lon_at(0)] * 5,
+        d=[float(y) for y in ys],
+    )
+    s = Approach(t=0, d=0, dist_m=0, leg=0, u=0.0)
+    e = Approach(t=100, d=500, dist_m=0, leg=3, u=0.2)
+    near = Reference(500.0, ((lat_at(0), lon_at(0)), (lat_at(500), lon_at(0))))
+    past = Reference(500.0, ((lat_at(0), lon_at(0)), (lat_at(800), lon_at(0))))
+    assert _path_ok(track, s, e, near)
+    assert not _path_ok(track, s, e, past)
+
+
+def test_path_ok_follows_a_reference_with_a_bend() -> None:
+    # The reference's own start is the origin; its later points lie east of it. The ride is the
+    # same L shape: every point matches. Cutting the corner by 100 m does not.
+    bend = [(0, 0), (0, 500), (500, 500)]
+    track = walk(bend)
+    start, end = (lat_at(0), lon_at(0)), (lat_at(500), lon_at(500))
+    ref = reference_from(track, start, end)
+    assert ref is not None
+    assert efforts_for(track, start, end, ref)
+    cut = walk([(0, 0), (500, 500)])  # the diagonal strays up to ~350 m from the L
+    assert not efforts_for(cut, start, end, ref)
+
+
+def efforts_for(track: Track, start: tuple[float, float], end: tuple[float, float], ref: Reference):
+    return find_efforts(track, start, end, "x", reference=ref)
+
+
+def test_path_ok_reference_points_need_not_be_in_ride_order() -> None:
+    # The search for the nearest ride segment wraps around: a reference point that lies behind
+    # the previous hit is still found.
+    track = northbound(-100, 2100)
+    points = tuple((lat_at(y), lon_at(0)) for y in (0, 1500, 500, 2000))
+    ref = Reference(2000.0, points)
+    s = approaches(track, START)[0]
+    e = approaches(track, END)[0]
+    assert _path_ok(track, s, e, ref)
+    far = Reference(2000.0, (*points, (lat_at(500), lon_at(300))))
+    assert not _path_ok(track, s, e, far)
+
+
+# ---- find_efforts: defaults, thresholds and loop control ----------------------------------------
+
+
+def test_find_efforts_default_activity_id_is_empty_and_given_id_is_kept() -> None:
+    track = northbound(-500, 2500)
+    assert [e.activity_id for e in find_efforts(track, START, END)] == [""]
+    assert [e.activity_id for e in find_efforts(track, START, END, "act-7")] == ["act-7"]
+
+
+def test_find_efforts_on_a_two_point_track() -> None:
+    track = Track(
+        t=[1000, 1400], lat=[lat_at(-500), lat_at(2500)], lon=[lon_at(0)] * 2, d=[0.0, 3000.0]
+    )
+    (e,) = find_efforts(track, START, END)
+    assert e.start_t == 1000 + round(500 / 3000 * 400)
+    assert e.elapsed_s == round(2000 / 3000 * 400)
+    assert e.distance_m == 2000
+
+
+def test_find_efforts_gate_radius_applies_to_start_and_end_gates() -> None:
+    # Rides 20 m east of the gate line, then wanders far west (so the bounding-box prefilter,
+    # which only looks at the extent of the ride, cannot be what rejects the gates).
+    track = walk([(20, -500), (20, 2500), (-400, 2700)])
+    off_start, off_end = (lat_at(0), lon_at(0)), (lat_at(2000), lon_at(0))
+    on_start, on_end = (lat_at(0), lon_at(20)), (lat_at(2000), lon_at(20))
+    assert len(find_efforts(track, off_start, off_end)) == 1  # default 30 m gates
+    assert len(find_efforts(track, off_start, off_end, gate_m=30.0)) == 1
+    assert find_efforts(track, off_start, on_end, gate_m=10.0) == []  # start gate missed
+    assert find_efforts(track, on_start, off_end, gate_m=10.0) == []  # end gate missed
+    assert len(find_efforts(track, on_start, on_end, gate_m=10.0)) == 1
+
+
+def test_find_efforts_passes_inside_a_running_effort_do_not_start_new_ones() -> None:
+    # Up through the start gate, back down through it, up again to the end gate (one effort),
+    # then down and up once more (a second effort). The start passes in between are skipped, not
+    # the rest of the ride.
+    track = walk([(0, -100), (0, 1000), (0, -100), (0, 2100), (0, -100), (0, 2100)])
+    efforts = find_efforts(track, START, END)
+    assert len(efforts) == 2, efforts
+    assert efforts[0].start_t < efforts[1].start_t
+    assert efforts[0].start_t + efforts[0].elapsed_s <= efforts[1].start_t
+
+
+def test_find_efforts_same_second_start_and_end_is_no_effort() -> None:
+    # A jump of 200 m within one second: the end pass has the start pass's time.
+    track = Track(
+        t=[0, 10, 10, 20],
+        lat=[lat_at(-100), lat_at(100), lat_at(300), lat_at(500)],
+        lon=[lon_at(0)] * 4,
+        d=[0.0, 200.0, 400.0, 600.0],
+    )
+    assert find_efforts(track, (lat_at(100), lon_at(0)), (lat_at(300), lon_at(0))) == []
+
+
+def test_find_efforts_gate_pair_of_exactly_two_gates_counts() -> None:
+    track = northbound(0, 30, step=10)  # vertices exactly at 0, 10, 20, 30 m
+    start, end = (track.lat[0], track.lon[0]), (track.lat[2], track.lon[2])
+    (e,) = find_efforts(track, start, end, gate_m=10.0)  # 20 m apart == 2 x gate
+    assert e.distance_m == 20
+    assert find_efforts(track, start, end, gate_m=10.5) == []
+
+
+def test_find_efforts_gate_pair_between_two_and_three_gates_counts() -> None:
+    end_80m = (lat_at(80), lon_at(0))  # 80 m ridden: >= 2 x 30, < 3 x 30
+    (e,) = find_efforts(northbound(-500, 500), START, end_80m)
+    assert abs(e.distance_m - 80) <= 2
+
+
+def _flat_track(d_end: float) -> Track:
+    """Three points 100 m apart going north whose odometer reads 0, d_end, 2 * d_end."""
+    return Track(
+        t=[0, 30, 60],
+        lat=[lat_at(0), lat_at(100), lat_at(200)],
+        lon=[lon_at(0)] * 3,
+        d=[0.0, d_end, 2 * d_end],
+    )
+
+
+def _flat_efforts(ref_length: float, ridden: float) -> list:
+    start, end = (lat_at(0), lon_at(0)), (lat_at(100), lon_at(0))
+    ref = Reference(ref_length, (start, end))
+    return find_efforts(_flat_track(ridden), start, end, "x", reference=ref)
+
+
+def test_length_tolerance_is_inclusive_at_exactly_ten_percent() -> None:
+    assert len(_flat_efforts(1000.0, 1100.0)) == 1  # exactly +10 %
+    assert len(_flat_efforts(1000.0, 900.0)) == 1  # exactly -10 %
+    assert len(_flat_efforts(117.5, 117.5 * (1 + 0.10))) == 1  # +10 %, fractional length
+    assert _flat_efforts(1000.0, 1100.5) == []
+    assert _flat_efforts(1000.0, 899.5) == []
+
+
+def test_length_far_below_the_reference_is_no_effort() -> None:
+    assert _flat_efforts(1000.0, 500.0) == []
+    assert _flat_efforts(1000.0, 800.0) == []
+
+
+def test_too_short_first_end_pass_does_not_stop_the_search() -> None:
+    # The reference is 2500 m long though the gates are 2000 m apart. The first end pass is
+    # ridden over 2000 m (too short); the ride then goes on and returns to the end gate after
+    # 2500 m, which matches.
+    straight = reference_from(walk([(0, 0), (0, 2000)]), START, END)
+    assert straight is not None
+    ref = Reference(2500.0, straight.points)
+    track = walk([(0, -100), (0, 2000), (0, 2250), (0, 2000), (0, 2100)])
+    (e,) = find_efforts(track, START, END, "x", reference=ref)
+    assert abs(e.distance_m - 2500) <= 5
+
+
+def test_path_failing_first_end_pass_does_not_stop_the_search() -> None:
+    # A reference point 70 m east of the end gate is not within 60 m of the ride at the first end
+    # pass. The ride then detours through that point and comes back to the gate: that pass
+    # (ridden 2140 m, within 10 % of 2000 m) matches.
+    straight = reference_from(walk([(0, 0), (0, 2000)]), START, END)
+    assert straight is not None
+    ref = Reference(2000.0, (*straight.points, (lat_at(2000), lon_at(70))))
+    direct = walk([(0, -100), (0, 2000), (0, 2100)])
+    assert find_efforts(direct, START, END, "x", reference=ref) == []
+    detour = walk([(0, -100), (0, 2000), (70, 2000), (0, 2000), (0, 2100)])
+    (e,) = find_efforts(detour, START, END, "x", reference=ref)
+    assert abs(e.distance_m - 2140) <= 5
