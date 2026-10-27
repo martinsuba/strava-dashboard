@@ -85,7 +85,7 @@ function chartPanel(efforts: Effort[]): { node: HTMLElement; canvas: HTMLCanvasE
     "faster is higher · ",
     h("span", { class: "chart-hint__dot", "aria-hidden": "true" }, "●"),
     " PR",
-    note ? ` · ▲ ${note}` : "",
+    ...(note ? [" · ", h("span", { "aria-hidden": "true" }, "▲"), ` ${note}`] : []),
   );
   const node = panel(
     "trend-h",
