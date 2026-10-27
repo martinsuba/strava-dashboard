@@ -598,3 +598,59 @@ def test_first_pair_passes_the_gate_radius_to_both_gates() -> None:
     assert _first_pair(track, off_line_start, on_line_end, 10.0) is None  # start gate missed
     assert _first_pair(track, on_line, off_line, 30.0) is not None
     assert _first_pair(track, on_line, off_line, 10.0) is None  # end gate missed
+
+
+def test_reference_points_follow_the_ride_around_a_bend() -> None:
+    # Sparse corners only: the reference must include the corners that lie between the gates and
+    # sample every 50 m along the path from the start pass to the end pass, nothing else.
+    ride = _path([(0, -100), (0, 0), (0, 100), (200, 100), (200, 300), (200, 400)])
+    start = (lat_at(0), lon_at(0))
+    end = (lat_at(230), lon_at(200))
+    ref = reference_from(ride, start, end)
+    assert ref is not None
+    assert math.isclose(ref.length_m, 430.0, abs_tol=0.05)
+    expected = [  # (x east, y north) in metres
+        (0, 0),
+        (0, 50),
+        (0, 100),
+        (50, 100),
+        (100, 100),
+        (150, 100),
+        (200, 100),
+        (200, 150),
+        (200, 200),
+        (200, 230),
+    ]
+    assert len(ref.points) == len(expected), ref.points
+    for (la, lo), (x, y) in zip(ref.points, expected, strict=True):
+        assert math.isclose(la, lat_at(y), abs_tol=1e-7)  # 1e-7 deg ~ 1 cm
+        assert math.isclose(lo, lon_at(x), abs_tol=1e-7)
+
+
+def test_reference_points_with_gates_in_the_middle_of_legs() -> None:
+    # Start pass inside the first leg, end pass inside a leg that runs east: the start and end
+    # points are the gate passes themselves, the corners between them are all included.
+    ride = _path([(0, -100), (0, 110), (200, 110), (200, 310), (400, 310), (400, 500)])
+    ref = reference_from(ride, (lat_at(10), lon_at(0)), (lat_at(310), lon_at(310)))
+    assert ref is not None
+    assert math.isclose(ref.length_m, 610.0, abs_tol=0.05)
+    expected = [  # (x east, y north) in metres
+        (0, 10),
+        (0, 60),
+        (0, 110),
+        (50, 110),
+        (100, 110),
+        (150, 110),
+        (200, 110),
+        (200, 160),
+        (200, 210),
+        (200, 260),
+        (200, 310),
+        (250, 310),
+        (300, 310),
+        (310, 310),
+    ]
+    assert len(ref.points) == len(expected), ref.points
+    for (la, lo), (x, y) in zip(ref.points, expected, strict=True):
+        assert math.isclose(la, lat_at(y), abs_tol=1e-7)
+        assert math.isclose(lo, lon_at(x), abs_tol=1e-7)
