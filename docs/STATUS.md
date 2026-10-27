@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M3: T-016, T-017 done; T-018 in progress (builder)
-Open PRs: none yet (T-018 PR to come)
+Current task: M3: T-016, T-017, T-018 done; T-011 in progress (builder)
+Open PRs: none yet (T-011 PR to come)
 Blockers: none
-Next step: T-018 -> T-011 -> T-012 (next-task loop), then M3 milestone PR
+Next step: T-011 -> T-012 (next-task loop), then M3 milestone PR
 
 ## Decisions log
 - 2026-10-23: project created
@@ -99,3 +99,5 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-27: T-017 merged (PR #24): 1 fix round (reviewer non-blocking items done: DESIGN.md "median tick", bar role=img + aria-label "Today, PR, median, slowest", ARCHITECTURE stray backticks). median_s/slowest_s in rides JSON; avg_s kept (unused by web). ~$2.16.
 - Follow-up (needs a task, candidate for the M3 review / next plan): segment page median (web/src/lib/segment-data.ts:59) rounds half up, ride page median_s rounds half-even (ARCHITECTURE) -> 1 s mismatch on even counts; visible in the fixture: Hill Road climb median 374.5 s = 6:15 on the segment page vs 6:14 on the ride page. Fix: one rule (half-even per ARCHITECTURE) on both pages.
 - T-017 accepted as is: ride legend has no "·" separators (layout from T-010, glyphs aria-hidden).
+- 2026-10-27: T-018 merged (PR #25): 1 fix round (2 tests outside the synthetic area moved in; _path_ok #20 was not equivalent -> killed). CI mutation run 40493790859: 481 killed, 15 survived (all argued equivalent, reviewer spot-checked all), 2 timeout = 97.0 % (M2: 81.7 %). Tests only, no production change, no bug found. ~$3.02.
+- T-011 scope kept to PLAN text: the STATUS ideas "tighten test_req003_unreadable_segments_yaml_is_a_hard_failure_exit_1 (not out.exists())" and "importer Content-Length compare" are NOT in T-011 (acceptance change not explicitly allowed by PLAN; importer outside T-011 areas) -> remain follow-ups for the M3 review / next plan.

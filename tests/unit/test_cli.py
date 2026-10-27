@@ -113,3 +113,148 @@ def test_refresh_and_build_data_print_warnings_after_the_wrote_line(
         out = capsys.readouterr().out
         assert "wrote " in out and "warning:" in out, (args, out)
         assert out.index("wrote ") < out.index("warning:"), (args, out)
+
+
+def _fake_npm(
+    monkeypatch: pytest.MonkeyPatch, web: Path, returncode: int = 0, leak: str = ""
+) -> list:
+    """Replace the npm subprocess: records the call, writes a tiny dist/ (plus an optional leak)."""
+    import subprocess
+
+    from sdash import cli
+
+    calls: list = []
+
+    def run(argv, **kwargs):  # type: ignore[no-untyped-def]
+        calls.append((argv, kwargs))
+        if returncode == 0:
+            (web / "dist").mkdir(parents=True, exist_ok=True)
+            (web / "dist" / "index.html").write_text("<title>x</title>")
+            if leak:
+                (web / "dist" / leak).write_text("x")
+        return subprocess.CompletedProcess(argv, returncode)
+
+    monkeypatch.setattr(cli.shutil, "which", lambda _name: "/fake/npm")
+    monkeypatch.setattr(cli.subprocess, "run", run)
+    return calls
+
+
+def test_refresh_builds_with_fixed_argv_in_web_dir_and_backs_up_segments(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from test_pipeline import _add_data
+
+    data = _add_data(tmp_path)
+    (data / "segments.yaml").write_text("[]\n")
+    web = tmp_path / "web"
+    web.mkdir()
+    calls = _fake_npm(monkeypatch, web)
+    assert main(["--data-dir", str(data), "refresh", "--no-deploy", "--web-dir", str(web)]) == 0
+    assert calls == [(["/fake/npm", "run", "build"], {"cwd": web, "check": False})]
+    assert len(list((data / "segments.bak").iterdir())) == 1
+
+
+def test_refresh_site_build_failure_exits_1_and_skips_deploy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from test_pipeline import _add_data
+
+    from sdash import deploy
+
+    data = _add_data(tmp_path)
+    (data / "segments.yaml").write_text("[]\n")
+    web = tmp_path / "web"
+    web.mkdir()
+    _fake_npm(monkeypatch, web, returncode=1)
+    monkeypatch.setattr(deploy, "deploy", lambda *a, **k: pytest.fail("deployed"))
+    assert main(["--data-dir", str(data), "refresh", "--web-dir", str(web)]) == 1
+    assert "site build failed" in capsys.readouterr().err
+
+
+def test_refresh_guard_failure_exits_1_names_file_and_skips_deploy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from test_pipeline import _add_data
+
+    from sdash import deploy
+
+    data = _add_data(tmp_path)
+    (data / "segments.yaml").write_text("[]\n")
+    web = tmp_path / "web"
+    web.mkdir()
+    _fake_npm(monkeypatch, web, leak="leak.gpx")
+    monkeypatch.setattr(deploy, "deploy", lambda *a, **k: pytest.fail("deployed"))
+    assert main(["--data-dir", str(data), "refresh", "--web-dir", str(web)]) == 1
+    assert "leak.gpx" in capsys.readouterr().err
+
+
+def test_refresh_deploys_after_guard_and_keeps_exit_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from sdash import deploy
+
+    data = _data_with_bad_and_good_segment(tmp_path)
+    web = tmp_path / "web"
+    web.mkdir()
+    _fake_npm(monkeypatch, web)
+    deployed: list = []
+    monkeypatch.setattr(deploy, "deploy", lambda w, r: deployed.append((w, r)))
+    args = ["--data-dir", str(data), "refresh", "--web-dir", str(web), "--remote", "origin"]
+    assert main(args) == 2
+    assert deployed == [(web, "origin")]
+
+
+def test_refresh_import_failure_stops_before_parsing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    bad = tmp_path / "x.zip"
+    bad.write_bytes(b"not a zip")
+    web = tmp_path / "web"
+    web.mkdir()
+    calls = _fake_npm(monkeypatch, web)
+    args = ["--data-dir", str(tmp_path / "d"), "refresh", str(bad), "--no-deploy"]
+    assert main([*args, "--web-dir", str(web)]) == 1
+    assert calls == [] and capsys.readouterr().err.startswith("sdash refresh:")
+
+
+def test_deploy_command_runs_the_guard(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    web = tmp_path / "web"
+    (web / "dist").mkdir(parents=True)
+    (web / "dist" / "index.html").write_text("x")
+    (web / "dist" / "leak.fit").write_text("x")
+    assert main(["--data-dir", str(tmp_path), "deploy", "--web-dir", str(web)]) == 1
+    assert "leak.fit" in capsys.readouterr().err
+
+
+def test_refresh_backup_oserror_is_a_clean_exit_1(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from test_pipeline import _add_data
+
+    data = _add_data(tmp_path)
+    (data / "segments.yaml").write_text("[]\n")
+    (data / "segments.bak").write_text("a file, not a directory")
+    web = tmp_path / "web"
+    web.mkdir()
+    calls = _fake_npm(monkeypatch, web)
+    assert main(["--data-dir", str(data), "refresh", "--no-deploy", "--web-dir", str(web)]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("sdash refresh: cannot back up segments.yaml") and calls == []
+
+
+def test_refresh_flushes_stdout_before_the_build(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import sys
+
+    from test_pipeline import _add_data
+
+    data = _add_data(tmp_path)
+    (data / "segments.yaml").write_text("[]\n")
+    web = tmp_path / "web"
+    web.mkdir()
+    _fake_npm(monkeypatch, web)
+    flushed: list[bool] = []
+    monkeypatch.setattr(sys.stdout, "flush", lambda: flushed.append(True))
+    main(["--data-dir", str(data), "refresh", "--no-deploy", "--web-dir", str(web)])
+    assert flushed

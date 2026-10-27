@@ -86,7 +86,6 @@ def test_req009_refresh_without_argument_rebuilds_from_existing_data(
     assert counts == {sc.SEGMENT_NAME: 2, "Synthetic climb again": 2}
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req009_no_deploy_stops_after_local_build(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path, site_repo: SiteRepo
 ) -> None:
@@ -106,7 +105,6 @@ def test_req009_no_deploy_stops_after_local_build(
 
 
 @pytest.mark.parametrize("failure", ["unreadable-yaml", "broken-zip", "site-build-fails"])
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req009_any_failed_step_deploys_nothing(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path, site_repo: SiteRepo, failure: str
 ) -> None:
@@ -179,7 +177,6 @@ def test_req009_unreadable_segments_yaml_fails_with_exit_1_and_builds_nothing(
     assert not (site_repo.web / "dist" / "index.html").exists(), "nothing may be built"
 
 
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req009_refresh_guard_blocks_raw_file_in_site(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path, site_repo: SiteRepo
 ) -> None:
