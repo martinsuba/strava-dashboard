@@ -85,7 +85,6 @@ LEAKS: dict[str, str | bytes] = {
 
 
 @pytest.mark.parametrize("leak", list(LEAKS))
-@pytest.mark.xfail(strict=True, reason=NOT_DONE)
 def test_req009_guard_aborts_deploy_on_raw_files_or_coordinates(
     sdash: SdashRunner, remote: SiteRepo, leak: str
 ) -> None:

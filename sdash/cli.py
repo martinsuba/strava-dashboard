@@ -14,7 +14,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from sdash import __version__, importer, pipeline, segments
+from sdash import __version__, deploy, importer, pipeline, segments
 
 DEFAULT_DATA_DIR = Path("~/data/strava-export")
 
@@ -117,25 +117,54 @@ def _cmd_build_data(data_dir: Path, out: Path | None) -> int:
     return _print_problems(report)
 
 
-def _cmd_refresh(data_dir: Path, args: argparse.Namespace) -> int:
-    if args.source:
-        raise pipeline.PipelineError("refresh with an import source is not implemented yet")
-    if not args.no_deploy:
-        raise pipeline.PipelineError("deploy is not implemented yet: use --no-deploy")
-    web_dir: Path = args.web_dir or _default_web_dir()
-    _cmd_parse(data_dir)
-    target = web_dir / "public" / "data"
-    report = pipeline.build_data(data_dir, target)
-    for r in report.results:
-        print(f"{r.segment.name}: {len(r.efforts)} efforts")
-    print(f"wrote {len(report.results)} segments to {target}")
-    status = _print_problems(report)  # 2 when segments were skipped: still builds (and deploys)
+def _import_quietly(data_dir: Path, source: str) -> int:
+    try:
+        return _cmd_import(data_dir, source)
+    except pipeline.PipelineError:
+        raise
+    except Exception as exc:  # never show a traceback: it could carry the export link
+        raise pipeline.PipelineError(f"import failed ({type(exc).__name__})") from None
+
+
+def _build_site(web_dir: Path) -> None:
     npm = shutil.which("npm")
     if npm is None:
         raise pipeline.PipelineError("npm not found: cannot build the site")
     build = subprocess.run([npm, "run", "build"], cwd=web_dir, check=False)
     if build.returncode != 0:
         raise pipeline.PipelineError("site build failed")
+
+
+def _guard_and_deploy(web_dir: Path, remote: str | None, publish: bool) -> None:
+    try:
+        deploy.guard(web_dir / "dist")
+        if publish:
+            deploy.deploy(web_dir, remote)
+    except (deploy.GuardError, deploy.DeployError) as exc:
+        raise pipeline.PipelineError(str(exc)) from exc
+
+
+def _cmd_deploy(args: argparse.Namespace) -> int:
+    web_dir: Path = args.web_dir or _default_web_dir()
+    _guard_and_deploy(web_dir, args.remote, publish=True)
+    return 0
+
+
+def _cmd_refresh(data_dir: Path, args: argparse.Namespace) -> int:
+    """Each step must succeed (PipelineError -> exit 1, nothing deployed); segment warnings -> 2."""
+    web_dir: Path = args.web_dir or _default_web_dir()
+    deploy.backup_segments(data_dir / "segments.yaml")
+    if args.source:
+        _import_quietly(data_dir, args.source)
+    _cmd_parse(data_dir)
+    target = web_dir / "public" / "data"
+    report = pipeline.build_data(data_dir, target)
+    for r in report.results:
+        print(f"{r.segment.name}: {len(r.efforts)} efforts")
+    print(f"wrote {len(report.results)} segments to {target}")
+    status = _print_problems(report)  # 2 when segments were skipped: still builds and deploys
+    _build_site(web_dir)
+    _guard_and_deploy(web_dir, args.remote, publish=not args.no_deploy)
     return status
 
 
@@ -167,6 +196,7 @@ IMPLEMENTED = {
     "match",
     "build-data",
     "refresh",
+    "deploy",
     "segment add",
     "segment import-strava",
 }
@@ -184,12 +214,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     data_dir: Path = (args.data_dir or default_data_dir()).expanduser()
     try:
         if command == "import":
-            try:
-                return _cmd_import(data_dir, args.source)
-            except pipeline.PipelineError:
-                raise
-            except Exception as exc:  # never show a traceback: it could carry the export link
-                raise pipeline.PipelineError(f"import failed ({type(exc).__name__})") from None
+            return _import_quietly(data_dir, args.source)
         if command == "parse":
             return _cmd_parse(data_dir)
         if command == "match":
@@ -200,6 +225,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _cmd_segment_add(data_dir, args)
         if command == "segment import-strava":
             return _cmd_segment_import_strava(data_dir)
+        if command == "deploy":
+            return _cmd_deploy(args)
         return _cmd_refresh(data_dir, args)
     except pipeline.PipelineError as exc:
         print(f"sdash {command}: {exc}", file=sys.stderr)

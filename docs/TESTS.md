@@ -199,12 +199,12 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `ride.spec.ts` "REQ-008: a ride with no matched segments says so" | T-010 | passing |
 | REQ-009 refresh/deploy | `test_refresh.py::test_req009_refresh_from_zip_builds_deploys_and_reports` | T-011 (+T-012) | xfail |
 | | `test_refresh.py::test_req009_refresh_without_argument_rebuilds_from_existing_data` | T-011 | passing |
-| | `test_refresh.py::test_req009_no_deploy_stops_after_local_build` | T-011 | xfail |
-| | `test_refresh.py::test_req009_any_failed_step_deploys_nothing[unreadable-yaml, broken-zip, site-build-fails]` (3) | T-011 | xfail |
-| | `test_refresh.py::test_req009_invalid_segment_exits_2_and_still_deploys_the_valid_one` | T-011 | xfail |
+| | `test_refresh.py::test_req009_no_deploy_stops_after_local_build` | T-011 | passing |
+| | `test_refresh.py::test_req009_any_failed_step_deploys_nothing[unreadable-yaml, broken-zip, site-build-fails]` (3) | T-011 | passing |
+| | `test_refresh.py::test_req009_invalid_segment_exits_2_and_still_deploys_the_valid_one` | T-011 (+T-012: needs the push) | xfail |
 | | `test_refresh.py::test_req009_invalid_segment_exits_2_and_builds_the_valid_one`, `test_req009_unreadable_segments_yaml_fails_with_exit_1_and_builds_nothing` | T-013 | passing |
-| | `test_refresh.py::test_req009_refresh_guard_blocks_raw_file_in_site` | T-011 | xfail |
-| | `test_deploy.py::test_req009_guard_aborts_deploy_on_raw_files_or_coordinates[12 leak kinds incl. export.csv, data/segments.csv, .csv.gz]` | T-011 | xfail |
+| | `test_refresh.py::test_req009_refresh_guard_blocks_raw_file_in_site` | T-011 | passing |
+| | `test_deploy.py::test_req009_guard_aborts_deploy_on_raw_files_or_coordinates[12 leak kinds incl. export.csv, data/segments.csv, .csv.gz]` | T-011 | passing |
 | | `test_deploy.py::test_req009_guard_passes_clean_site` (pushes), `test_req009_deploy_pushes_dist_to_gh_pages_only`, `test_req009_redeploy_adds_a_commit_without_force` | T-012 | xfail |
 | REQ-010 raw data | `test_raw_data.py::test_req010_gitignore_excludes_raw_files_outside_fixtures[8]`, `test_req010_gitignore_excludes_data_dirs[3]` | harness | passing |
 | | `test_raw_data.py::test_req010_ci_check_fails_on_raw_file_outside_fixtures[8]`, `test_req010_ci_check_allows_fixtures`, `test_req010_ci_runs_the_raw_data_check`, `test_req010_repo_currently_clean` | harness | passing |
