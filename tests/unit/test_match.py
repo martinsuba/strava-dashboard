@@ -726,3 +726,124 @@ def test_path_ok_reference_points_need_not_be_in_ride_order() -> None:
     assert _path_ok(track, s, e, ref)
     far = Reference(2000.0, (*points, (lat_at(500), lon_at(300))))
     assert not _path_ok(track, s, e, far)
+
+
+# ---- find_efforts: defaults, thresholds and loop control ----------------------------------------
+
+
+def test_find_efforts_default_activity_id_is_empty_and_given_id_is_kept() -> None:
+    track = northbound(-500, 2500)
+    assert [e.activity_id for e in find_efforts(track, START, END)] == [""]
+    assert [e.activity_id for e in find_efforts(track, START, END, "act-7")] == ["act-7"]
+
+
+def test_find_efforts_on_a_two_point_track() -> None:
+    track = Track(
+        t=[1000, 1400], lat=[lat_at(-500), lat_at(2500)], lon=[lon_at(0)] * 2, d=[0.0, 3000.0]
+    )
+    (e,) = find_efforts(track, START, END)
+    assert e.start_t == 1000 + round(500 / 3000 * 400)
+    assert e.elapsed_s == round(2000 / 3000 * 400)
+    assert e.distance_m == 2000
+
+
+def test_find_efforts_gate_radius_applies_to_start_and_end_gates() -> None:
+    track = northbound(-500, 2500, x=20)  # rides 20 m east of the gate line
+    off_start, off_end = (lat_at(0), lon_at(0)), (lat_at(2000), lon_at(0))
+    on_start, on_end = (lat_at(0), lon_at(20)), (lat_at(2000), lon_at(20))
+    assert len(find_efforts(track, off_start, off_end)) == 1  # default 30 m gates
+    assert len(find_efforts(track, off_start, off_end, gate_m=30.0)) == 1
+    assert find_efforts(track, off_start, on_end, gate_m=10.0) == []  # start gate missed
+    assert find_efforts(track, on_start, off_end, gate_m=10.0) == []  # end gate missed
+    assert len(find_efforts(track, on_start, on_end, gate_m=10.0)) == 1
+
+
+def test_find_efforts_passes_inside_a_running_effort_do_not_start_new_ones() -> None:
+    # Up through the start gate, back down through it, up again to the end gate (one effort),
+    # then down and up once more (a second effort). The start passes in between are skipped, not
+    # the rest of the ride.
+    track = walk([(0, -100), (0, 1000), (0, -100), (0, 2100), (0, -100), (0, 2100)])
+    efforts = find_efforts(track, START, END)
+    assert len(efforts) == 2, efforts
+    assert efforts[0].start_t < efforts[1].start_t
+    assert efforts[0].start_t + efforts[0].elapsed_s <= efforts[1].start_t
+
+
+def test_find_efforts_same_second_start_and_end_is_no_effort() -> None:
+    # A jump of 200 m within one second: the end pass has the start pass's time.
+    track = Track(
+        t=[0, 10, 10, 20],
+        lat=[lat_at(-100), lat_at(100), lat_at(300), lat_at(500)],
+        lon=[lon_at(0)] * 4,
+        d=[0.0, 200.0, 400.0, 600.0],
+    )
+    assert find_efforts(track, (lat_at(100), lon_at(0)), (lat_at(300), lon_at(0))) == []
+
+
+def test_find_efforts_gate_pair_of_exactly_two_gates_counts() -> None:
+    track = northbound(0, 30, step=10)  # vertices exactly at 0, 10, 20, 30 m
+    start, end = (track.lat[0], track.lon[0]), (track.lat[2], track.lon[2])
+    (e,) = find_efforts(track, start, end, gate_m=10.0)  # 20 m apart == 2 x gate
+    assert e.distance_m == 20
+    assert find_efforts(track, start, end, gate_m=10.5) == []
+
+
+def test_find_efforts_gate_pair_between_two_and_three_gates_counts() -> None:
+    end_80m = (lat_at(80), lon_at(0))  # 80 m ridden: >= 2 x 30, < 3 x 30
+    (e,) = find_efforts(northbound(-500, 500), START, end_80m)
+    assert abs(e.distance_m - 80) <= 2
+
+
+def _flat_track(d_end: float) -> Track:
+    """Three points 100 m apart going north whose odometer reads 0, d_end, 2 * d_end."""
+    return Track(
+        t=[0, 30, 60],
+        lat=[lat_at(0), lat_at(100), lat_at(200)],
+        lon=[lon_at(0)] * 3,
+        d=[0.0, d_end, 2 * d_end],
+    )
+
+
+def _flat_efforts(ref_length: float, ridden: float) -> list:
+    start, end = (lat_at(0), lon_at(0)), (lat_at(100), lon_at(0))
+    ref = Reference(ref_length, (start, end))
+    return find_efforts(_flat_track(ridden), start, end, "x", reference=ref)
+
+
+def test_length_tolerance_is_inclusive_at_exactly_ten_percent() -> None:
+    assert len(_flat_efforts(1000.0, 1100.0)) == 1  # exactly +10 %
+    assert len(_flat_efforts(1000.0, 900.0)) == 1  # exactly -10 %
+    assert len(_flat_efforts(117.5, 117.5 * (1 + 0.10))) == 1  # +10 %, fractional length
+    assert _flat_efforts(1000.0, 1100.5) == []
+    assert _flat_efforts(1000.0, 899.5) == []
+
+
+def test_length_far_below_the_reference_is_no_effort() -> None:
+    assert _flat_efforts(1000.0, 500.0) == []
+    assert _flat_efforts(1000.0, 800.0) == []
+
+
+def test_too_short_first_end_pass_does_not_stop_the_search() -> None:
+    # The reference is 2500 m long though the gates are 2000 m apart. The first end pass is
+    # ridden over 2000 m (too short); the ride then goes on and returns to the end gate after
+    # 2500 m, which matches.
+    straight = reference_from(walk([(0, 0), (0, 2000)]), START, END)
+    assert straight is not None
+    ref = Reference(2500.0, straight.points)
+    track = walk([(0, -100), (0, 2000), (0, 2250), (0, 2000), (0, 2100)])
+    (e,) = find_efforts(track, START, END, "x", reference=ref)
+    assert abs(e.distance_m - 2500) <= 5
+
+
+def test_path_failing_first_end_pass_does_not_stop_the_search() -> None:
+    # A reference point 70 m east of the end gate is not within 60 m of the ride at the first end
+    # pass. The ride then detours through that point and comes back to the gate: that pass
+    # (ridden 2140 m, within 10 % of 2000 m) matches.
+    straight = reference_from(walk([(0, 0), (0, 2000)]), START, END)
+    assert straight is not None
+    ref = Reference(2000.0, (*straight.points, (lat_at(2000), lon_at(70))))
+    direct = walk([(0, -100), (0, 2000), (0, 2100)])
+    assert find_efforts(direct, START, END, "x", reference=ref) == []
+    detour = walk([(0, -100), (0, 2000), (70, 2000), (0, 2000), (0, 2100)])
+    (e,) = find_efforts(detour, START, END, "x", reference=ref)
+    assert abs(e.distance_m - 2140) <= 5
