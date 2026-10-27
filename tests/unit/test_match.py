@@ -5,6 +5,9 @@ from __future__ import annotations
 import itertools
 import math
 
+import pytest
+
+from sdash import match
 from sdash.match import (
     _M_PER_DEG,
     GATE_M,
@@ -417,9 +420,9 @@ def test_a_start_end_pair_shorter_than_two_gates_is_never_an_effort() -> None:
 def test_point_segment_distance_uses_both_coordinates_and_projection() -> None:
     # Offset segment, point beside its middle: only the true projection gives exactly 3.
     assert point_segment_distance_m(5, 7, 2, 4, 8, 4) == 3
-    # Slanted segment (3-4-5): the foot of the perpendicular is inside the segment.
+    # Slanted 45-degree segment: the foot of the perpendicular is inside the segment.
     assert math.isclose(
-        point_segment_distance_m(0, 5, 0, 0, 10, 10), 5 / math.sqrt(2) * 1.0, abs_tol=1e-9
+        point_segment_distance_m(0, 5, 0, 0, 10, 10), 5 / math.sqrt(2), abs_tol=1e-9
     )
     # Beyond B on a segment that does not start at the origin: the distance is to B.
     assert point_segment_distance_m(14, 7, 2, 3, 10, 3) == math.hypot(4, 4)
@@ -470,10 +473,10 @@ def _leg_track() -> Track:
 def test_closest_on_leg_interpolates_distance_time_and_position() -> None:
     gate = (lat_at(25), lon_at(30))  # 30 m east of the leg, 25 m along it
     dist, t, d, u = _closest_on_leg(_leg_track(), 0, gate[0], gate[1], math.cos(math.radians(LAT0)))
-    assert math.isclose(dist, 30.0, rel_tol=1e-3)
-    assert math.isclose(u, 0.25, rel_tol=1e-3)
-    assert math.isclose(t, 105.0, rel_tol=1e-3)
-    assert math.isclose(d, 25.0, rel_tol=1e-3)
+    assert math.isclose(dist, 30.0, rel_tol=2e-4)
+    assert math.isclose(u, 0.25, rel_tol=2e-4)
+    assert math.isclose(t, 105.0, rel_tol=2e-4)
+    assert math.isclose(d, 25.0, rel_tol=2e-4)
 
 
 def test_closest_on_leg_clamps_to_the_leg_ends() -> None:
@@ -481,18 +484,18 @@ def test_closest_on_leg_clamps_to_the_leg_ends() -> None:
     beyond = (lat_at(150), lon_at(0))  # 50 m past the end of leg 0
     dist, t, d, u = _closest_on_leg(_leg_track(), 0, beyond[0], beyond[1], cos_lat)
     assert (u, t, d) == (1.0, 120.0, 100.0)
-    assert math.isclose(dist, 50.0, rel_tol=1e-3)
+    assert math.isclose(dist, 50.0, rel_tol=2e-4)
     before = (lat_at(-40), lon_at(0))
     dist, t, d, u = _closest_on_leg(_leg_track(), 0, before[0], before[1], cos_lat)
     assert (u, t, d) == (0.0, 100.0, 0.0)
-    assert math.isclose(dist, 40.0, rel_tol=1e-3)
+    assert math.isclose(dist, 40.0, rel_tol=2e-4)
 
 
 def test_closest_on_leg_of_zero_length_uses_the_start_of_the_leg() -> None:
     gate = (lat_at(100), lon_at(10))
     dist, t, d, u = _closest_on_leg(_leg_track(), 1, gate[0], gate[1], math.cos(math.radians(LAT0)))
     assert (u, t, d) == (0.0, 120.0, 100.0)
-    assert math.isclose(dist, 10.0, rel_tol=1e-3)
+    assert math.isclose(dist, 10.0, rel_tol=2e-4)
 
 
 def test_approaches_includes_a_point_exactly_on_the_gate_radius() -> None:
@@ -504,11 +507,13 @@ def test_approaches_includes_a_point_exactly_on_the_gate_radius() -> None:
 
 
 def test_approaches_keeps_the_first_of_two_equally_close_points_in_one_pass() -> None:
-    # Gate at (0, 0), a straight track along lat 0.0625 (binary-exact numbers): the vertex at
-    # lon 0 is the closest point of both legs, at exactly the same distance. The earlier leg
-    # (reached at u = 1) is kept.
-    track = Track(t=[0, 10, 20], lat=[0.0625] * 3, lon=[-0.5, 0.0, 0.5], d=[0.0, 100.0, 200.0])
-    (a,) = approaches(track, (0.0, 0.0), gate_m=10_000.0)
+    # Gate at (-47, -134), a straight track along lat -46.9375 with lon -134.5, -134.0, -133.5
+    # (binary-exact offsets): the vertex at lon -134 is the closest point of both legs, at exactly
+    # the same distance. The earlier leg (reached at u = 1) is kept.
+    track = Track(
+        t=[0, 10, 20], lat=[-46.9375] * 3, lon=[-134.5, -134.0, -133.5], d=[0.0, 100.0, 200.0]
+    )
+    (a,) = approaches(track, (-47.0, -134.0), gate_m=10_000.0)
     assert (a.leg, a.u, a.t, a.d) == (0, 1.0, 10.0, 100.0)
 
 
@@ -680,22 +685,39 @@ def test_reference_points_start_on_a_later_east_bound_leg() -> None:
         assert math.isclose(lo, lon_at(x), abs_tol=1e-7)
 
 
-def test_path_ok_tolerance_is_inclusive_at_exactly_the_path_limit() -> None:
-    # Binary-exact setup at lat 0 / lon 0 so that the reference point is exactly PATH_M from the
-    # ride: ride along the equator, reference point PATH_M north of its start.
-    lat = PATH_M / _M_PER_DEG
-    while lat * _M_PER_DEG > PATH_M:
-        lat = math.nextafter(lat, 0.0)
-    while lat * _M_PER_DEG < PATH_M:
-        lat = math.nextafter(lat, 1.0)
-    assert lat * _M_PER_DEG == PATH_M
-    track = Track(t=[0, 100], lat=[0.0, 0.0], lon=[0.0, 0.01], d=[0.0, 1000.0])
+def test_path_ok_tolerance_is_inclusive_at_exactly_the_path_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A float distance of exactly 60.0 m cannot be built from lat/lon, so the limit is set to the
+    # exact distance of a binary-exact offset (0.0625 deg of latitude) instead.
+    limit = 0.0625 * _M_PER_DEG
+    monkeypatch.setattr(match, "PATH_M", limit)
+    track = Track(t=[0, 100], lat=[-47.0, -47.0], lon=[-134.0, -133.99], d=[0.0, 1000.0])
     s = Approach(t=0, d=0, dist_m=0, leg=0, u=0.0)
     e = Approach(t=100, d=1000, dist_m=0, leg=0, u=1.0)
-    on_limit = Reference(1000.0, ((0.0, 0.0), (lat, 0.0)))
-    beyond = Reference(1000.0, ((0.0, 0.0), (math.nextafter(lat, 1.0), 0.0)))
+    on_limit = Reference(1000.0, ((-47.0, -134.0), (-46.9375, -134.0)))
+    beyond = Reference(1000.0, ((-47.0, -134.0), (math.nextafter(-46.9375, 0.0), -134.0)))
     assert _path_ok(track, s, e, on_limit)
     assert not _path_ok(track, s, e, beyond)
+
+
+def test_path_ok_path_ends_at_the_end_pass_not_at_the_next_track_point() -> None:
+    # North-bound ride 0/100/200/300/1300 m; the end pass is 200 m into the long last leg
+    # (d = 300 + 0.2 * 1000 = 500). A reference point 300 m beyond the end pass is
+    # not near the ride path between the passes, although it is on the track after the pass.
+    ys = [0, 100, 200, 300, 1300]
+    track = Track(
+        t=[0, 20, 40, 60, 260],
+        lat=[lat_at(y) for y in ys],
+        lon=[lon_at(0)] * 5,
+        d=[float(y) for y in ys],
+    )
+    s = Approach(t=0, d=0, dist_m=0, leg=0, u=0.0)
+    e = Approach(t=100, d=500, dist_m=0, leg=3, u=0.2)
+    near = Reference(500.0, ((lat_at(0), lon_at(0)), (lat_at(500), lon_at(0))))
+    past = Reference(500.0, ((lat_at(0), lon_at(0)), (lat_at(800), lon_at(0))))
+    assert _path_ok(track, s, e, near)
+    assert not _path_ok(track, s, e, past)
 
 
 def test_path_ok_follows_a_reference_with_a_bend() -> None:
