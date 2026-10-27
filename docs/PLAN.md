@@ -150,7 +150,7 @@ Milestone review compares the screenshots with those mockups.
 ## M3: One-command refresh and deploy
 M3 starts with the M2 review fixes (Plan v4), then the refresh/deploy tasks.
 
-### [ ] T-016: Segment chart: correct dot positions + capped time axis  (size M)
+### [x] T-016: Segment chart: correct dot positions + capped time axis  (size M)
 - Goal: (1) fix the M2 real-data bug: on a segment with efforts over ~3 years (Oct 2019 – May 2021) the effort dots are
   drawn squeezed toward the start of the time axis (and keep moving after load), while the "PR m:ss" label is at the
   correct date; dots must be at their actual dates. Reproduce first with a synthetic segment of that shape. (2) Cap the
@@ -166,7 +166,7 @@ M3 starts with the M2 review fixes (Plan v4), then the refresh/deploy tasks.
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review + test-review clean; Lead
   re-checks the real-data segment page privately.
 
-### [ ] T-017: Ride page: median instead of average, position bar PR -> slowest  (size M)
+### [x] T-017: Ride page: median instead of average, position bar PR -> slowest  (size M)
 - Goal: site data adds `median_s` and `slowest_s` per effort in rides/<id>.json (sdash/sitedata.py, ARCHITECTURE
   definitions); the ride page shows "Median" instead of "Average", the bar runs from PR to slowest with a median tick,
   legend "bar: PR on the left, slowest on the right · | median · ● today".
@@ -178,7 +178,7 @@ M3 starts with the M2 review fixes (Plan v4), then the refresh/deploy tasks.
 - Areas/files: sdash/sitedata.py, docs/ARCHITECTURE.md, web/src/pages/ride.ts, web/src/lib/ride-data.ts, tests
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review + test-review clean
 
-### [ ] T-018: Matcher tests for surviving mutants  (size S)
+### [x] T-018: Matcher tests for surviving mutants  (size S)
 - Goal: targeted unit tests that kill the M2 mutation survivors in sdash/match.py (91 survived of 498; mostly
   `reference_from` 23, `find_efforts` 19, `distance_to_polyline_m` 13); no production behaviour change unless a test
   exposes a real bug (then fix + note). Target: mutation score ≥ 90 % in the next milestone run.
@@ -188,7 +188,7 @@ M3 starts with the M2 review fixes (Plan v4), then the refresh/deploy tasks.
 - Definition of done: unit tests, local mutmut run on the targeted functions at low parallelism (or a CI dispatch of
   the mutation workflow) shows the survivors killed; CI green, review clean
 
-### [ ] T-011: `sdash refresh` full chain + output guard + report  (size M)
+### [x] T-011: `sdash refresh` full chain + output guard + report  (size M)
 - Goal: import → parse → match → build-data → `npm run build` → guard; stops on any failure; report with rides parsed,
   failures, efforts per segment; `--no-deploy`; segments.yaml backups (D-004).
 - REQs: REQ-009, REQ-010
@@ -196,7 +196,7 @@ M3 starts with the M2 review fixes (Plan v4), then the refresh/deploy tasks.
 - Areas/files: sdash/cli.py, sdash/deploy.py (guard part)
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean
 
-### [ ] T-012: `sdash deploy` to gh-pages  (size S)
+### [x] T-012: `sdash deploy` to gh-pages  (size S)
 - Goal: commit `web/dist` to the `gh-pages` branch through a git worktree and push (normal push, never force, never main);
   `--remote` configurable so tests push to a local bare repo.
 - REQs: REQ-009

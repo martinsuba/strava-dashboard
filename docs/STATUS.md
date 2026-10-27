@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M3: T-016, T-017, T-018, T-011 done; T-012 in progress (builder), last M3 task
-Open PRs: none yet (T-012 PR to come)
-Blockers: none
-Next step: T-012 (next-task loop), then M3 milestone PR (Opus review, screenshots, mutation, usage)
+Current task: M3 done (T-016, T-017, T-018, T-011, T-012 merged: PRs #23-#27). Milestone PR chore/milestone-M3 open (Martin merges)
+Open PRs: M3 milestone PR (chore/milestone-M3), Martin merges
+Blockers: none (waiting for Martin: M3 PR review + decision on Plan v5 follow-ups vs deploy)
+Next step: after Martin merges the M3 PR: /clear, then propose Plan v5 (follow-ups T-a..T-e below, plan skill) OR go to the deploy phase (deploy skill, DEPLOY.md) as Martin decides. All PLAN tasks M1-M3 are done; no M4 in PLAN.
 
 ## Decisions log
 - 2026-10-23: project created
@@ -103,3 +103,15 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - T-011 scope kept to PLAN text: the STATUS ideas "tighten test_req003_unreadable_segments_yaml_is_a_hard_failure_exit_1 (not out.exists())" and "importer Content-Length compare" are NOT in T-011 (acceptance change not explicitly allowed by PLAN; importer outside T-011 areas) -> remain follow-ups for the M3 review / next plan.
 - 2026-10-27: T-011 merged (PR #26): 1 fix round (Lead had reviewer's guard gaps closed in-PR: all *.json/*.geojson scanned, lat/lon pairs under data/, symlinks flagged; stdout flush; OSError clean exit). 17 acceptance cases un-xfailed; test_req009_refresh_from_zip_builds_deploys_and_reports + test_req009_invalid_segment_exits_2_and_still_deploys_the_valid_one stay xfail until T-012 (need the gh-pages push). Lead ran the new guard read-only on the private real-data M2 build: 0 findings (no false positives). ~$3.00.
 - For T-012 (deploy.py): geojson -> full coordinate key list anywhere; unreadable JSON anywhere -> fail closed; un-xfail the two refresh tests + T-012 deploy tests; xfail reason text in test_refresh.py:17 still says T-011. Known guard bypasses accepted (backstop only): [lat,lon,ele] triples, {a,b} objects, string/int pairs.
+- 2026-10-27: T-012 merged (PR #27): 1 fix round (git hardening: GIT_* env stripped, own worktree only, exact refs/heads/gh-pages, parent = ls-remote SHA, real non-fast-forward test, smoke not-found check). All pipeline acceptance tests pass (111, 0 xfail). No gh-pages branch on the real remote yet (first deploy = deploy phase). ~$3.26.
+- 2026-10-27: M3 complete. Milestone review (Opus reviewer): "ready with follow-ups", no code defects. M3 usage ~$17.79 (lead 39 %, reviewer 29 %, builder 26 %, test-reviewer 7 %).
+
+## M3 review findings (-> Plan v5 / deploy prep; Martin decides)
+Must-fix before the first real deploy (cheap):
+- Smoke check can pass before page data loads: web/scripts/smoke.mjs waits for any h1 (index/loading h1s match) after a hash navigation (no networkidle), browser closes right after the ride step -> a missing rides/<id>.json may go unnoticed. Fix: wait for page-specific content + network idle (T-b).
+- DEPLOY.md drift: push uses the VPS SSH key (origin is git@github.com), not "gh login"; "make repo public" already done; refresh exit 2 = deployed with warnings; Pages API may 403 -> Martin sets Settings > Pages > gh-pages /(root); first-deploy rollback (root commit cannot be reverted); ride-count wording (T-e).
+Should-fix:
+- T-a: one median: segment page (Math.round, half up) vs ride page median_s (half-even) -> 1 s mismatch (fixture Hill Road 6:15 vs 6:14). Emit median_s in segments/<slug>.json and use it on the segment page + chart cap.
+- T-c: deploy provenance: web/public/data and web/dist hold fixture data after test:acceptance/screenshots (verified: 17 fixture rides); a plain `sdash deploy` would publish the synthetic site. build-data writes a marker; deploy refuses without it. Until then: deploy only via `sdash refresh`.
+- T-d (acceptance change): acceptance tests for the REQ-008 position bar/legend and REQ-007 capped markers at the slow edge (unit-tested only). REQ-007 "dot at its date": evidence for the real-data fix is the Lead's private check only (bug never reproduced).
+Nice-to-have: refresh --link-from-stdin (link visible in ps); drop unused avg_s; strip GIT_CONFIG_* env in deploy._git; DEPLOY.md "never pruned" wording; CLAUDE.md add `sdash deploy` + smoke command; TESTS.md legend; gitignore screenshots/; earlier follow-ups: tighten test_req003_unreadable_segments_yaml (not out.exists()), importer Content-Length compare.
