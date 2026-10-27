@@ -1,5 +1,5 @@
 # PRD: strava-dashboard
-Status: approved (Plan v1, PR #1); Plan v2 + v3 + v4 amendments · Last update: 2026-10-23
+Status: approved (Plan v1, PR #1); Plan v2 + v3 + v4 + v5 amendments · Last update: 2026-10-23
 
 ## Problem & why
 Martin wants to compare **all his own times on every segment over time**. Strava shows this only with a paid
@@ -104,6 +104,7 @@ Acceptance criteria:
 - Given a segment with no efforts, Then the page says so instead of showing an empty table or chart.
 - Given efforts spread over several years, When the chart is drawn, Then every dot is drawn at its effort's actual date on the time axis. (Plan v4, M2 real-data finding)
 - Given a few efforts far slower than the rest (e.g. long stops included in elapsed time), When the chart is drawn, Then the time axis is capped at about twice the median elapsed time, slower efforts are shown as markers at the edge of the chart, and the chart states how many efforts are beyond the cap. (Plan v4)
+- Given a segment, When its page and a ride page with an effort on it are opened, Then both show the same median time (one rounding rule, ARCHITECTURE "Site JSON"). (Plan v5, M3 review)
 Priority: must
 
 ### REQ-008: Activity page
@@ -121,6 +122,8 @@ Acceptance criteria:
 - Given `--no-deploy`, Then it stops after building the site locally.
 - Given any step fails, Then nothing is deployed. Segment-level warnings (REQ-003, exit code 2) are not failures: the valid segments are built and deployed and the warnings are printed in the report.
 - Given the built site, Before deploying, Then a guard verifies the output has no `.fit/.gpx/.tcx/.csv` files and no coordinate fields; it aborts otherwise.
+- Given a built site whose data was not produced by `sdash build-data` (e.g. the synthetic test data left in `web/dist` by the acceptance tests or the screenshot job), When `sdash deploy` runs, Then it refuses and pushes nothing. (Plan v5, M3 review)
+- Given a deployed site, When the smoke check runs against its URL, Then it passes only if the index, one segment page and one ride page each show their loaded content (not a loading or not-found view) without errors, and it fails when any of those pages' data files is missing. (Plan v5, M3 review)
 Priority: must
 
 ### REQ-010: Raw data never in Git
