@@ -6,6 +6,7 @@ import itertools
 import math
 
 from sdash.match import (
+    _M_PER_DEG,
     GATE_M,
     PATH_M,
     Approach,
@@ -13,6 +14,7 @@ from sdash.match import (
     _Box,
     _closest_on_leg,
     _first_pair,
+    _path_ok,
     _position,
     approaches,
     distance_to_polyline_m,
@@ -676,3 +678,51 @@ def test_reference_points_start_on_a_later_east_bound_leg() -> None:
     for (la, lo), (x, y) in zip(ref.points, expected, strict=True):
         assert math.isclose(la, lat_at(y), abs_tol=1e-7)
         assert math.isclose(lo, lon_at(x), abs_tol=1e-7)
+
+
+def test_path_ok_tolerance_is_inclusive_at_exactly_the_path_limit() -> None:
+    # Binary-exact setup at lat 0 / lon 0 so that the reference point is exactly PATH_M from the
+    # ride: ride along the equator, reference point PATH_M north of its start.
+    lat = PATH_M / _M_PER_DEG
+    while lat * _M_PER_DEG > PATH_M:
+        lat = math.nextafter(lat, 0.0)
+    while lat * _M_PER_DEG < PATH_M:
+        lat = math.nextafter(lat, 1.0)
+    assert lat * _M_PER_DEG == PATH_M
+    track = Track(t=[0, 100], lat=[0.0, 0.0], lon=[0.0, 0.01], d=[0.0, 1000.0])
+    s = Approach(t=0, d=0, dist_m=0, leg=0, u=0.0)
+    e = Approach(t=100, d=1000, dist_m=0, leg=0, u=1.0)
+    on_limit = Reference(1000.0, ((0.0, 0.0), (lat, 0.0)))
+    beyond = Reference(1000.0, ((0.0, 0.0), (math.nextafter(lat, 1.0), 0.0)))
+    assert _path_ok(track, s, e, on_limit)
+    assert not _path_ok(track, s, e, beyond)
+
+
+def test_path_ok_follows_a_reference_with_a_bend() -> None:
+    # The reference's own start is the origin; its later points lie east of it. The ride is the
+    # same L shape: every point matches. Cutting the corner by 100 m does not.
+    bend = [(0, 0), (0, 500), (500, 500)]
+    track = walk(bend)
+    start, end = (lat_at(0), lon_at(0)), (lat_at(500), lon_at(500))
+    ref = reference_from(track, start, end)
+    assert ref is not None
+    assert efforts_for(track, start, end, ref)
+    cut = walk([(0, 0), (500, 500)])  # the diagonal strays up to ~350 m from the L
+    assert not efforts_for(cut, start, end, ref)
+
+
+def efforts_for(track: Track, start: tuple[float, float], end: tuple[float, float], ref: Reference):
+    return find_efforts(track, start, end, "x", reference=ref)
+
+
+def test_path_ok_reference_points_need_not_be_in_ride_order() -> None:
+    # The search for the nearest ride segment wraps around: a reference point that lies behind
+    # the previous hit is still found.
+    track = northbound(-100, 2100)
+    points = tuple((lat_at(y), lon_at(0)) for y in (0, 1500, 500, 2000))
+    ref = Reference(2000.0, points)
+    s = approaches(track, START)[0]
+    e = approaches(track, END)[0]
+    assert _path_ok(track, s, e, ref)
+    far = Reference(2000.0, (*points, (lat_at(500), lon_at(300))))
+    assert not _path_ok(track, s, e, far)
