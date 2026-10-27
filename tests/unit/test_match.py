@@ -654,3 +654,25 @@ def test_reference_points_with_gates_in_the_middle_of_legs() -> None:
     for (la, lo), (x, y) in zip(ref.points, expected, strict=True):
         assert math.isclose(la, lat_at(y), abs_tol=1e-7)
         assert math.isclose(lo, lon_at(x), abs_tol=1e-7)
+
+
+def test_reference_points_start_on_a_later_east_bound_leg() -> None:
+    # The start pass is in leg 2 (of 5) and heads east: no vertex before the pass may be included.
+    ride = _path([(-300, 0), (-200, 0), (-100, 0), (100, 0), (100, 200), (100, 400)])
+    ref = reference_from(ride, (lat_at(0), lon_at(0)), (lat_at(230), lon_at(100)))
+    assert ref is not None
+    assert math.isclose(ref.length_m, 330.0, abs_tol=0.05)
+    expected = [
+        (0, 0),
+        (50, 0),
+        (100, 0),
+        (100, 50),
+        (100, 100),
+        (100, 150),
+        (100, 200),
+        (100, 230),
+    ]
+    assert len(ref.points) == len(expected), ref.points
+    for (la, lo), (x, y) in zip(ref.points, expected, strict=True):
+        assert math.isclose(la, lat_at(y), abs_tol=1e-7)
+        assert math.isclose(lo, lon_at(x), abs_tol=1e-7)
