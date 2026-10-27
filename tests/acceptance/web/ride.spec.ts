@@ -19,17 +19,17 @@ test.describe("REQ-008 ride page", { tag: "@REQ-008" }, () => {
     await expect(main).toContainText("Road bike");
   });
 
-  test("REQ-008: each matched effort shows time, PR, average, gap to PR and rank", async ({
+  test("REQ-008: each matched effort shows time, PR, median, gap to PR and rank", async ({
     page,
   }) => {
     await open(page, "/ride/3000000106");
     const table = page.getByRole("table", { name: "Segments on this ride" });
     await expect(table.locator("tbody tr")).toHaveCount(2);
     const hill = table.locator("tbody tr").filter({ hasText: "Hill Road climb" });
-    for (const text of ["6:17", "5:41", "6:20", "0:36"]) await expect(hill).toContainText(text);
+    for (const text of ["6:17", "5:41", "6:14", "0:36"]) await expect(hill).toContainText(text);
     await expect(cellsMatching(hill, /^\s*5\s*\/\s*8\s*$/)).toHaveCount(1);
     const lake = table.locator("tbody tr").filter({ hasText: "Lakeside flat" });
-    for (const text of ["3:58", "4:10"]) await expect(lake).toContainText(text);
+    for (const text of ["3:58", "4:12"]) await expect(lake).toContainText(text);
     await expect(cellsMatching(lake, /^\s*1\s*\/\s*3\s*$/)).toHaveCount(1);
     await expect(hill.getByRole("link", { name: "Hill Road climb" })).toHaveAttribute(
       "href",

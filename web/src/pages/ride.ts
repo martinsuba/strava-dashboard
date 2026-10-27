@@ -52,12 +52,12 @@ function summaryStrip(data: RideData): HTMLElement {
 }
 
 function positionBar(e: RideEffort): HTMLElement {
-  const { avgPct, todayPct } = barPositions(e);
+  const { medianPct, todayPct } = barPositions(e);
   const dot = h("span", { class: e.is_pr ? "posbar__dot posbar__dot--pr" : "posbar__dot" });
   dot.style.left = `${todayPct}%`;
-  const tick = h("span", { class: "posbar__avg" });
-  tick.style.left = `${avgPct}%`;
-  // Decorative: the same information is in the Today, PR, Average, vs PR and Rank cells.
+  const tick = h("span", { class: "posbar__median" });
+  tick.style.left = `${medianPct}%`;
+  // Decorative: the same information is in the Today, PR, Median, vs PR and Rank cells.
   return h("span", { class: "posbar", "aria-hidden": "true" }, tick, dot);
 }
 
@@ -78,7 +78,7 @@ function effortRow(e: RideEffort): HTMLElement {
       className: e.is_pr ? "today today--pr" : "today",
     }),
     cell(formatDuration(e.pr_s), { numeric: true, className: "muted" }),
-    cell(formatDuration(e.avg_s), { numeric: true, className: "muted" }),
+    cell(formatDuration(e.median_s), { numeric: true, className: "muted" }),
     cell(formatGap(e.gap_to_pr_s), { numeric: true, className: "muted" }),
     cell(positionBar(e), { className: "cell-bar" }),
     cell(rankOf(e), { numeric: true }),
@@ -91,8 +91,8 @@ function segmentsPanel(efforts: RideEffort[]): HTMLElement {
   const legend = h(
     "span",
     { class: "chart-hint legend" },
-    item("bar: PR on the left, slower to the right"),
-    item(h("span", { class: "legend-tick", "aria-hidden": "true" }, "|"), " average"),
+    item("bar: PR on the left, slowest on the right"),
+    item(h("span", { class: "legend-tick", "aria-hidden": "true" }, "|"), " median"),
     item(h("span", { "aria-hidden": "true" }, "●"), " today"),
   );
   const body =
@@ -104,7 +104,7 @@ function segmentsPanel(efforts: RideEffort[]): HTMLElement {
             { label: "Segment" },
             { label: "Today", numeric: true },
             { label: "PR", numeric: true },
-            { label: "Average", numeric: true },
+            { label: "Median", numeric: true },
             { label: "vs PR", numeric: true },
             { label: "Where today ranks" },
             { label: "Rank", numeric: true },

@@ -118,6 +118,15 @@ def main() -> None:
         rank = {rid: i + 1 for i, (rid, _) in enumerate(by_time)}
         pr_s = by_time[0][1] if by_time else None
         avg_s = round(sum(efforts.values()) / len(efforts)) if efforts else None
+        times = sorted(efforts.values())
+        mid = len(times) // 2
+        # median: mean of the two middle values when even, rounded half-even; slowest: the maximum
+        median_s = (
+            (times[mid] if len(times) % 2 else round((times[mid - 1] + times[mid]) / 2))
+            if times
+            else None
+        )
+        slowest_s = times[-1] if times else None
         best_so_far: int | None = None
         seg_efforts = []
         for rid, elapsed in chrono:
@@ -145,6 +154,8 @@ def main() -> None:
                     "elapsed_s": elapsed,
                     "pr_s": pr_s,
                     "avg_s": avg_s,
+                    "median_s": median_s,
+                    "slowest_s": slowest_s,
                     "gap_to_pr_s": elapsed - pr_s,
                     "rank": rank[rid],
                     "of": len(efforts),

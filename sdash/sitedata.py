@@ -3,8 +3,9 @@
 Deterministic: nothing here reads the clock, no set iteration. Definitions (see ARCHITECTURE.md):
 rank = position by elapsed time among all efforts of a segment (ties: earlier start wins);
 is_pr = rank 1; is_pr_at_time = faster than every earlier effort (first effort counts);
-avg_s = mean elapsed rounded to int; per_year buckets by the Europe/Bratislava calendar
-year of the effort start (D-007).
+avg_s = mean elapsed rounded to int; median_s = median elapsed of all efforts of the segment
+(mean of the two middle values when even, rounded half-even); slowest_s = slowest elapsed;
+per_year buckets by the Europe/Bratislava calendar year of the effort start (D-007).
 """
 
 from __future__ import annotations
@@ -111,6 +112,14 @@ def write_site_data(
         pr = min(ranked, key=lambda t: t[1], default=None)
         pr_s = pr[0].elapsed_s if pr else None
         avg_s = round(sum(e.elapsed_s for e, _, _ in ranked) / len(ranked)) if ranked else None
+        times = sorted(e.elapsed_s for e, _, _ in ranked)
+        mid = len(times) // 2
+        median_s = (
+            (times[mid] if len(times) % 2 else round((times[mid - 1] + times[mid]) / 2))
+            if times
+            else None
+        )
+        slowest_s = times[-1] if times else None
         index_segments.append(
             {
                 "slug": r.segment.slug,
@@ -131,6 +140,8 @@ def write_site_data(
                     "elapsed_s": e.elapsed_s,
                     "pr_s": pr_s,
                     "avg_s": avg_s,
+                    "median_s": median_s,
+                    "slowest_s": slowest_s,
                     "gap_to_pr_s": e.elapsed_s - pr_s,
                     "rank": rank,
                     "of": len(ranked),
