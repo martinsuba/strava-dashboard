@@ -6,17 +6,15 @@ import { formatDate, formatDuration, formatKm } from "../lib/format";
 import type { IndexData } from "../lib/index-data";
 import { isCurrentRoute, rideHref } from "../lib/router";
 import {
-  capNote,
-  chartLabel,
-  chartModel,
   formatGap,
   metaLine,
   rankLabel,
   sortEfforts,
-  summarize,
+  segmentView,
   yearOf,
   type Effort,
   type SegmentData,
+  type SegmentView,
   type SortMode,
   type Summary,
 } from "../lib/segment-data";
@@ -74,14 +72,11 @@ function summaryStrip(s: Summary): HTMLElement {
   );
 }
 
-function chartPanel(
-  efforts: Effort[],
-  medianS: number,
-): { node: HTMLElement; canvas: HTMLCanvasElement } {
+function chartPanel(view: SegmentView): { node: HTMLElement; canvas: HTMLCanvasElement } {
   const canvas = document.createElement("canvas");
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", chartLabel(efforts, medianS));
-  const note = capNote(efforts, medianS);
+  canvas.setAttribute("aria-label", view.label);
+  const note = view.capNote;
   const hint = h(
     "span",
     { class: "chart-hint" },
@@ -215,14 +210,14 @@ export function renderSegmentData(root: HTMLElement, data: SegmentData, year?: n
     h("h1", {}, data.name),
     h("p", { class: "meta" }, metaLine(data)),
   );
-  const model = chartModel(data.efforts, data.median_s);
   const first = sortEfforts(data.efforts, "newest")[0];
-  const s = summarize(data.efforts, year ?? (first ? yearOf(first.start_t) : 0), data.median_s);
-  if (!model || !s) {
+  const view = segmentView(data, year ?? (first ? yearOf(first.start_t) : 0));
+  if (!view) {
     root.replaceChildren(head, h("p", {}, "No efforts on this segment yet."));
     return;
   }
-  const chart = chartPanel(data.efforts, s.medianS);
+  const s = view.summary;
+  const chart = chartPanel(view);
   root.replaceChildren(
     head,
     summaryStrip(s),
@@ -232,8 +227,7 @@ export function renderSegmentData(root: HTMLElement, data: SegmentData, year?: n
   // Chart.js is a separate chunk, loaded only on this page; the table and summary show meanwhile.
   void import("../lib/segment-chart").then(({ mountSegmentChart }) => {
     // main.ts runs the registered cleanup when the route changes.
-    if (chart.canvas.isConnected)
-      onLeave(mountSegmentChart(chart.canvas, model, data.efforts, s.medianS));
+    if (chart.canvas.isConnected) onLeave(mountSegmentChart(chart.canvas, view.model, view.label));
   });
 }
 

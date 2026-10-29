@@ -10,6 +10,7 @@ import {
   visibleYears,
   rankLabel,
   sortEfforts,
+  segmentView,
   summarize,
   yearOf,
   type Effort,
@@ -183,5 +184,39 @@ describe("y axis cap (T-016)", () => {
     expect(m?.xMax).toBe(Date.UTC(2022, 0, 1));
     expect(m?.efforts.map((p) => p.x)).toEqual([Date.UTC(2019, 9, 12), Date.UTC(2021, 4, 9)]);
     expect(m?.pr.x).toBe(Date.UTC(2020, 5, 20));
+  });
+});
+
+describe("segmentView takes everything from median_s (T-021)", () => {
+  const T = (m: number): number => Date.UTC(2020, m, 1) / 1000;
+  // real median of these is 310, deliberately not what the file says
+  const set = [
+    effort("a", T(0), 300),
+    effort("b", T(1), 310),
+    effort("c", T(2), 320),
+    effort("d", T(3), 290),
+    effort("slow", T(4), 900),
+  ];
+  const data = (median_s: number | null | undefined): SegmentData =>
+    ({ name: "S", ref_length_m: 1000, efforts: set, per_year: [], median_s }) as SegmentData;
+
+  it("median_s 1000: cap 2000, nothing capped, no note", () => {
+    const v = segmentView(data(1000), 2020);
+    expect(v?.summary.medianS).toBe(1000);
+    expect(v?.model.capped).toHaveLength(0);
+    expect(v?.capNote).toBe("");
+    expect(v?.label).not.toContain("cap");
+  });
+  it("median_s 100: cap 200, every effort is above it, note and label say so", () => {
+    const v = segmentView(data(100), 2020);
+    expect(v?.summary.medianS).toBe(100);
+    expect(v?.model.capped).toHaveLength(4);
+    expect(v?.capNote).toBe("5 slower efforts above the cap");
+    expect(v?.label).toContain("5 slower efforts above the cap");
+  });
+  it("is null for median_s null or missing, and without efforts", () => {
+    expect(segmentView(data(null), 2020)).toBeNull();
+    expect(segmentView(data(undefined), 2020)).toBeNull();
+    expect(segmentView({ ...data(300), efforts: [] }, 2020)).toBeNull();
   });
 });

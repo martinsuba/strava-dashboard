@@ -190,3 +190,31 @@ export function chartModel(efforts: readonly Effort[], medianS: number | null): 
     years,
   };
 }
+
+export interface SegmentView {
+  summary: Summary;
+  model: ChartModel;
+  /** "3 slower efforts above the cap", empty when none. */
+  capNote: string;
+  /** aria-label of the chart canvas. */
+  label: string;
+}
+
+/**
+ * Everything the segment page derives from a data file, all from `median_s` of the file (the page
+ * computes no median of its own). Null without efforts, or when `median_s` is null or missing (an
+ * old data file): the page then shows its empty state. Efforts with `median_s` null never come
+ * from the pipeline.
+ */
+export function segmentView(data: SegmentData, year: number): SegmentView | null {
+  const medianS = data.median_s ?? null;
+  const summary = summarize(data.efforts, year, medianS);
+  const model = chartModel(data.efforts, medianS);
+  if (!summary || !model || medianS === null) return null;
+  return {
+    summary,
+    model,
+    capNote: capNote(data.efforts, medianS),
+    label: chartLabel(data.efforts, medianS),
+  };
+}
