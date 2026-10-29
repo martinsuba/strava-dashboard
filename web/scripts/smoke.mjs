@@ -1,7 +1,10 @@
 // Smoke test against a live (or locally previewed) site:
 //   npm run smoke -- --base https://martinsuba.github.io/strava-dashboard/
-// Loads the index, then one segment page and one ride page (links discovered from the index) and
-// fails on page errors, console errors or failed requests. Not part of test / test:acceptance.
+// Loads the index, then one segment page and one ride page (links discovered from the index). Per page
+// it waits for the loaded content, then for the page's data/...json response to finish (HTTP ok, JSON
+// content type). Fails on a loading, not-found or "Could not load" view, and on page errors, console
+// errors, failed requests or HTTP >= 400; networkidle is awaited before the browser closes so all
+// requests are seen. Not part of test / test:acceptance.
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
