@@ -119,18 +119,22 @@ def test_symlinks_are_refused(tmp_path: Path) -> None:
 def test_digest_depends_on_sorted_order_not_walk_order(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    data = _data(tmp_path)
+    data = tmp_path / "data"
+    files = {"a.json": b"1", "b.json": b"2", "x/1.json": b"3", "x/2.json": b"4", "y/1.json": b"5"}
+    for rel, content in files.items():
+        (data / rel).parent.mkdir(parents=True, exist_ok=True)
+        (data / rel).write_bytes(content)
     real_walk = os.walk
 
     def reversed_walk(top: Path, **kw: object):  # type: ignore[no-untyped-def]
         for root, dirs, names in real_walk(top, **kw):  # type: ignore[call-overload]
-            dirs.reverse()
+            dirs.reverse()  # os.walk honours in-place changes: subdirectories visited reversed
             yield root, dirs, list(reversed(names))
 
     monkeypatch.setattr(buildinfo.os, "walk", reversed_walk)
     h = hashlib.sha256()
-    h.update(b"index.json\0" + b'{"a": 1}' + b"\0")
-    h.update(b"rides/1.json\0" + b"{}" + b"\0")
+    for rel in sorted(files):
+        h.update(rel.encode() + b"\0" + files[rel] + b"\0")
     assert buildinfo.compute_digest(data) == h.hexdigest()
 
 
