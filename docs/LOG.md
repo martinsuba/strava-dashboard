@@ -56,3 +56,5 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-27 | M3 | (none) M3 tasks T-016..T-012 ran without Martin except 2 decisions (real-data copy approval, T-016 merge OK) | y: done by agents
 2026-10-27 | M3 gate | merged M3 milestone PR #28 | n: gate decision
 2026-10-27 | plan v5 | chose Plan v5 scope: M3 review must+should, no new features, DEPLOY.md fix in plan PR (3 questions) | partly: Lead recommended all three; Martin confirmed
+2026-10-29 | plan v5 gate | merged Plan v5 PR #29 | n: gate decision
+2026-10-29 | M4 gate | said "go M4" | n: gate decision

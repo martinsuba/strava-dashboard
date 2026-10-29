@@ -1,9 +1,9 @@
 # Status: strava-dashboard
-Phase: plan review   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: Plan v5 (branch plan/5): M4 deploy readiness = T-019 smoke, T-020 deploy provenance (D-008), T-021 one median, T-022 acceptance tests bar/cap markers; DEPLOY.md fixed in the plan PR
-Open PRs: Plan v5 (plan/5), Martin merges
-Blockers: none (waiting for Martin: Plan v5 review/merge)
-Next step: after Martin merges Plan v5: /clear, then "go M4" (next-task). After M4: deploy phase (deploy skill, DEPLOY.md).
+Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: M4: T-019 (smoke check waits for real page content) in progress
+Open PRs: none yet (T-019 builder running)
+Blockers: none
+Next step: M4 task loop: T-019 -> T-020 -> T-021 -> T-022, then milestone review + M4 PR (Martin merges), then deploy phase.
 
 ## Decisions log
 - 2026-10-23: project created
@@ -107,6 +107,7 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-27: M3 complete. Milestone review (Opus reviewer): "ready with follow-ups", no code defects. M3 usage ~$17.79 (lead 39 %, reviewer 29 %, builder 26 %, test-reviewer 7 %).
 - 2026-10-27: M3 milestone PR #28 merged by Martin.
 - 2026-10-27: Plan v5 scope (Martin): M3 review must + should (T-b, T-c, T-a, T-d -> T-019..T-022), deploy prep only (no new features), DEPLOY.md drift (T-e) fixed in the plan PR. Nice-to-haves stay open (below).
+- 2026-10-29: Plan v5 merged by Martin (PR #29). Martin: "go M4". Task loop started with T-019.
 
 ## M3 review findings (-> Plan v5 / deploy prep; Martin decides)
 Must-fix before the first real deploy (cheap):
