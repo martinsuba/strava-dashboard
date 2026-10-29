@@ -1,7 +1,7 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M4: T-019 (PR #30), T-020 (PR #31) done; T-021 (one median rule for segment and ride pages) in progress
-Open PRs: none yet (T-021 builder running)
+Current task: M4: T-019 (#30), T-020 (#31), T-021 (#32) done; T-022 (acceptance tests for position bar + capped markers) in progress
+Open PRs: none yet (T-022 builder running)
 Blockers: none
 Next step: M4 task loop: T-019 -> T-020 -> T-021 -> T-022, then milestone review + M4 PR (Martin merges), then deploy phase.
 
@@ -112,6 +112,8 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - T-019 non-blocking: smoke.mjs `res.finished()` returns an Error instead of throwing ("did not finish" message only when never requested; requestfailed still catches it). Prettier does not check docs/*.md.
 - 2026-10-29: T-020 merged (PR #31): 3 fix rounds (r1 reviewer: BuildInfoError traceback in build-data/refresh + TESTS.md CLI contracts; r2 reviewer: new CLI tests never reached the marker write (data dir missing) -> r3 tests with red checks). Test-reviewer approved the acceptance edits (hand mutations: removing verify / digest compare / write all caught). build-info.json + digest (D-008); deploy refuses fixture/stale dist. ~$3.66.
 - T-020 non-blocking: guard runs twice (cli._guard_and_deploy + deploy.deploy, pre-existing); 4 KiB marker cap is untestable by behaviour (bounded read already makes oversize JSON invalid).
+- 2026-10-29: T-021 merged (PR #32): 1 fix round (reviewer: nothing tested that the chart cap uses median_s -> pure segmentView(data, year) + vitest cases with a deliberately different median_s, red-checked). One median rule `_median_s` (half-even) for rides + segments JSON; fixture Hill Road now 6:14 on both pages. Test-reviewer approved (hand mutations caught).
+- T-021 non-blocking: unit case median_s 100 counts 5 above the cap vs 4 capped markers (PR drawn separately; impossible with real data); pipeline test does not assert median_s null (fixture quarry-descent has it).
 
 ## M3 review findings (-> Plan v5 / deploy prep; Martin decides)
 Must-fix before the first real deploy (cheap):

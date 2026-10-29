@@ -121,6 +121,42 @@ test.describe("REQ-007 segment page", { tag: "@REQ-007" }, () => {
     await expect(page.locator("canvas")).toHaveCount(0);
     await expect(page.getByRole("table")).toHaveCount(0);
   });
+  // T-022: ridge-track's 13:00 effort (ride 3000000207, 27 Feb 2021) is above the cap. Its marker
+  // centre is published as data-capped-markers, the plot bottom (slow edge, y axis is reversed) as data-plot-bottom (CSS px, canvas-relative).
+  test("REQ-007: efforts above the cap are drawn as markers at the slow edge at their date", async ({
+    page,
+  }) => {
+    await open(page, "/segment/ridge-track");
+    const chart = page.locator("canvas").first();
+    await expect(chart).toHaveAttribute("data-capped-markers", /,/);
+    // x axis runs 1 Jan 2019 - 1 Jan 2022; the effort is in 2021, the last third.
+    const ride = (await (await page.request.get("./data/rides/3000000207.json")).json()) as {
+      date: string;
+    };
+    const t = Date.parse(ride.date);
+    const frac = (t - Date.UTC(2019, 0, 1)) / (Date.UTC(2022, 0, 1) - Date.UTC(2019, 0, 1));
+    expect(frac).toBeGreaterThan(2 / 3);
+    const read = (): Promise<{ n: number; x: number; y: number; bottom: number; fx: number }> =>
+      chart.evaluate((c: HTMLCanvasElement) => {
+        const pts = (c.dataset["cappedMarkers"] ?? "").split(";").filter(Boolean);
+        const [x, y] = (pts[0] ?? "NaN,NaN").split(",").map(Number) as [number, number];
+        const left = Number(c.dataset["plotLeft"]);
+        const right = Number(c.dataset["plotRight"]);
+        return {
+          n: pts.length,
+          x,
+          y,
+          bottom: Number(c.dataset["plotBottom"]),
+          fx: (x - left) / (right - left),
+        };
+      });
+    await page.waitForTimeout(1_000); // vertical animation (300 ms) is over
+    const m = await read();
+    expect(m.n).toBe(1);
+    expect(Math.abs(m.y - m.bottom)).toBeLessThan(2);
+    expect(m.fx).toBeGreaterThan(2 / 3);
+    expect(Math.abs(m.fx - frac)).toBeLessThan(0.02);
+  });
   // T-016: chart fixture ridge-track (8 efforts, Oct 2019 - May 2021, one at 13:00 above the cap).
   // Not listed on the index; opened by URL. Plot area exposed as data-plot-left / data-plot-right
   // (CSS px, canvas-relative) so that the drawn dot can be compared with its date.
