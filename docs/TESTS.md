@@ -210,6 +210,13 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `test_raw_data.py::test_req010_ci_check_fails_on_raw_file_outside_fixtures[8]`, `test_req010_ci_check_allows_fixtures`, `test_req010_ci_runs_the_raw_data_check`, `test_req010_repo_currently_clean` | harness | passing |
 | | `test_raw_data.py::test_req010_fixture_tracks_lie_in_the_synthetic_area` (gpx/fit/tcx ± gz, segments.csv, zip members; only `*corrupt*` files may fail to parse), `test_req010_area_check_flags_real_places`, `test_req010_site_data_fixture_has_no_coordinates` | harness | passing |
 
+**Smoke check** (`web/scripts/smoke.mjs`, REQ-009; manual, against a live or `vite preview` URL, not in CI):
+per page it waits for loaded content (index: ride + segment links; segment: `.panel--efforts table` or "No efforts on
+this segment yet."; ride: `.panel--ride-segments table` or "No segments matched on this ride." plus the ride summary),
+then for the page's `data/...json` response to finish with a JSON content type. It fails on a loading, not-found or
+"Could not load" view, a data file answered with HTTP >= 400 or non-JSON (e.g. index.html), and on page/console errors,
+failed requests or HTTP >= 400 seen before the browser closes. Exit 1 with `FAIL: <page>: <reason>`.
+
 Harness-only checks (passing, no REQ): `test_synth_helpers.py` (6 tests, builders and scenario geometry) and
 `index.spec.ts` "harness smoke: the built site boots and an unknown route shows Not found".
 

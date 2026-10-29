@@ -20,6 +20,8 @@ State: docs/STATUS.md (read it first). Plan: docs/PRD.md, docs/ARCHITECTURE.md, 
 - Acceptance tests: `.venv/bin/pytest tests/acceptance/pipeline` · `npm --prefix web run test:acceptance`
   (copies tests/acceptance/web/site-data into web/public/data, builds, runs Playwright on port 4318)
 - Run not-yet-implemented acceptance tests anyway: `.venv/bin/pytest --runxfail ...` · `ACCEPTANCE_RUN_ALL=1 npm --prefix web run test:acceptance`
+- Deploy: `.venv/bin/sdash deploy` (build + guard + push to gh-pages; see docs/DEPLOY.md) · post-deploy smoke:
+  `npm --prefix web run smoke -- --base https://martinsuba.github.io/strava-dashboard/` (or a local preview URL)
 - Raw-data check (REQ-010): `python3 scripts/check_raw_data.py`
 - Screenshots: `npm --prefix web run screenshots` → `screenshots/`
 - The VPS has 4 GB RAM: run one test level at a time; mutation testing runs only in CI.
