@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -258,3 +259,49 @@ def test_refresh_flushes_stdout_before_the_build(
     monkeypatch.setattr(sys.stdout, "flush", lambda: flushed.append(True))
     main(["--data-dir", str(data), "refresh", "--no-deploy", "--web-dir", str(web)])
     assert flushed
+
+
+CSV_HEADER = (
+    "Activity ID,Activity Date,Activity Name,Activity Type,Filename,"
+    "Activity Gear,Distance,Elapsed Time,Moving Time"
+)
+
+
+def _minimal_data_dir(root: Path) -> Path:
+    """A data dir for which build-data succeeds: no segments, no rides."""
+    data = root / "mydata"
+    data.mkdir()
+    (data / "segments.yaml").write_text("[]\n")
+    (data / "raw").mkdir()
+    (data / "raw" / "activities.csv").write_text(CSV_HEADER + "\n")
+    return data
+
+
+def test_build_data_symlink_in_out_dir_is_one_line_exit_1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data = _minimal_data_dir(tmp_path)
+    out = tmp_path / "site"
+    out.mkdir()
+    (out / "extra.json").symlink_to(tmp_path)
+    assert main(["--data-dir", str(data), "build-data", "--out", str(out)]) == 1
+    err = capsys.readouterr().err
+    assert "is a symlink; data must be real files" in err, err
+    assert "Traceback" not in err and len(err.strip().splitlines()) == 1, err
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores permissions")
+def test_build_data_unreadable_dir_in_out_is_one_line_exit_1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data = _minimal_data_dir(tmp_path)
+    out = tmp_path / "site"
+    (out / "locked").mkdir(parents=True)
+    (out / "locked").chmod(0)
+    try:
+        assert main(["--data-dir", str(data), "build-data", "--out", str(out)]) == 1
+    finally:
+        (out / "locked").chmod(0o755)
+    err = capsys.readouterr().err
+    assert "cannot read data directory" in err, err
+    assert "Traceback" not in err and len(err.strip().splitlines()) == 1, err

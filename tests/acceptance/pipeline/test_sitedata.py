@@ -3,6 +3,7 @@ minimum set (extra keys are allowed, coordinates are not)."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -110,3 +111,19 @@ def test_req005_build_twice_is_byte_identical(
     assert a.keys() == b.keys()
     diff = [name for name in a if a[name] != b[name]]
     assert not diff, f"files differ between identical builds: {diff}"
+
+
+def test_req009_build_data_writes_matching_build_info(
+    sdash: SdashRunner, data_dir: Path, tmp_path: Path
+) -> None:
+    """D-008: build-info.json = {source, data_sha256 over all other files, sorted, path NUL bytes NUL}."""
+    _setup(data_dir)
+    out = run_pipeline(sdash, tmp_path / "site-data")
+    info = load_json(out / "build-info.json")
+    assert info["source"] == "sdash build-data"
+    digest = hashlib.sha256()
+    others = [p for p in out.rglob("*") if p.is_file() and p != out / "build-info.json"]
+    assert others, "build-data wrote no other files"
+    for p in sorted(others, key=lambda f: f.relative_to(out).as_posix()):
+        digest.update(p.relative_to(out).as_posix().encode() + b"\0" + p.read_bytes() + b"\0")
+    assert info["data_sha256"] == digest.hexdigest()

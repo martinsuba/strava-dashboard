@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from sdash import buildinfo
 from sdash.activities import Activity
 from sdash.match import Effort
 from sdash.segments import Segment
@@ -98,6 +99,7 @@ def write_site_data(
     # Only the files this writer owns; anything else in `out` is left alone.
     for stale in [
         out / "index.json",
+        out / buildinfo.NAME,
         *sorted((out / "segments").glob("*.json")),
         *sorted((out / "rides").glob("*.json")),
     ]:
@@ -183,3 +185,4 @@ def write_site_data(
             ],
         },
     )
+    buildinfo.write(out)  # last: the digest covers everything written above

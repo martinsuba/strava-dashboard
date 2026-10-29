@@ -100,6 +100,9 @@ test-reviewer (or a plan PR), not silently in code.
   `rides/<id>.json` per ARCHITECTURE.md "Site JSON" (keys checked as a minimum set; extra keys allowed); only
   `.json` files; no coordinate keys (`lat`, `lon`, `start`, `end`, `points`, …) and no coordinate values;
   byte-identical on rebuild (so `generated` must come from the data, not the clock). Dates are UTC ISO 8601.
+  Also writes `build-info.json` last (D-008): `{"source": "sdash build-data", "data_sha256"}`, the SHA-256 over every
+  other file under OUT, sorted by relative POSIX path, each fed as `path\0<bytes>\0`. A symlink or unreadable file in
+  OUT is exit 1 with a one-line message.
   `rides/<id>.json` exists for every cycling ride (also with no efforts). Effort objects in
   `segments/<slug>.json` carry at least `activity_id`, `start_t`, `elapsed_s`, `distance_m` (Effort model).
   Slug: lowercase ASCII words joined by `-` (`River path north` → `river-path-north`), independent of other segments.
@@ -113,6 +116,10 @@ test-reviewer (or a plan PR), not silently in code.
 - `sdash deploy [--web-dir W] [--remote R]` → guard, then `W/dist` becomes a new commit on branch `gh-pages` of `R`
   (normal push, fast-forward; `main` untouched). Guard aborts (non-zero, names the file, nothing pushed) on any
   `.fit/.gpx/.tcx/.csv` file (+ `.gz`; every CSV, not only `activities.csv`) or JSON with coordinate keys.
+  After the guard and before any git call (D-008) it recomputes the digest over `W/dist/data` and exits 1, nothing
+  pushed, when `data/build-info.json` is missing (`no build-info.json: web/dist was not built from sdash build-data
+  data`), unreadable/malformed/wrong `source`, or does not match (`data changed after build-data`). `refresh` does the
+  same in its deploy step.
 - `sdash refresh [zip|url] [--no-deploy] [--web-dir W] [--remote R]` → import (if given) → parse → match →
   build-data into `W/public/data` → `npm run build` in `W` → deploy unless `--no-deploy`. Any failing step = non-zero (segment-level warnings are exit 2 and still deploy, Plan v3 / T-013)
   exit and nothing pushed. The report has a "parsed" line with a count, the failed activity IDs, and one line per
@@ -198,6 +205,8 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `ride.spec.ts` "REQ-008: an effort is marked when it is the PR or was the PR at the time" | T-010 | passing |
 | | `ride.spec.ts` "REQ-008: a ride with no matched segments says so" | T-010 | passing |
 | REQ-009 refresh/deploy | `test_refresh.py::test_req009_refresh_from_zip_builds_deploys_and_reports` | T-011 (+T-012) | passing |
+| | `test_deploy.py::test_req009_deploy_refuses_dist_without_build_info`, `test_req009_deploy_refuses_dist_with_changed_data` (D-008; the `_dist` helper writes a matching `data/build-info.json`) | T-020 | passing |
+| | `test_sitedata.py::test_req009_build_data_writes_matching_build_info` | T-020 | passing |
 | | `test_refresh.py::test_req009_refresh_without_argument_rebuilds_from_existing_data` | T-011 | passing |
 | | `test_refresh.py::test_req009_no_deploy_stops_after_local_build` | T-011 | passing |
 | | `test_refresh.py::test_req009_any_failed_step_deploys_nothing[unreadable-yaml, broken-zip, site-build-fails]` (3) | T-011 | passing |
