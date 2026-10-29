@@ -78,6 +78,56 @@ def test_req005_site_data_has_lists_and_effort_data(
     assert load_json(out / "rides" / f"{NO_MATCH}.json")["efforts"] == []
 
 
+def _expected_median(times: list[int]) -> int:
+    """The ARCHITECTURE "Site JSON" rule: middle value, or mean of the two middle ones rounded
+    half-even (2 * mean is an exact integer, so no float rounding is involved)."""
+    t = sorted(times)
+    mid = len(t) // 2
+    if len(t) % 2:
+        return t[mid]
+    twice = t[mid - 1] + t[mid]
+    return twice // 2 if twice % 2 == 0 else (twice // 2 + (twice // 2) % 2)
+
+
+@pytest.mark.parametrize(
+    ("stops", "half"),
+    [
+        ([], False),  # 2 efforts (400 s, 460 s), even count
+        ([(1500.0, 30)], False),  # 3 efforts, odd count
+        ([(1500.0, 30), (1700.0, 31)], True),  # 4 efforts, middle values sum to an odd number
+    ],
+    ids=["even", "odd", "half"],
+)
+def test_req005_segment_file_has_median_s_by_the_ride_rule(
+    sdash: SdashRunner,
+    data_dir: Path,
+    tmp_path: Path,
+    stops: list[tuple[float, int]],
+    half: bool,
+) -> None:
+    extra = []
+    if stops:
+        extra.append(sc.ride("1000000010", [(0, -500), (0, 2500)], day=2, stops=[stops[0]]))
+    if len(stops) > 1:
+        extra.append(sc.ride("1000000011", [(0, -500), (0, 2500)], day=3, stops=[stops[1]]))
+    write_raw(data_dir, [sc.reference_ride(), sc.normal_with_stop(), *extra])
+    (data_dir / "segments.yaml").write_text(segments_yaml([sc.segment()]))
+    out = run_pipeline(sdash, tmp_path / "site-data")
+    index = load_json(out / "index.json")
+    seg = load_json(out / "segments" / f"{index['segments'][0]['slug']}.json")
+    times = [e["elapsed_s"] for e in seg["efforts"]]
+    assert len(times) == 2 + len(extra)
+    middle = sorted(times)[len(times) // 2 - 1 : len(times) // 2 + 1]
+    if half:
+        assert sum(middle) % 2 == 1, f"scenario no longer produces a .5 median: {times}"
+    assert isinstance(seg["median_s"], int)
+    assert seg["median_s"] == _expected_median(times)
+    # the ride pages carry the very same number
+    for e in seg["efforts"]:
+        ride = load_json(out / "rides" / f"{e['activity_id']}.json")
+        assert [x["median_s"] for x in ride["efforts"]] == [seg["median_s"]]
+
+
 def test_req005_site_data_has_no_coordinates_or_raw_tracks(
     sdash: SdashRunner, data_dir: Path, tmp_path: Path
 ) -> None:

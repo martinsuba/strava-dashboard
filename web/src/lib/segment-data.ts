@@ -19,6 +19,8 @@ export interface SegmentData {
   ref_length_m: number;
   efforts: Effort[];
   per_year: { year: number; count: number; best_s: number }[];
+  /** Median elapsed time, computed by the pipeline (one rounding rule); null without efforts. */
+  median_s: number | null;
 }
 
 export type SortMode = "fastest" | "newest";
@@ -51,14 +53,6 @@ export function yearOf(epochSeconds: number): number {
   );
 }
 
-/** Median of the elapsed times, rounded to whole seconds (mean of the two middle values when even). */
-export function medianSeconds(efforts: readonly Effort[]): number {
-  const t = efforts.map((e) => e.elapsed_s).sort((a, b) => a - b);
-  const mid = Math.floor(t.length / 2);
-  if (t.length === 0) return 0;
-  return Math.round(t.length % 2 === 1 ? (t[mid] ?? 0) : ((t[mid - 1] ?? 0) + (t[mid] ?? 0)) / 2);
-}
-
 /** The fastest effort (the PR), or undefined without efforts. */
 export function prOf(efforts: readonly Effort[]): Effort | undefined {
   return sortEfforts(efforts, "fastest")[0];
@@ -74,14 +68,18 @@ export interface Summary {
 }
 
 /** Summary strip figures; null without efforts. `year` is the "This year" calendar year. */
-export function summarize(efforts: readonly Effort[], year: number): Summary | null {
+export function summarize(
+  efforts: readonly Effort[],
+  year: number,
+  medianS: number | null,
+): Summary | null {
   const [pr] = sortEfforts(efforts, "fastest");
   const [latest] = sortEfforts(efforts, "newest");
-  if (!pr || !latest) return null;
+  if (!pr || !latest || medianS === null) return null;
   const thisYear = efforts.filter((e) => yearOf(e.start_t) === year);
   return {
     pr,
-    medianS: medianSeconds(efforts),
+    medianS,
     latest,
     year,
     yearCount: thisYear.length,
@@ -103,26 +101,26 @@ export function metaLine(data: SegmentData): string {
 export const CAP_FACTOR = 2;
 
 /** Efforts slower than the cap (CAP_FACTOR x median); they are drawn as markers on the slow edge. */
-export function aboveCapCount(efforts: readonly Effort[]): number {
-  const cap = CAP_FACTOR * medianSeconds(efforts);
+export function aboveCapCount(efforts: readonly Effort[], medianS: number): number {
+  const cap = CAP_FACTOR * medianS;
   return efforts.filter((e) => e.elapsed_s > cap).length;
 }
 
 /** "3 slower efforts above the cap" (empty when there are none). */
-export function capNote(efforts: readonly Effort[]): string {
-  const n = aboveCapCount(efforts);
+export function capNote(efforts: readonly Effort[], medianS: number): string {
+  const n = aboveCapCount(efforts, medianS);
   return n === 0 ? "" : `${n} slower ${n === 1 ? "effort" : "efforts"} above the cap`;
 }
 
 /** aria-label of the chart canvas (contract: contains "PR m:ss"; mentions efforts above the cap). */
-export function chartLabel(efforts: readonly Effort[]): string {
+export function chartLabel(efforts: readonly Effort[], medianS: number): string {
   const pr = prOf(efforts);
   const latest = sortEfforts(efforts, "newest")[0];
   const oldest = sortEfforts(efforts, "newest").at(-1);
   if (!pr || !latest || !oldest) return "No efforts";
   const from = yearOf(oldest.start_t);
   const to = yearOf(latest.start_t);
-  const note = capNote(efforts);
+  const note = capNote(efforts, medianS);
   const range = from === to ? `in ${from}` : `from ${from} to ${to}`;
   return `Elapsed time for ${efforts.length} ${efforts.length === 1 ? "effort" : "efforts"} ${range}; PR ${formatDuration(pr.elapsed_s)} on ${formatDate(pr.start_t)}${note ? `; ${note}` : ""}`;
 }
@@ -156,15 +154,15 @@ export interface ChartModel {
 const STEPS = [5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
 
 /** Chart data: efforts as points, the PR separate; axis ranges padded to round steps (~5 y ticks). */
-export function chartModel(efforts: readonly Effort[]): ChartModel | null {
+export function chartModel(efforts: readonly Effort[], medianS: number | null): ChartModel | null {
   const pr = prOf(efforts);
-  if (!pr) return null;
+  if (!pr || medianS === null) return null;
   const toPoint = (e: Effort): ChartPoint => ({
     x: e.start_t * 1000,
     y: e.elapsed_s,
     ride: e.ride_name,
   });
-  const cap = CAP_FACTOR * medianSeconds(efforts);
+  const cap = CAP_FACTOR * medianS;
   const times = efforts.map((e) => e.elapsed_s).filter((t) => t <= cap);
   const lo = Math.min(...times);
   const hi = Math.max(...times);

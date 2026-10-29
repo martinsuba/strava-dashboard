@@ -57,7 +57,20 @@ def _ranked(efforts: Sequence[Effort]) -> list[tuple[Effort, int, bool]]:
     return out
 
 
-def _segment_json(result: SegmentResult, ride_names: dict[str, str]) -> dict[str, Any]:
+def _median_s(times: Sequence[int]) -> int | None:
+    """Median elapsed time: the middle value, or the mean of the two middle ones rounded half-even
+    (the mean of two ints is an exact float, so `round` is exact). None without efforts. Used for
+    both segments/<slug>.json and rides/<id>.json: the one median rule."""
+    ordered = sorted(times)
+    if not ordered:
+        return None
+    mid = len(ordered) // 2
+    return ordered[mid] if len(ordered) % 2 else round((ordered[mid - 1] + ordered[mid]) / 2)
+
+
+def _segment_json(
+    result: SegmentResult, ride_names: dict[str, str], median_s: int | None
+) -> dict[str, Any]:
     slug = result.segment.slug
     ranked = _ranked(result.efforts)
     pr_s = min((e.elapsed_s for e, _, _ in ranked), default=0)
@@ -89,6 +102,7 @@ def _segment_json(result: SegmentResult, ride_names: dict[str, str]) -> dict[str
         "per_year": [
             {"year": y, "count": len(v), "best_s": min(v)} for y, v in sorted(years.items())
         ],
+        "median_s": median_s,
     }
 
 
@@ -115,12 +129,7 @@ def write_site_data(
         pr_s = pr[0].elapsed_s if pr else None
         avg_s = round(sum(e.elapsed_s for e, _, _ in ranked) / len(ranked)) if ranked else None
         times = sorted(e.elapsed_s for e, _, _ in ranked)
-        mid = len(times) // 2
-        median_s = (
-            (times[mid] if len(times) % 2 else round((times[mid - 1] + times[mid]) / 2))
-            if times
-            else None
-        )
+        median_s = _median_s(times)
         slowest_s = times[-1] if times else None
         index_segments.append(
             {
@@ -151,7 +160,9 @@ def write_site_data(
                     "is_pr_at_time": at_time,
                 }
             )
-        _write_json(out / "segments" / f"{r.segment.slug}.json", _segment_json(r, ride_names))
+        _write_json(
+            out / "segments" / f"{r.segment.slug}.json", _segment_json(r, ride_names, median_s)
+        )
 
     rides = sorted(activities, key=lambda a: (a.date, a.id), reverse=True)
     for a in rides:

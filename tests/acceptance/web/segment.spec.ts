@@ -213,4 +213,18 @@ test.describe("REQ-007 segment page", { tag: "@REQ-007" }, () => {
     await expect(page.getByText(/above the cap/)).toHaveCount(0);
     await expect(page.locator("canvas").first()).not.toHaveAttribute("aria-label", /cap/);
   });
+
+  test("REQ-007: the segment median equals the ride page median", async ({ page }) => {
+    await open(page, HILL);
+    const cell = page.getByRole("region", { name: "Summary" }).locator(".summary__cell", {
+      hasText: "Median",
+    });
+    await expect(cell).toContainText("6:14");
+    await open(page, "/ride/3000000106");
+    const row = page
+      .getByRole("table", { name: "Segments on this ride" })
+      .locator("tbody tr")
+      .filter({ hasText: "Hill Road climb" });
+    await expect(row).toContainText("6:14");
+  });
 });

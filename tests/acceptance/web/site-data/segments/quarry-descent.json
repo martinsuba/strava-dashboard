@@ -2,5 +2,6 @@
   "name": "Quarry descent",
   "ref_length_m": 900,
   "efforts": [],
-  "per_year": []
+  "per_year": [],
+  "median_s": null
 }

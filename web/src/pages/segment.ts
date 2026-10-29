@@ -74,11 +74,14 @@ function summaryStrip(s: Summary): HTMLElement {
   );
 }
 
-function chartPanel(efforts: Effort[]): { node: HTMLElement; canvas: HTMLCanvasElement } {
+function chartPanel(
+  efforts: Effort[],
+  medianS: number,
+): { node: HTMLElement; canvas: HTMLCanvasElement } {
   const canvas = document.createElement("canvas");
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", chartLabel(efforts));
-  const note = capNote(efforts);
+  canvas.setAttribute("aria-label", chartLabel(efforts, medianS));
+  const note = capNote(efforts, medianS);
   const hint = h(
     "span",
     { class: "chart-hint" },
@@ -212,14 +215,14 @@ export function renderSegmentData(root: HTMLElement, data: SegmentData, year?: n
     h("h1", {}, data.name),
     h("p", { class: "meta" }, metaLine(data)),
   );
-  const model = chartModel(data.efforts);
+  const model = chartModel(data.efforts, data.median_s);
   const first = sortEfforts(data.efforts, "newest")[0];
-  const s = summarize(data.efforts, year ?? (first ? yearOf(first.start_t) : 0));
+  const s = summarize(data.efforts, year ?? (first ? yearOf(first.start_t) : 0), data.median_s);
   if (!model || !s) {
     root.replaceChildren(head, h("p", {}, "No efforts on this segment yet."));
     return;
   }
-  const chart = chartPanel(data.efforts);
+  const chart = chartPanel(data.efforts, s.medianS);
   root.replaceChildren(
     head,
     summaryStrip(s),
@@ -229,7 +232,8 @@ export function renderSegmentData(root: HTMLElement, data: SegmentData, year?: n
   // Chart.js is a separate chunk, loaded only on this page; the table and summary show meanwhile.
   void import("../lib/segment-chart").then(({ mountSegmentChart }) => {
     // main.ts runs the registered cleanup when the route changes.
-    if (chart.canvas.isConnected) onLeave(mountSegmentChart(chart.canvas, model, data.efforts));
+    if (chart.canvas.isConnected)
+      onLeave(mountSegmentChart(chart.canvas, model, data.efforts, s.medianS));
   });
 }
 

@@ -171,7 +171,13 @@ def main() -> None:
         ]
         dump(
             OUT / "segments" / f"{slug}.json",
-            {"name": name, "ref_length_m": length, "efforts": seg_efforts, "per_year": per_year},
+            {
+                "name": name,
+                "ref_length_m": length,
+                "efforts": seg_efforts,
+                "per_year": per_year,
+                "median_s": median_s,  # same rule and value as in rides/<id>.json
+            },
         )
         pr_date = rides[by_time[0][0]][1] if by_time else None
         if (slug, name, length, efforts) in SEGMENTS:

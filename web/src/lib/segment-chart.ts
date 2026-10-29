@@ -72,10 +72,11 @@ export function mountSegmentChart(
   canvas: HTMLCanvasElement,
   model: ChartModel,
   efforts: Effort[],
+  medianS: number,
 ): () => void {
   disposeSegmentChart();
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", chartLabel(efforts));
+  canvas.setAttribute("aria-label", chartLabel(efforts, medianS));
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const tick = { color: MUTED, font: { family: FONT, size: 11 } };
   current = new Chart(canvas, {

@@ -186,6 +186,7 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | REQ-005 site data | `test_sitedata.py::test_req005_site_data_has_no_coordinates_or_raw_tracks` | T-002 | passing |
 | | `test_sitedata.py::test_req005_site_data_has_lists_and_effort_data` | T-007 | passing |
 | | `test_sitedata.py::test_req005_build_twice_is_byte_identical` | T-007 | passing |
+| | `test_sitedata.py::test_req005_segment_file_has_median_s_by_the_ride_rule` (even, odd and .5 half-even count; equals the ride files' `median_s`) | T-021 | passing |
 | REQ-006 index | `index.spec.ts` "REQ-006: segment list shows name, effort count, PR time and PR date" | T-008 | passing |
 | | `index.spec.ts` "REQ-006: ride list shows rides newest first with date, name, distance, segments matched" | T-008 | passing |
 | | `index.spec.ts` "REQ-006: clicking a segment opens its page", "REQ-006: clicking a ride opens its page" | T-008 | passing |
@@ -200,6 +201,7 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `segment.spec.ts` "REQ-007: the PR dot is drawn within the horizontal band of its date's year" (fixture `ridge-track`, by URL only, not in index.json; canvas `data-plot-left/right`) | T-016 | passing |
 | | `segment.spec.ts` "REQ-007: the panel header and the chart label state the efforts above the cap" (also checks `hill-road-climb` says nothing about a cap) | T-016 | passing |
 | | `segment.spec.ts` "REQ-007: every dot stays at its date after a resize right after mount (full-page screenshot)" and "(taller viewport)" - regression guard: they also pass on the pre-T-016 code, the M2 symptom was not reproduced | T-016 | passing |
+| | `segment.spec.ts` "REQ-007: the segment median equals the ride page median" (Hill Road climb: both 6:14, one rounding rule) | T-021 | passing |
 | REQ-008 ride page | `ride.spec.ts` "REQ-008: shows date, name, distance, moving/elapsed time and gear" | T-010 | passing |
 | | `ride.spec.ts` "REQ-008: each matched effort shows time, PR, median, gap to PR and rank" | T-010 | passing |
 | | `ride.spec.ts` "REQ-008: an effort is marked when it is the PR or was the PR at the time" | T-010 | passing |
