@@ -400,3 +400,12 @@ def test_deploy_refuses_unmarked_or_modified_data_before_any_git_call(
         deploy.DeployError, match=r"nothing deployed: .*(build-info|changed|source)"
     ):
         deploy.deploy(web, str(tmp_path / "does-not-exist"))
+
+
+def test_guard_runs_before_marker_check(tmp_path: Path) -> None:
+    web, remote, _ = _repo(tmp_path)
+    _publish(web, remote)
+    (web / "dist" / "data" / "build-info.json").unlink()
+    (web / "dist" / "leak.fit").write_bytes(b"x")
+    with pytest.raises(deploy.GuardError, match=r"leak\.fit"):
+        deploy.deploy(web, str(remote))

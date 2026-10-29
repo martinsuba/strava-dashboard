@@ -14,7 +14,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from sdash import __version__, deploy, importer, pipeline, segments
+from sdash import __version__, buildinfo, deploy, importer, pipeline, segments
 
 DEFAULT_DATA_DIR = Path("~/data/strava-export")
 
@@ -235,7 +235,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if command == "deploy":
             return _cmd_deploy(args)
         return _cmd_refresh(data_dir, args)
-    except pipeline.PipelineError as exc:
+    except (pipeline.PipelineError, buildinfo.BuildInfoError) as exc:
         print(f"sdash {command}: {exc}", file=sys.stderr)
         return 1
     except OSError as exc:  # e.g. unwritable data dir: one line, no traceback

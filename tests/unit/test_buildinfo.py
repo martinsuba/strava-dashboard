@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -113,3 +114,42 @@ def test_symlinks_are_refused(tmp_path: Path) -> None:
     (data / "link.json").symlink_to(data / "index.json")
     with pytest.raises(BuildInfoError, match="symlink"):
         buildinfo.verify(data)
+
+
+def test_digest_depends_on_sorted_order_not_walk_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data = _data(tmp_path)
+    real_walk = os.walk
+
+    def reversed_walk(top: Path, **kw: object):  # type: ignore[no-untyped-def]
+        for root, dirs, names in real_walk(top, **kw):  # type: ignore[call-overload]
+            dirs.reverse()
+            yield root, dirs, list(reversed(names))
+
+    monkeypatch.setattr(buildinfo.os, "walk", reversed_walk)
+    h = hashlib.sha256()
+    h.update(b"index.json\0" + b'{"a": 1}' + b"\0")
+    h.update(b"rides/1.json\0" + b"{}" + b"\0")
+    assert buildinfo.compute_digest(data) == h.hexdigest()
+
+
+def test_oversized_valid_json_marker_is_refused(tmp_path: Path) -> None:
+    data = _data(tmp_path)
+    digest = buildinfo.compute_digest(data)
+    marker = {"source": buildinfo.SOURCE, "data_sha256": digest, "pad": "x" * 5000}
+    (data / "build-info.json").write_text(json.dumps(marker))
+    with pytest.raises(BuildInfoError, match=r"unreadable"):
+        buildinfo.verify(data)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores permissions")
+def test_unreadable_subdirectory_fails_closed(tmp_path: Path) -> None:
+    data = _data(tmp_path)
+    buildinfo.write(data)
+    (data / "rides").chmod(0)
+    try:
+        with pytest.raises(BuildInfoError, match=r"cannot read"):
+            buildinfo.verify(data)
+    finally:
+        (data / "rides").chmod(0o755)

@@ -24,7 +24,11 @@ class BuildInfoError(Exception):
 def compute_digest(data_dir: Path) -> str:
     """SHA-256 over all files but the top-level marker; a symlink is an error (never followed)."""
     files: list[tuple[str, Path]] = []
-    for root, dirs, names in os.walk(data_dir):
+
+    def unreadable(exc: OSError) -> None:
+        raise BuildInfoError(f"cannot read data directory ({exc.strerror})") from None
+
+    for root, dirs, names in os.walk(data_dir, onerror=unreadable):
         for name in dirs + names:
             if (Path(root) / name).is_symlink():
                 rel = (Path(root) / name).relative_to(data_dir).as_posix()

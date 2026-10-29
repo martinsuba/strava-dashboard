@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -258,3 +259,29 @@ def test_refresh_flushes_stdout_before_the_build(
     monkeypatch.setattr(sys.stdout, "flush", lambda: flushed.append(True))
     main(["--data-dir", str(data), "refresh", "--no-deploy", "--web-dir", str(web)])
     assert flushed
+
+
+def test_build_data_symlink_in_out_dir_is_one_line_exit_1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "link.json").symlink_to(tmp_path)
+    assert main(["--data-dir", str(tmp_path / "d"), "build-data", "--out", str(out)]) == 1
+    err = capsys.readouterr().err
+    assert "symlink" in err and "Traceback" not in err and len(err.strip().splitlines()) == 1
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores permissions")
+def test_build_data_unreadable_dir_in_out_is_one_line_exit_1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    out = tmp_path / "out"
+    (out / "locked").mkdir(parents=True)
+    (out / "locked").chmod(0)
+    try:
+        assert main(["--data-dir", str(tmp_path / "d"), "build-data", "--out", str(out)]) == 1
+    finally:
+        (out / "locked").chmod(0o755)
+    err = capsys.readouterr().err
+    assert "Traceback" not in err and len(err.strip().splitlines()) == 1
