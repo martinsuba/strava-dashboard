@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M4: T-019 (#30), T-020 (#31), T-021 (#32) done; T-022 (acceptance tests for position bar + capped markers) in progress
-Open PRs: none yet (T-022 builder running)
-Blockers: none
-Next step: M4 task loop: T-019 -> T-020 -> T-021 -> T-022, then milestone review + M4 PR (Martin merges), then deploy phase.
+Current task: M4 done (T-019..T-022 merged: PRs #30-#33). Milestone PR chore/milestone-M4 open (Martin merges)
+Open PRs: M4 milestone PR (chore/milestone-M4), Martin merges
+Blockers: none (waiting for Martin: M4 PR review/merge, then deploy approval)
+Next step: after Martin merges the M4 PR: /clear, then the deploy phase (deploy skill, docs/DEPLOY.md): one-time setup (history check, first `sdash refresh` with Martin's export/link or from existing data, Pages enable or Martin's manual setting on 403), staging preview + smoke first, production deploy only with Martin's approval. No M5 in PLAN. Nice-to-haves (list below) need a plan PR if wanted.
 
 ## Decisions log
 - 2026-10-23: project created
@@ -114,6 +114,13 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - T-020 non-blocking: guard runs twice (cli._guard_and_deploy + deploy.deploy, pre-existing); 4 KiB marker cap is untestable by behaviour (bounded read already makes oversize JSON invalid).
 - 2026-10-29: T-021 merged (PR #32): 1 fix round (reviewer: nothing tested that the chart cap uses median_s -> pure segmentView(data, year) + vitest cases with a deliberately different median_s, red-checked). One median rule `_median_s` (half-even) for rides + segments JSON; fixture Hill Road now 6:14 on both pages. Test-reviewer approved (hand mutations caught).
 - T-021 non-blocking: unit case median_s 100 counts 5 above the cap vs 4 capped markers (PR drawn separately; impossible with real data); pipeline test does not assert median_s null (fixture quarry-descent has it).
+- 2026-10-29: T-022 merged (PR #33): 0 fix rounds. New acceptance tests for the REQ-008 position bar (3 rides: middle, PR left end, slowest right end; 2 % tolerance) and REQ-007 capped markers (slow edge = plot BOTTOM, y axis reversed; PLAN text said "top edge", Lead decision: PRD/DESIGN "slow edge" is binding, reviewer + test-reviewer agreed). Test hooks data-plot-bottom, data-capped-markers. ~$1.54.
+- T-022 non-blocking: segment cap test reads once after a fixed 1 s wait (polling sturdier); marker position from Chart.js element coords, not pixels; CAPPED_DATASET = 1 hard-coded index (segment-chart.ts:52); ride.spec mmss helper assumes < 1 h.
+- 2026-10-29: M4 complete. Lead milestone review: real-data build-data (private ~/data/m4-check, data dir ~/data/m2-check, nothing committed): 668 files, 8 s, build-info digest verified independently, 64 ride efforts all with median_s = their segment's median_s (0 mismatches); out-and-back segment median 2153 s. Lead could NOT run `sdash deploy` against a local bare repo (permission check denied); refusal evidence = builder manual check + reviewer/test-reviewer hand mutations. M4 usage ~$9.39 (reviewer 37 %, lead 30 %, builder 23 %, test-reviewer 10 %).
+
+## M4 open follow-ups (non-blocking, for a later plan if wanted)
+- Nice-to-haves from M3 still open: refresh --link-from-stdin (link visible in ps); drop unused avg_s; strip GIT_CONFIG_* env in deploy._git; gitignore screenshots/; tighten test_req003_unreadable_segments_yaml (not out.exists()); importer Content-Length compare.
+- From M4: guard runs twice (cli + deploy); smoke.mjs res.finished() message; T-022 test robustness notes above; prettier does not check docs/*.md.
 
 ## M3 review findings (-> Plan v5 / deploy prep; Martin decides)
 Must-fix before the first real deploy (cheap):
