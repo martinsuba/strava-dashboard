@@ -87,4 +87,56 @@ test.describe("REQ-008 ride page", { tag: "@REQ-008" }, () => {
       await expect(page.locator("main")).not.toContainText("11:05");
     });
   });
+
+  // Position bar: track = .posbar (role img), median tick and today's dot are measured in the DOM.
+  // Expected fractions come from the fixture JSON, never from pixels.
+  test("REQ-008: the position bar runs from PR to slowest with a median tick and today's mark", async ({
+    page,
+  }) => {
+    const fixture = (id: string): Promise<{ efforts: Record<string, number | string>[] }> =>
+      page.request.get(`./data/rides/${id}.json`).then((r) => r.json());
+    const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    const cases = [
+      { id: "3000000106", slug: "hill-road-climb", name: "Hill Road climb", today: "mid" },
+      { id: "3000000105", slug: "hill-road-climb", name: "Hill Road climb", today: "pr" },
+      { id: "3000000101", slug: "hill-road-climb", name: "Hill Road climb", today: "slowest" },
+    ];
+    for (const c of cases) {
+      const e = (await fixture(c.id)).efforts.find((x) => x["slug"] === c.slug);
+      if (!e) throw new Error(`fixture ${c.id} has no ${c.slug}`);
+      const [today, pr, median, slowest] = ["elapsed_s", "pr_s", "median_s", "slowest_s"].map((k) =>
+        Number(e[k]),
+      ) as [number, number, number, number];
+      const frac = (v: number): number => (v - pr) / (slowest - pr);
+      if (c.today === "mid") expect(today > pr && today < slowest).toBe(true);
+      if (c.today === "pr") expect(today).toBe(pr);
+      if (c.today === "slowest") expect(today).toBe(slowest);
+
+      await open(page, `/ride/${c.id}`);
+      const row = page
+        .getByRole("table", { name: "Segments on this ride" })
+        .locator("tbody tr")
+        .filter({ hasText: c.name });
+      const bar = row.getByRole("img");
+      await expect(bar).toHaveAttribute(
+        "aria-label",
+        `Today ${mmss(today)}, PR ${mmss(pr)}, median ${mmss(median)}, slowest ${mmss(slowest)}`,
+      );
+      const track = await bar.boundingBox();
+      const tick = await bar.locator(".posbar__median").boundingBox();
+      const dot = await bar.locator(".posbar__dot").boundingBox();
+      if (!track || !tick || !dot) throw new Error("bar parts not rendered");
+      const centre = (b: { x: number; width: number }): number =>
+        (b.x + b.width / 2 - track.x) / track.width;
+      expect(Math.abs(centre(tick) - frac(median))).toBeLessThan(0.02);
+      expect(Math.abs(centre(dot) - frac(today))).toBeLessThan(0.02);
+      if (c.today === "pr") expect(centre(dot)).toBeLessThan(0.02);
+      if (c.today === "slowest") expect(centre(dot)).toBeGreaterThan(0.98);
+    }
+    await open(page, "/ride/3000000106");
+    const legend = page.locator(".legend");
+    await expect(legend).toContainText("bar: PR on the left, slowest on the right");
+    await expect(legend).toContainText("median");
+    await expect(legend).toContainText("today");
+  });
 });

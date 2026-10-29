@@ -202,10 +202,12 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `segment.spec.ts` "REQ-007: the panel header and the chart label state the efforts above the cap" (also checks `hill-road-climb` says nothing about a cap) | T-016 | passing |
 | | `segment.spec.ts` "REQ-007: every dot stays at its date after a resize right after mount (full-page screenshot)" and "(taller viewport)" - regression guard: they also pass on the pre-T-016 code, the M2 symptom was not reproduced | T-016 | passing |
 | | `segment.spec.ts` "REQ-007: the segment median equals the ride page median" (Hill Road climb: both 6:14, one rounding rule) | T-021 | passing |
+| | `segment.spec.ts` "REQ-007: efforts above the cap are drawn as markers at the slow edge at their date" (fixture `ridge-track`; canvas `data-capped-markers`, `data-plot-bottom`: slow edge is the bottom, y axis reversed) | T-022 | passing |
 | REQ-008 ride page | `ride.spec.ts` "REQ-008: shows date, name, distance, moving/elapsed time and gear" | T-010 | passing |
 | | `ride.spec.ts` "REQ-008: each matched effort shows time, PR, median, gap to PR and rank" | T-010 | passing |
 | | `ride.spec.ts` "REQ-008: an effort is marked when it is the PR or was the PR at the time" | T-010 | passing |
 | | `ride.spec.ts` "REQ-008: a ride with no matched segments says so" | T-010 | passing |
+| | `ride.spec.ts` "REQ-008: the position bar runs from PR to slowest with a median tick and today's mark" (rides 3000000106 / 105 / 101: mid, PR, slowest) | T-022 | passing |
 | REQ-009 refresh/deploy | `test_refresh.py::test_req009_refresh_from_zip_builds_deploys_and_reports` | T-011 (+T-012) | passing |
 | | `test_deploy.py::test_req009_deploy_refuses_dist_without_build_info`, `test_req009_deploy_refuses_dist_with_changed_data` (D-008; the `_dist` helper writes a matching `data/build-info.json`) | T-020 | passing |
 | | `test_sitedata.py::test_req009_build_data_writes_matching_build_info` | T-020 | passing |

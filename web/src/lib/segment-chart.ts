@@ -49,6 +49,8 @@ function prLabelPlugin(model: ChartModel): Plugin<"scatter"> {
   };
 }
 
+const CAPPED_DATASET = 1;
+
 /** Publishes the plot area (CSS px, canvas-relative) as data attributes; used by acceptance tests. */
 const plotAreaPlugin: Plugin<"scatter"> = {
   id: "plotArea",
@@ -65,6 +67,12 @@ const plotAreaPlugin: Plugin<"scatter"> = {
     chart.canvas.dataset["dotError"] = worst.toFixed(2);
     chart.canvas.dataset["plotLeft"] = String(chart.chartArea.left);
     chart.canvas.dataset["plotRight"] = String(chart.chartArea.right);
+    chart.canvas.dataset["plotBottom"] = String(chart.chartArea.bottom);
+    // Drawn centres (CSS px, canvas-relative) of the capped markers: "x,y;x,y".
+    chart.canvas.dataset["cappedMarkers"] = chart
+      .getDatasetMeta(CAPPED_DATASET)
+      .data.map((el) => `${el.x},${el.y}`)
+      .join(";");
   },
 };
 
