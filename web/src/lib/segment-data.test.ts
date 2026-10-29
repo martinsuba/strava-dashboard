@@ -5,12 +5,12 @@ import {
   chartLabel,
   chartModel,
   formatGap,
-  medianSeconds,
   metaLine,
   prOf,
   visibleYears,
   rankLabel,
   sortEfforts,
+  segmentView,
   summarize,
   yearOf,
   type Effort,
@@ -67,37 +67,30 @@ describe("yearOf", () => {
   });
 });
 
-describe("medianSeconds", () => {
-  it("odd, even, empty", () => {
-    expect(medianSeconds(efforts)).toBe(355);
-    expect(medianSeconds([...efforts, effort("d", T2026, 400)])).toBe(Math.round((355 + 400) / 2));
-    expect(medianSeconds([])).toBe(0);
-  });
-});
-
 describe("summarize", () => {
   it("computes PR, latest and this-year figures", () => {
-    const s = summarize(efforts, 2026);
+    const s = summarize(efforts, 2026, 355);
     expect(s?.pr.activity_id).toBe("b");
     expect(s?.latest.activity_id).toBe("c");
     expect(s?.medianS).toBe(355);
+    expect(summarize(efforts, 2026, 999)?.medianS).toBe(999); // taken from the data file, not computed
     expect(s?.yearCount).toBe(1);
     expect(s?.yearBestS).toBe(355);
   });
   it("has no best for a year without efforts, and null without efforts", () => {
-    expect(summarize(efforts, 2030)).toMatchObject({ yearCount: 0, yearBestS: null });
-    expect(summarize([], 2026)).toBeNull();
+    expect(summarize(efforts, 2030, 355)).toMatchObject({ yearCount: 0, yearBestS: null });
+    expect(summarize([], 2026, null)).toBeNull();
   });
 });
 
 describe("metaLine and chartLabel", () => {
-  const data: SegmentData = { name: "S", ref_length_m: 2400, efforts, per_year: [] };
+  const data: SegmentData = { name: "S", ref_length_m: 2400, efforts, per_year: [], median_s: 355 };
   it("meta", () => {
     expect(metaLine(data)).toBe("2.40 km · 3 efforts · first ridden 4 May 2019");
     expect(metaLine({ ...data, efforts: [efforts[0] as Effort] })).toContain("1 effort ·");
   });
   it("label contains PR m:ss and the range", () => {
-    expect(chartLabel(efforts)).toBe(
+    expect(chartLabel(efforts, 355)).toBe(
       "Elapsed time for 3 efforts from 2019 to 2026; PR 5:41 on 12 Jun 2024",
     );
   });
@@ -105,7 +98,7 @@ describe("metaLine and chartLabel", () => {
 
 describe("chartModel", () => {
   it("splits the PR from the other efforts and pads the ranges", () => {
-    const m = chartModel(efforts);
+    const m = chartModel(efforts, 355);
     expect(m?.pr).toMatchObject({ y: 341, x: T2024 * 1000 });
     expect(m?.efforts.map((p) => p.y)).toEqual([456, 355]);
     expect(m?.years).toEqual([2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027]);
@@ -115,13 +108,13 @@ describe("chartModel", () => {
     expect(m && m.yMin % m.yStep === 0 && m.yMax % m.yStep === 0).toBe(true);
   });
   it("handles a single effort", () => {
-    const m = chartModel([effort("a", T2026, 300)]);
+    const m = chartModel([effort("a", T2026, 300)], 300);
     expect(m?.efforts).toEqual([]);
     expect(m && m.yMax > m.yMin).toBe(true);
     expect(m?.years).toEqual([2026, 2027]);
   });
   it("is null without efforts", () => {
-    expect(chartModel([])).toBeNull();
+    expect(chartModel([], null)).toBeNull();
   });
 });
 
@@ -153,26 +146,31 @@ describe("y axis cap (T-016)", () => {
     effort("slow", T(4), 900),
   ];
   it("counts efforts above 2x the median (median 310 -> cap 620)", () => {
-    expect(aboveCapCount(set)).toBe(1);
+    expect(aboveCapCount(set, 310)).toBe(1);
     expect(
-      aboveCapCount([effort("a", T(0), 620), effort("b", T(1), 100), effort("c", T(2), 620)]),
+      aboveCapCount([effort("a", T(0), 620), effort("b", T(1), 100), effort("c", T(2), 620)], 310),
     ).toBe(0);
   });
+  it("caps at CAP_FACTOR x the median_s it is given, it computes none itself", () => {
+    expect(aboveCapCount(set, 100)).toBe(5); // cap 200
+    expect(aboveCapCount(set, 1000)).toBe(0); // cap 2000
+    expect(chartModel(set, 1000)?.capped).toHaveLength(0);
+  });
   it("words the note in singular and plural, empty for none", () => {
-    expect(capNote(set)).toBe("1 slower effort above the cap");
-    expect(capNote([...set, effort("s2", T(5), 1000)])).toBe("2 slower efforts above the cap");
-    expect(capNote(set.slice(0, 4))).toBe("");
+    expect(capNote(set, 310)).toBe("1 slower effort above the cap");
+    expect(capNote([...set, effort("s2", T(5), 1000)], 310)).toBe("2 slower efforts above the cap");
+    expect(capNote(set.slice(0, 4), 310)).toBe("");
   });
   it("puts capped efforts on the slow edge at their date and sizes the axis without them", () => {
-    const m = chartModel(set);
+    const m = chartModel(set, 310);
     expect(m?.capped).toHaveLength(1);
     expect(m?.capped[0]).toMatchObject({ x: T(4) * 1000, y: m?.yMax, actual: 900 });
     expect(m?.efforts.map((p) => p.y)).toEqual([300, 310, 320]);
     expect(m && m.yMax < 900).toBe(true);
   });
   it("mentions the cap in the chart label only when needed", () => {
-    expect(chartLabel(set)).toContain("1 slower effort above the cap");
-    expect(chartLabel(set.slice(0, 4))).not.toContain("cap");
+    expect(chartLabel(set, 310)).toContain("1 slower effort above the cap");
+    expect(chartLabel(set.slice(0, 4), 310)).not.toContain("cap");
   });
   it("spans the whole ~3 years Oct 2019 - May 2021 on the x axis", () => {
     const long = [
@@ -180,11 +178,45 @@ describe("y axis cap (T-016)", () => {
       effort("b", Date.UTC(2020, 5, 20) / 1000, 290),
       effort("c", Date.UTC(2021, 4, 9) / 1000, 301),
     ];
-    const m = chartModel(long);
+    const m = chartModel(long, 301);
     expect(m?.years).toEqual([2019, 2020, 2021, 2022]);
     expect(m?.xMin).toBe(Date.UTC(2019, 0, 1));
     expect(m?.xMax).toBe(Date.UTC(2022, 0, 1));
     expect(m?.efforts.map((p) => p.x)).toEqual([Date.UTC(2019, 9, 12), Date.UTC(2021, 4, 9)]);
     expect(m?.pr.x).toBe(Date.UTC(2020, 5, 20));
+  });
+});
+
+describe("segmentView takes everything from median_s (T-021)", () => {
+  const T = (m: number): number => Date.UTC(2020, m, 1) / 1000;
+  // real median of these is 310, deliberately not what the file says
+  const set = [
+    effort("a", T(0), 300),
+    effort("b", T(1), 310),
+    effort("c", T(2), 320),
+    effort("d", T(3), 290),
+    effort("slow", T(4), 900),
+  ];
+  const data = (median_s: number | null | undefined): SegmentData =>
+    ({ name: "S", ref_length_m: 1000, efforts: set, per_year: [], median_s }) as SegmentData;
+
+  it("median_s 1000: cap 2000, nothing capped, no note", () => {
+    const v = segmentView(data(1000), 2020);
+    expect(v?.summary.medianS).toBe(1000);
+    expect(v?.model.capped).toHaveLength(0);
+    expect(v?.capNote).toBe("");
+    expect(v?.label).not.toContain("cap");
+  });
+  it("median_s 100: cap 200, every effort is above it, note and label say so", () => {
+    const v = segmentView(data(100), 2020);
+    expect(v?.summary.medianS).toBe(100);
+    expect(v?.model.capped).toHaveLength(4);
+    expect(v?.capNote).toBe("5 slower efforts above the cap");
+    expect(v?.label).toContain("5 slower efforts above the cap");
+  });
+  it("is null for median_s null or missing, and without efforts", () => {
+    expect(segmentView(data(null), 2020)).toBeNull();
+    expect(segmentView(data(undefined), 2020)).toBeNull();
+    expect(segmentView({ ...data(300), efforts: [] }, 2020)).toBeNull();
   });
 });

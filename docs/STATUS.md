@@ -1,7 +1,7 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M4: T-019 done (PR #30); T-020 (deploy refuses data not built by sdash build-data, D-008) in progress
-Open PRs: none yet (T-020 builder running)
+Current task: M4: T-019 (PR #30), T-020 (PR #31) done; T-021 (one median rule for segment and ride pages) in progress
+Open PRs: none yet (T-021 builder running)
 Blockers: none
 Next step: M4 task loop: T-019 -> T-020 -> T-021 -> T-022, then milestone review + M4 PR (Martin merges), then deploy phase.
 
@@ -110,6 +110,8 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-29: Plan v5 merged by Martin (PR #29). Martin: "go M4". Task loop started with T-019.
 - 2026-10-29: T-019 merged (PR #30): 1 fix round (CLAUDE.md said `sdash deploy` builds -> now refresh = real deploy, deploy = push of a built dist only). Reviewer verified smoke fails on missing index/segment/ride JSON under vite preview AND a real-404 server, and on a stuck loading view. ~$1.51.
 - T-019 non-blocking: smoke.mjs `res.finished()` returns an Error instead of throwing ("did not finish" message only when never requested; requestfailed still catches it). Prettier does not check docs/*.md.
+- 2026-10-29: T-020 merged (PR #31): 3 fix rounds (r1 reviewer: BuildInfoError traceback in build-data/refresh + TESTS.md CLI contracts; r2 reviewer: new CLI tests never reached the marker write (data dir missing) -> r3 tests with red checks). Test-reviewer approved the acceptance edits (hand mutations: removing verify / digest compare / write all caught). build-info.json + digest (D-008); deploy refuses fixture/stale dist. ~$3.66.
+- T-020 non-blocking: guard runs twice (cli._guard_and_deploy + deploy.deploy, pre-existing); 4 KiB marker cap is untestable by behaviour (bounded read already makes oversize JSON invalid).
 
 ## M3 review findings (-> Plan v5 / deploy prep; Martin decides)
 Must-fix before the first real deploy (cheap):

@@ -210,6 +210,27 @@ def test_median_and_slowest_single_effort(tmp_path: Path) -> None:
     assert _ride_effort(tmp_path, [412]) == {"median_s": 412, "slowest_s": 412}
 
 
+def _segment_median(tmp_path: Path, times: list[int]) -> object:
+    acts = [_act(str(i), i, f"R{i}") for i in range(1, len(times) + 1)]
+    effs = [_eff(str(i), 1000 * i, t) for i, t in enumerate(times, 1)]
+    out = _write(tmp_path, acts, [SegmentResult(SEG, 2000.0, effs)])
+    return _load(out / "segments" / f"{SEG.slug}.json")["median_s"]
+
+
+def test_segment_median_follows_the_ride_rule(tmp_path: Path) -> None:
+    assert _segment_median(tmp_path, [500, 300, 900]) == 500
+    assert _segment_median(tmp_path, [300, 301, 304, 999]) == 302  # 302.5 -> half even
+    assert _segment_median(tmp_path, [300, 302, 305, 999]) == 304  # 303.5 -> half even
+    assert _segment_median(tmp_path, [374, 375]) == 374  # 374.5 -> 374
+    assert _segment_median(tmp_path, [375, 376]) == 376  # 375.5 -> 376
+    assert _segment_median(tmp_path, [412]) == 412
+
+
+def test_segment_median_is_null_without_efforts(tmp_path: Path) -> None:
+    out = _write(tmp_path, [_act("1", 1, "A")], [SegmentResult(SEG, 2000.0, [])])
+    assert _load(out / "segments" / f"{SEG.slug}.json")["median_s"] is None
+
+
 def test_per_year_uses_bratislava_calendar_year(tmp_path: Path) -> None:
     def ts(*a: int) -> int:
         return int(datetime(*a, tzinfo=UTC).timestamp())  # type: ignore[arg-type]
@@ -255,7 +276,7 @@ def test_schema_keys_exactly(tmp_path: Path) -> None:
     assert set(index["segments"][0]) == {"slug", "name", "efforts", "pr_s", "pr_date"}
     assert set(index["rides"][0]) == {"id", "date", "name", "km", "n_efforts"}
     seg = _load(out / "segments" / "river-path-north.json")
-    assert set(seg) == {"name", "ref_length_m", "efforts", "per_year"}
+    assert set(seg) == {"name", "ref_length_m", "efforts", "per_year", "median_s"}
     assert set(seg["efforts"][0]) == {
         "segment_slug", "activity_id", "ride_name", "start_t", "elapsed_s", "distance_m",
         "avg_kmh", "rank", "gap_to_pr_s", "is_pr_at_time",

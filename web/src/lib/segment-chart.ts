@@ -10,7 +10,7 @@ import {
   type Plugin,
 } from "chart.js";
 import { formatDate, formatDuration } from "./format";
-import { chartLabel, visibleYears, type ChartModel, type Effort } from "./segment-data";
+import { visibleYears, type ChartModel } from "./segment-data";
 
 Chart.register(ScatterController, LinearScale, PointElement, Tooltip);
 
@@ -71,11 +71,11 @@ const plotAreaPlugin: Plugin<"scatter"> = {
 export function mountSegmentChart(
   canvas: HTMLCanvasElement,
   model: ChartModel,
-  efforts: Effort[],
+  label: string,
 ): () => void {
   disposeSegmentChart();
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", chartLabel(efforts));
+  canvas.setAttribute("aria-label", label);
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const tick = { color: MUTED, font: { family: FONT, size: 11 } };
   current = new Chart(canvas, {
