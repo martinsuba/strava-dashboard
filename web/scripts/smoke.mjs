@@ -1,7 +1,10 @@
 // Smoke test against a live (or locally previewed) site:
 //   npm run smoke -- --base https://martinsuba.github.io/strava-dashboard/
-// Loads the index, then one segment page and one ride page (links discovered from the index) and
-// fails on page errors, console errors or failed requests. Not part of test / test:acceptance.
+// Loads the index, then one segment page and one ride page (links discovered from the index). Per page
+// it waits for the loaded content, then for the page's data/...json response to finish (HTTP ok, JSON
+// content type). Fails on a loading, not-found or "Could not load" view, and on page errors, console
+// errors, failed requests or HTTP >= 400; networkidle is awaited before the browser closes so all
+// requests are seen. Not part of test / test:acceptance.
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
@@ -33,31 +36,94 @@ async function main() {
   });
 
   const steps = [];
+  const TIMEOUT = 15_000;
+
+  // Registered before navigating, so a response that arrives early is not missed.
+  function expectData(rel) {
+    const path = new URL(`data/${rel}`, base).pathname;
+    return page.waitForResponse((res) => new URL(res.url()).pathname === path, {
+      timeout: TIMEOUT,
+    });
+  }
+
+  // The app's own non-content views: not-found (h1 "Not found" + fixed line), "Could not load ...", loading.
+  const notFoundView = page
+    .locator("h1", { hasText: /^Not found$/ })
+    .locator("xpath=..")
+    .getByText("There is nothing at this address.");
+  const errorView = page.getByText(/^Could not load /);
+  const loadingView = page.getByText("Loading…", { exact: true });
+
+  // Waits for `loaded` (or a failure view), then for the page's data request to finish, then checks
+  // that the data file really is JSON (a static host may answer a missing file with index.html).
+  // `also` lists further selectors that must be present on the loaded page.
+  async function checkPage({ label, rel, loaded, also = [], navigate }) {
+    const dataResponse = expectData(rel);
+    dataResponse.catch(() => {}); // reported below; avoids an unhandled rejection meanwhile
+    await navigate();
+    try {
+      await loaded.or(notFoundView).or(errorView).first().waitFor({ timeout: TIMEOUT });
+    } catch {
+      /* diagnosed below */
+    }
+    if ((await notFoundView.count()) > 0) throw new Error(`${label}: shows the not-found view`);
+    if ((await errorView.count()) > 0) throw new Error(`${label}: shows the error view`);
+    if ((await loadingView.count()) > 0)
+      throw new Error(`${label}: still shows the loading view after ${TIMEOUT / 1000}s`);
+    if ((await loaded.count()) === 0) throw new Error(`${label}: loaded content not found`);
+    for (const sel of also)
+      if ((await page.locator(sel).count()) === 0)
+        throw new Error(`${label}: expected content missing (${sel})`);
+    let res;
+    try {
+      res = await dataResponse;
+      await res.finished();
+    } catch {
+      throw new Error(`${label}: data/${rel} was not requested or did not finish`);
+    }
+    const type = res.headers()["content-type"] ?? "";
+    if (!res.ok() || !type.includes("json"))
+      throw new Error(
+        `${label}: data/${rel} answered HTTP ${res.status()} (${type || "no content type"})`,
+      );
+    steps.push(label);
+  }
+
   try {
-    await page.goto(base.href, { waitUntil: "networkidle" });
-    await page.waitForSelector("a[href^='#/segment/']", { timeout: 15_000 });
-    steps.push("index");
+    await checkPage({
+      label: "index",
+      rel: "index.json",
+      loaded: page.locator("a[href^='#/ride/']").first(),
+      also: ["a[href^='#/segment/']"],
+      navigate: () => page.goto(base.href),
+    });
     const segment = await page.getAttribute("a[href^='#/segment/']", "href");
     const ride = await page.getAttribute("a[href^='#/ride/']", "href");
-    if (!ride) throw new Error("no ride link found on the index page");
-    for (const [label, hash, selector] of [
-      ["segment page", segment, "main h1, h1"],
-      ["ride page", ride, "main h1, h1"],
-    ]) {
-      await page.goto(new URL(hash, base).href, { waitUntil: "networkidle" });
-      await page.waitForSelector(selector, { timeout: 15_000 });
-      // The app's not-found view: h1 exactly "Not found" next to its fixed explanatory line.
-      const notFound = page
-        .locator("h1", { hasText: /^Not found$/ })
-        .locator("xpath=..")
-        .getByText("There is nothing at this address.");
-      if ((await notFound.count()) > 0)
-        throw new Error(`${label} ${hash} shows the not-found view`);
-      steps.push(`${label} ${hash}`);
-    }
+
+    // Segment: the efforts table or the no-efforts message.
+    await checkPage({
+      label: `segment page ${segment}`,
+      rel: `segments/${segment.slice("#/segment/".length)}.json`,
+      loaded: page
+        .locator(".panel--efforts table")
+        .or(page.getByText("No efforts on this segment yet.")),
+      navigate: () => page.goto(new URL(segment, base).href),
+    });
+    // Ride: the facts strip plus the matched-efforts list or the no-match message.
+    await checkPage({
+      label: `ride page ${ride}`,
+      rel: `rides/${ride.slice("#/ride/".length)}.json`,
+      loaded: page
+        .locator(".panel--ride-segments table")
+        .or(page.getByText("No segments matched on this ride.")),
+      also: ["section[aria-label='Ride summary']"],
+      navigate: () => page.goto(new URL(ride, base).href),
+    });
   } catch (err) {
     problems.push(String(err instanceof Error ? err.message : err));
   } finally {
+    // Let in-flight requests finish so the listeners above see them all before the browser closes.
+    await page.waitForLoadState("networkidle").catch(() => {});
     await browser.close();
   }
 
