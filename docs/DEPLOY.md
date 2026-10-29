@@ -40,8 +40,8 @@ the report as `warning: … (segment skipped)`; fix `segments.yaml` and refresh 
 `sdash deploy [--web-dir W] [--remote R]` does only the last step on an already built `web/dist`
 (`npm --prefix web run build` first). `refresh --no-deploy` stops before it. **Use `sdash refresh` for real deploys**:
 after `npm run test:acceptance` or `npm run screenshots`, `web/public/data` and `web/dist` hold the synthetic fixture
-site; from T-020 on `sdash deploy` refuses a dist without a matching `data/build-info.json` (D-008), until then a plain
-`sdash deploy` would publish the fixture site. Details:
+site; `sdash deploy` refuses (exit 1, nothing pushed) a dist without a matching `data/build-info.json` (D-008),
+which only `sdash build-data` writes. Details:
 - `--remote` is a git remote name, URL or path; default `origin`. Tests use a local bare repo.
 - The guard runs first; on any finding nothing is committed or pushed.
 - The commit is built in a temporary git worktree (removed afterwards, also on failure) on top of the remote's

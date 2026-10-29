@@ -198,6 +198,8 @@ the harness. Pipeline tests: `tests/acceptance/pipeline/`; web tests: `tests/acc
 | | `ride.spec.ts` "REQ-008: an effort is marked when it is the PR or was the PR at the time" | T-010 | passing |
 | | `ride.spec.ts` "REQ-008: a ride with no matched segments says so" | T-010 | passing |
 | REQ-009 refresh/deploy | `test_refresh.py::test_req009_refresh_from_zip_builds_deploys_and_reports` | T-011 (+T-012) | passing |
+| | `test_deploy.py::test_req009_deploy_refuses_dist_without_build_info`, `test_req009_deploy_refuses_dist_with_changed_data` (D-008; the `_dist` helper writes a matching `data/build-info.json`) | T-020 | passing |
+| | `test_sitedata.py::test_req009_build_data_writes_matching_build_info` | T-020 | passing |
 | | `test_refresh.py::test_req009_refresh_without_argument_rebuilds_from_existing_data` | T-011 | passing |
 | | `test_refresh.py::test_req009_no_deploy_stops_after_local_build` | T-011 | passing |
 | | `test_refresh.py::test_req009_any_failed_step_deploys_nothing[unreadable-yaml, broken-zip, site-build-fails]` (3) | T-011 | passing |

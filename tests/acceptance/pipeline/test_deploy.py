@@ -4,6 +4,7 @@ fails); nothing here talks to GitHub. W/dist is hand-made, so no npm build is ne
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -14,8 +15,22 @@ from conftest import SdashRunner, SiteRepo, git
 pytestmark = pytest.mark.req("REQ-009")
 
 
+def _write_build_info(data: Path) -> None:
+    """The D-008 marker, computed independently of sdash (rule: ARCHITECTURE "Site JSON")."""
+    digest = hashlib.sha256()
+    files = [p for p in data.rglob("*") if p.is_file() and p != data / "build-info.json"]
+    for p in sorted(files, key=lambda f: f.relative_to(data).as_posix()):
+        digest.update(p.relative_to(data).as_posix().encode() + b"\0" + p.read_bytes() + b"\0")
+    (data / "build-info.json").write_text(
+        json.dumps({"source": "sdash build-data", "data_sha256": digest.hexdigest()})
+    )
+
+
 def _dist(
-    web: Path, title: str = "Synthetic site", extra: dict[str, str | bytes] | None = None
+    web: Path,
+    title: str = "Synthetic site",
+    extra: dict[str, str | bytes] | None = None,
+    build_info: bool = True,
 ) -> Path:
     dist = web / "dist"
     files: dict[str, str | bytes] = {
@@ -30,6 +45,8 @@ def _dist(
         p = dist / name
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(content if isinstance(content, bytes) else content.encode())
+    if build_info:
+        _write_build_info(dist / "data")
     return dist
 
 
@@ -49,7 +66,12 @@ def test_req009_deploy_pushes_dist_to_gh_pages_only(sdash: SdashRunner, remote: 
     _dist(remote.web)
     sdash("deploy", "--web-dir", remote.web, "--remote", remote.remote).ok()
     files = remote.remote_files("gh-pages") - {".nojekyll"}
-    assert files == {"index.html", "assets/app.js", "data/index.json"}, files
+    assert files == {
+        "index.html",
+        "assets/app.js",
+        "data/index.json",
+        "data/build-info.json",
+    }, files
     assert git("rev-parse", "main", cwd=remote.remote) == main_before, "deploy touched main"
 
 
@@ -63,6 +85,26 @@ def test_req009_redeploy_adds_a_commit_without_force(sdash: SdashRunner, remote:
     assert first != second
     git("merge-base", "--is-ancestor", first, second, cwd=remote.remote)  # raises if not
     assert "second" in git("show", "gh-pages:index.html", cwd=remote.remote)
+
+
+def test_req009_deploy_refuses_dist_without_build_info(
+    sdash: SdashRunner, remote: SiteRepo
+) -> None:
+    """Plan v5: synthetic data left in web/dist (no build-data marker) is never published."""
+    _dist(remote.web, build_info=False)
+    result = sdash("deploy", "--web-dir", remote.web, "--remote", remote.remote)
+    assert result.returncode == 1, result.output
+    assert "build-info.json" in result.output, result.output
+    assert remote.remote_branches() == {"main"}, "something was pushed without a marker"
+
+
+def test_req009_deploy_refuses_dist_with_changed_data(sdash: SdashRunner, remote: SiteRepo) -> None:
+    dist = _dist(remote.web)
+    (dist / "data" / "index.json").write_text(json.dumps({"generated": None, "segments": []}))
+    result = sdash("deploy", "--web-dir", remote.web, "--remote", remote.remote)
+    assert result.returncode == 1, result.output
+    assert "changed" in result.output, result.output
+    assert remote.remote_branches() == {"main"}, "something was pushed with changed data"
 
 
 LEAKS: dict[str, str | bytes] = {

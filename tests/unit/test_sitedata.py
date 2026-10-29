@@ -63,6 +63,7 @@ def test_files_and_index(tmp_path: Path) -> None:
     out = tmp_path / "o"
     _build(out)
     assert sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()) == [
+        "build-info.json",
         "index.json",
         "rides/1.json",
         "rides/2.json",

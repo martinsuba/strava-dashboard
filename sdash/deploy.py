@@ -19,6 +19,8 @@ from math import isfinite
 from pathlib import Path
 from typing import Any
 
+from sdash import buildinfo
+
 RAW_SUFFIXES = (
     ".fit", ".fit.gz", ".gpx", ".gpx.gz", ".tcx", ".tcx.gz", ".zip", ".csv", ".csv.gz",
 )  # fmt: skip
@@ -165,7 +167,9 @@ def _git(
 
 
 def deploy(web_dir: Path, remote: str | None) -> bool:
-    """Guard, then publish web/dist as one new commit on `gh-pages` of `remote` (default origin).
+    """Guard, check the build-data marker (D-008), then publish web/dist to `gh-pages` of `remote`.
+
+    The commit is one new commit on `remote` (default origin).
 
     Returns True if pushed, False if the site is identical to what gh-pages already has. The
     commit is built in a temporary worktree whose only content is web/dist (+ .nojekyll), on top of
@@ -174,6 +178,10 @@ def deploy(web_dir: Path, remote: str | None) -> bool:
     """
     dist = web_dir / "dist"
     guard(dist)
+    try:
+        buildinfo.verify(dist / "data")
+    except buildinfo.BuildInfoError as exc:
+        raise DeployError(f"nothing deployed: {exc}") from None
     target = remote or DEFAULT_REMOTE
     repo = web_dir.resolve()
     tmp = Path(tempfile.mkdtemp(prefix="sdash-deploy-"))

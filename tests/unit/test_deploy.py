@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from sdash import deploy
+from sdash import buildinfo, deploy
 
 
 def _site(tmp_path: Path, **files: str | bytes) -> Path:
@@ -27,6 +27,7 @@ def _site(tmp_path: Path, **files: str | bytes) -> Path:
         p = dist / name
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(content if isinstance(content, bytes) else content.encode())
+    buildinfo.write(dist / "data")
     return dist
 
 
@@ -227,6 +228,7 @@ def test_deploy_creates_orphan_gh_pages_and_cleans_worktree(tmp_path: Path) -> N
         "index.html",
         "assets/app.js",
         "data/index.json",
+        "data/build-info.json",
         "data/rides/1.json",
         ".nojekyll",
     }
@@ -376,3 +378,25 @@ def test_real_non_fast_forward_race_is_a_clean_error(
         deploy.deploy(web, str(remote))
     assert _git("log", "-1", "--format=%s", "gh-pages", cwd=remote) == "other"
     assert _git("worktree", "list", "--porcelain", cwd=work).count("worktree ") == 1
+
+
+@pytest.mark.parametrize("breakage", ["no-marker", "wrong-source", "extra-file", "changed"])
+def test_deploy_refuses_unmarked_or_modified_data_before_any_git_call(
+    tmp_path: Path, breakage: str
+) -> None:
+    web, remote, _ = _repo(tmp_path)
+    _publish(web, remote)
+    data = web / "dist" / "data"
+    if breakage == "no-marker":
+        (data / "build-info.json").unlink()
+    elif breakage == "wrong-source":
+        (data / "build-info.json").write_text('{"source": "x", "data_sha256": "0"}')
+    elif breakage == "extra-file":
+        (data / "extra.json").write_text("{}")
+    else:
+        (data / "index.json").write_text("{}")
+    # a remote that does not exist: any git call would fail with a different message
+    with pytest.raises(
+        deploy.DeployError, match=r"nothing deployed: .*(build-info|changed|source)"
+    ):
+        deploy.deploy(web, str(tmp_path / "does-not-exist"))
