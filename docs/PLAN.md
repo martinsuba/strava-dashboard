@@ -206,6 +206,78 @@ M3 starts with the M2 review fixes (Plan v4), then the refresh/deploy tasks.
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review clean. The first real deploy
   happens in the deploy phase, not in this task.
 
+## M4: Deploy readiness (Plan v5, M3 review follow-ups)
+Fixes from the M3 milestone review before the first real deploy. DEPLOY.md was corrected in the Plan v5 PR itself.
+
+### [ ] T-019: Smoke check waits for real page content  (size S)
+- Goal: `npm --prefix web run smoke -- --base <url>` must fail when page data does not load. Today it waits for any h1
+  after a hash navigation (the loading view's h1 matches; hash changes trigger no new load, so `networkidle` returns at
+  once) and closes the browser right after the ride step, so a missing `rides/<id>.json` can go unnoticed. Per page, wait
+  for page-specific loaded content (index: segment + ride links; segment: the efforts table or the no-efforts message;
+  ride: the ride's facts and the matched-efforts list or the no-match message), then for the page's data request to
+  finish; fail on a loading view still shown after the timeout, a not-found view, or an error view; keep the existing
+  page/console/request/HTTP >= 400 checks and let them see all requests before the browser closes.
+- REQs: REQ-009 (Plan v5 smoke criterion)
+- Acceptance tests to make pass: none (the smoke script runs against a live URL; not part of test:acceptance)
+- Areas/files: web/scripts/smoke.mjs, docs/TESTS.md (smoke section), CLAUDE.md (add the `sdash deploy` and smoke
+  commands)
+- Definition of done: against a local `vite preview` of the fixture build: passes on the full site; fails (exit 1, a
+  clear message) when one `dist/data/rides/<id>.json` is deleted, when the linked `dist/data/segments/<slug>.json` is
+  deleted, and when `dist/data/index.json` is deleted; the PR body shows the four runs' output. Lint/format clean, CI
+  green, review clean.
+
+### [ ] T-020: Deploy refuses data not built by `sdash build-data`  (size M)
+- Goal: D-008. `build-data` writes `data/build-info.json` (`source`, `data_sha256`, rule in ARCHITECTURE "Site JSON");
+  `sdash deploy` and the deploy step of `refresh` recompute the digest over `web/dist/data` and refuse with exit 1 and a
+  message naming the cause (`no build-info.json: web/dist was not built from sdash build-data data` / `data changed after
+  build-data`) when the marker is missing, unreadable or does not match. The refusal happens before any git call.
+  The output guard (REQ-009) is unchanged and still runs first.
+- REQs: REQ-009 (Plan v5 provenance criterion), REQ-010
+- Acceptance tests to make pass: **explicitly allowed acceptance change** (needs test-reviewer):
+  tests/acceptance/pipeline/test_deploy.py: the `_dist` helper writes a matching `data/build-info.json` (same rule as
+  ARCHITECTURE; a small helper in the test file or `_synth.py`); add `test_req009_deploy_refuses_dist_without_build_info`
+  (no marker → exit 1, remote unchanged) and `test_req009_deploy_refuses_dist_with_changed_data` (marker present, one
+  data file changed afterwards → exit 1, remote unchanged); test_sitedata.py: build-data output contains a
+  `build-info.json` whose digest matches the other files. No other acceptance edits; tests/acceptance/web/site-data must
+  NOT get a marker.
+- Areas/files: sdash/sitedata.py (or a new small sdash/buildinfo.py), sdash/deploy.py, sdash/cli.py, docs/TESTS.md,
+  tests/unit, tests/acceptance/pipeline (as above)
+- Definition of done: code + unit tests (digest rule, missing/garbled/mismatched marker, extra file added after
+  build-data); listed acceptance tests pass; refresh acceptance tests still pass; manual check in the PR body: after
+  `npm --prefix web run test:acceptance`, `sdash deploy --remote <local bare repo>` refuses. CI green, review +
+  test-review clean.
+
+### [ ] T-021: One median rule for segment and ride pages  (size S)
+- Goal: `segments/<slug>.json` gets `median_s` (same rule as `rides/<id>.json`: half-even, `null` without efforts;
+  ARCHITECTURE "Site JSON"); the segment page uses it for the "Median" summary cell, its gap, and the chart cap
+  (CAP_FACTOR × median_s) and no longer computes a median itself (`medianSeconds` in web/src/lib/segment-data.ts goes or
+  becomes test-only). Fixes the 1 s mismatch (fixture Hill Road climb: segment page 6:15 vs ride page 6:14).
+- REQs: REQ-007 (Plan v5 median criterion), REQ-008
+- Acceptance tests to make pass: **explicitly allowed acceptance change** (needs test-reviewer):
+  tests/acceptance/web/make_site_data.py emits `median_s` in segment files (same rule), regenerate site-data
+  deterministically; tests/acceptance/pipeline/test_sitedata.py checks `median_s` in a segment file for an even and an
+  odd effort count (incl. a .5 case rounding half-even); segment.spec.ts adds "REQ-007: the segment median equals the
+  ride page median" (Hill Road climb: both show 6:14). No other acceptance edits.
+- Areas/files: sdash/sitedata.py, web/src/lib/segment-data.ts, web/src/pages/segment.ts, web/src/lib/segment-chart.ts
+  (if it reads the median), tests
+- Definition of done: code + unit tests, listed acceptance tests pass, CI green, review + test-review clean
+
+### [ ] T-022: Acceptance tests for the position bar and capped markers  (size S)
+- Goal: close the M3 review gap: two REQ criteria are covered by unit tests only. Tests only, no production change
+  unless a test exposes a real bug (then fix + note in the PR). Test hooks (data attributes) may be added to web/src.
+- REQs: REQ-008 (position bar), REQ-007 (cap markers)
+- Acceptance tests to make pass: **explicitly allowed acceptance change** (needs test-reviewer), new tests only:
+  ride.spec.ts "REQ-008: the position bar runs from PR to slowest with a median tick and today's mark" (for a fixture
+  effort: today's mark and the median tick sit at (value − PR) / (slowest − PR) of the bar width within 2 %, the PR
+  effort's mark at the left end, the slowest at the right end; legend text and the bar's aria-label as in DESIGN.md);
+  segment.spec.ts "REQ-007: efforts above the cap are drawn as markers at the slow edge at their date" (ridge-track
+  fixture: the capped effort's marker is at the top edge of the plot area and within its date's year band, via the
+  existing data-plot-* hooks or a new chart-model attribute). No edits to existing tests.
+- Areas/files: tests/acceptance/web/ride.spec.ts, tests/acceptance/web/segment.spec.ts, docs/TESTS.md (REQ map rows),
+  web/src (test hooks only)
+- Definition of done: new tests pass and fail on a seeded break (builder shows in the PR body that moving the median
+  tick or the capped marker makes them fail); CI green, review + test-review clean
+
 ## Screens (web UI projects)
 Captured from the fixture-built site.
 - Index: with segments and rides · no segments defined (empty state)
