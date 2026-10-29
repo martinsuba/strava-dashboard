@@ -1,7 +1,7 @@
 # Status: strava-dashboard
 Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M4: T-019 (smoke check waits for real page content) in progress
-Open PRs: none yet (T-019 builder running)
+Current task: M4: T-019 done (PR #30); T-020 (deploy refuses data not built by sdash build-data, D-008) in progress
+Open PRs: none yet (T-020 builder running)
 Blockers: none
 Next step: M4 task loop: T-019 -> T-020 -> T-021 -> T-022, then milestone review + M4 PR (Martin merges), then deploy phase.
 
@@ -108,6 +108,8 @@ Plus small hardening leftovers (T-003 N1-N5, T-004 reviewer items, T-006: >4300-
 - 2026-10-27: M3 milestone PR #28 merged by Martin.
 - 2026-10-27: Plan v5 scope (Martin): M3 review must + should (T-b, T-c, T-a, T-d -> T-019..T-022), deploy prep only (no new features), DEPLOY.md drift (T-e) fixed in the plan PR. Nice-to-haves stay open (below).
 - 2026-10-29: Plan v5 merged by Martin (PR #29). Martin: "go M4". Task loop started with T-019.
+- 2026-10-29: T-019 merged (PR #30): 1 fix round (CLAUDE.md said `sdash deploy` builds -> now refresh = real deploy, deploy = push of a built dist only). Reviewer verified smoke fails on missing index/segment/ride JSON under vite preview AND a real-404 server, and on a stuck loading view. ~$1.51.
+- T-019 non-blocking: smoke.mjs `res.finished()` returns an Error instead of throwing ("did not finish" message only when never requested; requestfailed still catches it). Prettier does not check docs/*.md.
 
 ## M3 review findings (-> Plan v5 / deploy prep; Martin decides)
 Must-fix before the first real deploy (cheap):
