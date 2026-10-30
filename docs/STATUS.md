@@ -1,9 +1,12 @@
 # Status: strava-dashboard
-Phase: build   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
-Current task: M4 done (T-019..T-022 merged: PRs #30-#33). Milestone PR chore/milestone-M4 open (Martin merges)
-Open PRs: M4 milestone PR (chore/milestone-M4), Martin merges
-Blockers: none (waiting for Martin: M4 PR review/merge, then deploy approval)
-Next step: after Martin merges the M4 PR: /clear, then the deploy phase (deploy skill, docs/DEPLOY.md): one-time setup (history check, first `sdash refresh` with Martin's export/link or from existing data, Pages enable or Martin's manual setting on 403), staging preview + smoke first, production deploy only with Martin's approval. No M5 in PLAN. Nice-to-haves (list below) need a plan PR if wanted.
+Phase: deploy   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
+Current task: first production deploy done 2026-10-30 (main 0ad4e96 -> gh-pages 5dceb27), live at https://martinsuba.github.io/strava-dashboard/
+Open PRs: this deploy record PR (chore/record-deploy-m4)
+Blockers: none
+Next step: retro (offer to Martin). Data-only refreshes (new export link, segment changes) on Martin's request per DEPLOY.md. Nice-to-haves (list below) need a plan PR if wanted.
+
+## Deploy history (date · commit · target · result)
+- 2026-10-30 · main 0ad4e96 → gh-pages 5dceb27 (first deploy) · staging preview, then GitHub Pages · OK: `sdash refresh` from existing raw data (no new export), rc 0; 662 rides parsed, 0 failed; segments.yaml created via `sdash segment import-strava` (5 segments: Prague 26/26/12 efforts, 2 Sitno hike segments 0 efforts). Pages was already enabled (POST returned 409; source gh-pages /). Smoke on staging and prod: title, index.json 662 rides, Playwright smoke passed, 0 coordinate hits, no raw files on gh-pages.
 
 ## Decisions log
 - 2026-10-23: project created
