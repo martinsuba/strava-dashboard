@@ -1,9 +1,9 @@
 # Status: strava-dashboard
 Phase: deploy   <!-- planning | plan review | harness | harness review | build | deploy | paused -->
 Current task: first production deploy done 2026-10-30 (main 0ad4e96 -> gh-pages 5dceb27), live at https://martinsuba.github.io/strava-dashboard/
-Open PRs: this deploy record PR (chore/record-deploy-m4)
+Open PRs: retro PR (chore/retro), Martin merges
 Blockers: none
-Next step: retro (offer to Martin). Data-only refreshes (new export link, segment changes) on Martin's request per DEPLOY.md. Nice-to-haves (list below) need a plan PR if wanted.
+Next step: Martin merges the retro PR; take RETRO.md 'Proposals for the framework' to the ops session. Product: auto-detected segments spike (see decisions 2026-10-30 / RETRO.md) only when Martin says so. Data-only refreshes on Martin's request per DEPLOY.md.
 
 ## Deploy history (date · commit · target · result)
 - 2026-10-30 · main 0ad4e96 → gh-pages 5dceb27 (first deploy) · staging preview, then GitHub Pages · OK: `sdash refresh` from existing raw data (no new export), rc 0; 662 rides parsed, 0 failed; segments.yaml created via `sdash segment import-strava` (5 segments: Prague 26/26/12 efforts, 2 Sitno hike segments 0 efforts). Pages was already enabled (POST returned 409; source gh-pages /). Smoke on staging and prod: title, index.json 662 rides, Playwright smoke passed, 0 coordinate hits, no raw files on gh-pages.
@@ -51,6 +51,7 @@ Next step: retro (offer to Martin). Data-only refreshes (new export link, segmen
 - 2026-10-24: T-005 merged (PR #9): 1 fix round (reviewer found lost laps when start == end and wrong reference length when ref passes start twice -> fixed; matcher 2x faster).
 - 2026-10-24: T-004 merged (PR #8): 0 fix rounds; reviewer ran 89 hostile zip/URL cases, all handled.
 - 2026-10-24: T-003 merged (PR #7): 1 fix round (reviewer fuzzing found malformed-FIT crash -> fixed; 5000-mutation re-fuzz clean). Test-reviewer approved marker removals.
+- 2026-10-30: post-deploy finding: only 28/662 rides have segment efforts (5 own segments from Strava segments.csv, 3 cycling on one Prague route, all 2019-2021). Martin wants Strava-like segments on every ride (ride -> segments -> all efforts). The export has no public segment geometry (starred_segments.csv = 7 IDs, local_legend_segments.csv = 1 ID + name), Strava API unusable, scraping rejected. Proposal: throwaway real-data spike of auto-detected segments (climbs >=3 %/>=500 m + stretches ridden >=5 times, neutral names + rename CLI, no reverse geocoding), then a plan PR. Martin: "not yet". Also: DEPLOY.md one-time setup should list creating segments.yaml (next plan PR).
 
 ## M1 real-data findings (-> Plan v3: T-013, T-014, T-015)
 1. activities.csv numbers with thousands separators (`2,496`, Distance of Swim/Rowing rows) make read_activities fail for non-cycling rows; reference_only_activities swallows the error -> non-ride reference tracks (e.g. the Sitno hike) are silently never parsed.

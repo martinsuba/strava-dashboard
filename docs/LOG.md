@@ -60,3 +60,4 @@ date | gate/phase | what Martin did | could an agent do it? (y/n + why)
 2026-10-29 | M4 gate | said "go M4" | n: gate decision
 2026-10-29 | M4 | (none) T-019..T-022 ran without Martin; Lead merged 4 task PRs (T-020 used all 3 fix rounds) | y: done by agents
 2026-10-30 | deploy | approved the first deploy plan ("approve"); Lead created segments.yaml via import-strava, staging + prod smoke passed | n: gate decision
+2026-10-30 | after deploy | asked about "all the data" and showed a ride page with 0 segments; wants Strava-like segments per ride; deferred the auto-segment spike ("not yet"); asked for the retro | n: product decision. Framework: plan spike should have shown ride coverage (RETRO proposal 1)
