@@ -209,7 +209,7 @@ M3 starts with the M2 review fixes (Plan v4), then the refresh/deploy tasks.
 ## M4: Deploy readiness (Plan v5, M3 review follow-ups)
 Fixes from the M3 milestone review before the first real deploy. DEPLOY.md was corrected in the Plan v5 PR itself.
 
-### [ ] T-019: Smoke check waits for real page content  (size S)
+### [x] T-019: Smoke check waits for real page content  (size S)
 - Goal: `npm --prefix web run smoke -- --base <url>` must fail when page data does not load. Today it waits for any h1
   after a hash navigation (the loading view's h1 matches; hash changes trigger no new load, so `networkidle` returns at
   once) and closes the browser right after the ride step, so a missing `rides/<id>.json` can go unnoticed. Per page, wait
@@ -226,7 +226,7 @@ Fixes from the M3 milestone review before the first real deploy. DEPLOY.md was c
   deleted, and when `dist/data/index.json` is deleted; the PR body shows the four runs' output. Lint/format clean, CI
   green, review clean.
 
-### [ ] T-020: Deploy refuses data not built by `sdash build-data`  (size M)
+### [x] T-020: Deploy refuses data not built by `sdash build-data`  (size M)
 - Goal: D-008. `build-data` writes `data/build-info.json` (`source`, `data_sha256`, rule in ARCHITECTURE "Site JSON");
   `sdash deploy` and the deploy step of `refresh` recompute the digest over `web/dist/data` and refuse with exit 1 and a
   message naming the cause (`no build-info.json: web/dist was not built from sdash build-data data` / `data changed after
@@ -247,7 +247,7 @@ Fixes from the M3 milestone review before the first real deploy. DEPLOY.md was c
   `npm --prefix web run test:acceptance`, `sdash deploy --remote <local bare repo>` refuses. CI green, review +
   test-review clean.
 
-### [ ] T-021: One median rule for segment and ride pages  (size S)
+### [x] T-021: One median rule for segment and ride pages  (size S)
 - Goal: `segments/<slug>.json` gets `median_s` (same rule as `rides/<id>.json`: half-even, `null` without efforts;
   ARCHITECTURE "Site JSON"); the segment page uses it for the "Median" summary cell, its gap, and the chart cap
   (CAP_FACTOR × median_s) and no longer computes a median itself (`medianSeconds` in web/src/lib/segment-data.ts goes or
@@ -262,7 +262,7 @@ Fixes from the M3 milestone review before the first real deploy. DEPLOY.md was c
   (if it reads the median), tests
 - Definition of done: code + unit tests, listed acceptance tests pass, CI green, review + test-review clean
 
-### [ ] T-022: Acceptance tests for the position bar and capped markers  (size S)
+### [x] T-022: Acceptance tests for the position bar and capped markers  (size S)
 - Goal: close the M3 review gap: two REQ criteria are covered by unit tests only. Tests only, no production change
   unless a test exposes a real bug (then fix + note in the PR). Test hooks (data attributes) may be added to web/src.
 - REQs: REQ-008 (position bar), REQ-007 (cap markers)
