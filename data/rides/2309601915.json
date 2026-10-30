@@ -1,0 +1,25 @@
+{
+  "id": "2309601915",
+  "date": "2019-04-22T07:40:22Z",
+  "name": "Morning Ride",
+  "km": 30.4,
+  "elapsed_s": 10421,
+  "moving_s": 6156,
+  "gear": "Kona Zing",
+  "efforts": [
+    {
+      "slug": "trojsky-most-privoz-klecanky",
+      "name": "Trojský most - Přívoz Klecánky",
+      "elapsed_s": 1741,
+      "pr_s": 924,
+      "avg_s": 1091,
+      "median_s": 1024,
+      "slowest_s": 1741,
+      "gap_to_pr_s": 817,
+      "rank": 26,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": true
+    }
+  ]
+}

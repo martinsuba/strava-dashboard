@@ -1,0 +1,53 @@
+{
+  "id": "3605817726",
+  "date": "2020-06-12T14:01:50Z",
+  "name": "Afternoon Ride",
+  "km": 29.9,
+  "elapsed_s": 14777,
+  "moving_s": 5704,
+  "gear": "Kellys Gate 30",
+  "efforts": [
+    {
+      "slug": "trojsky-most-privoz-klecanky",
+      "name": "Trojský most - Přívoz Klecánky",
+      "elapsed_s": 1283,
+      "pr_s": 924,
+      "avg_s": 1091,
+      "median_s": 1024,
+      "slowest_s": 1741,
+      "gap_to_pr_s": 359,
+      "rank": 23,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": false
+    },
+    {
+      "slug": "privoz-klecanky-trojsky-most",
+      "name": "Přívoz Klecánky - Trojský most",
+      "elapsed_s": 5179,
+      "pr_s": 891,
+      "avg_s": 1556,
+      "median_s": 1072,
+      "slowest_s": 5179,
+      "gap_to_pr_s": 4288,
+      "rank": 26,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": false
+    },
+    {
+      "slug": "trojsky-most-privoz-klecanky-otocka",
+      "name": "Trojský most - Přívoz Klecánky otočka",
+      "elapsed_s": 6470,
+      "pr_s": 1963,
+      "avg_s": 2595,
+      "median_s": 2153,
+      "slowest_s": 6470,
+      "gap_to_pr_s": 4507,
+      "rank": 12,
+      "of": 12,
+      "is_pr": false,
+      "is_pr_at_time": false
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "id": "3513621899",
+  "date": "2020-05-26T08:59:08Z",
+  "name": "Morning Ride",
+  "km": 29.2,
+  "elapsed_s": 4186,
+  "moving_s": 4135,
+  "gear": "Giant Propel",
+  "efforts": [
+    {
+      "slug": "trojsky-most-privoz-klecanky",
+      "name": "Trojský most - Přívoz Klecánky",
+      "elapsed_s": 1094,
+      "pr_s": 924,
+      "avg_s": 1091,
+      "median_s": 1024,
+      "slowest_s": 1741,
+      "gap_to_pr_s": 170,
+      "rank": 19,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": false
+    },
+    {
+      "slug": "privoz-klecanky-trojsky-most",
+      "name": "Přívoz Klecánky - Trojský most",
+      "elapsed_s": 995,
+      "pr_s": 891,
+      "avg_s": 1556,
+      "median_s": 1072,
+      "slowest_s": 5179,
+      "gap_to_pr_s": 104,
+      "rank": 3,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": false
+    },
+    {
+      "slug": "trojsky-most-privoz-klecanky-otocka",
+      "name": "Trojský most - Přívoz Klecánky otočka",
+      "elapsed_s": 2257,
+      "pr_s": 1963,
+      "avg_s": 2595,
+      "median_s": 2153,
+      "slowest_s": 6470,
+      "gap_to_pr_s": 294,
+      "rank": 9,
+      "of": 12,
+      "is_pr": false,
+      "is_pr_at_time": false
+    }
+  ]
+}

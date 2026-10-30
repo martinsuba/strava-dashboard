@@ -1,0 +1,53 @@
+{
+  "id": "4662198837",
+  "date": "2021-01-22T13:04:06Z",
+  "name": "Afternoon Ride",
+  "km": 28.9,
+  "elapsed_s": 4099,
+  "moving_s": 4014,
+  "gear": "Giant Propel",
+  "efforts": [
+    {
+      "slug": "trojsky-most-privoz-klecanky",
+      "name": "Trojský most - Přívoz Klecánky",
+      "elapsed_s": 924,
+      "pr_s": 924,
+      "avg_s": 1091,
+      "median_s": 1024,
+      "slowest_s": 1741,
+      "gap_to_pr_s": 0,
+      "rank": 1,
+      "of": 26,
+      "is_pr": true,
+      "is_pr_at_time": true
+    },
+    {
+      "slug": "privoz-klecanky-trojsky-most",
+      "name": "Přívoz Klecánky - Trojský most",
+      "elapsed_s": 1083,
+      "pr_s": 891,
+      "avg_s": 1556,
+      "median_s": 1072,
+      "slowest_s": 5179,
+      "gap_to_pr_s": 192,
+      "rank": 15,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": false
+    },
+    {
+      "slug": "trojsky-most-privoz-klecanky-otocka",
+      "name": "Trojský most - Přívoz Klecánky otočka",
+      "elapsed_s": 2015,
+      "pr_s": 1963,
+      "avg_s": 2595,
+      "median_s": 2153,
+      "slowest_s": 6470,
+      "gap_to_pr_s": 52,
+      "rank": 2,
+      "of": 12,
+      "is_pr": false,
+      "is_pr_at_time": false
+    }
+  ]
+}

@@ -1,0 +1,168 @@
+{
+  "name": "Trojský most - Přívoz Klecánky otočka",
+  "ref_length_m": 16712,
+  "efforts": [
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "2788648190",
+      "ride_name": "Afternoon Ride",
+      "start_t": 1571063062,
+      "elapsed_s": 3336,
+      "distance_m": 17629,
+      "avg_kmh": 19.0,
+      "rank": 11,
+      "gap_to_pr_s": 1373,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "2868304954",
+      "ride_name": "Morning Ride",
+      "start_t": 1573896606,
+      "elapsed_s": 2107,
+      "distance_m": 16712,
+      "avg_kmh": 28.6,
+      "rank": 5,
+      "gap_to_pr_s": 144,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "3101566698",
+      "ride_name": "Lunch Ride",
+      "start_t": 1581766432,
+      "elapsed_s": 2209,
+      "distance_m": 16689,
+      "avg_kmh": 27.2,
+      "rank": 8,
+      "gap_to_pr_s": 246,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "3513621899",
+      "ride_name": "Morning Ride",
+      "start_t": 1590484356,
+      "elapsed_s": 2257,
+      "distance_m": 17584,
+      "avg_kmh": 28.0,
+      "rank": 9,
+      "gap_to_pr_s": 294,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "3605817726",
+      "ride_name": "Afternoon Ride",
+      "start_t": 1591972154,
+      "elapsed_s": 6470,
+      "distance_m": 16713,
+      "avg_kmh": 9.3,
+      "rank": 12,
+      "gap_to_pr_s": 4507,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "3696249280",
+      "ride_name": "Morning Ride",
+      "start_t": 1593580288,
+      "elapsed_s": 2044,
+      "distance_m": 16700,
+      "avg_kmh": 29.4,
+      "rank": 3,
+      "gap_to_pr_s": 81,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "4097228969",
+      "ride_name": "Afternoon Ride",
+      "start_t": 1600786068,
+      "elapsed_s": 2111,
+      "distance_m": 16707,
+      "avg_kmh": 28.5,
+      "rank": 6,
+      "gap_to_pr_s": 148,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "4230129594",
+      "ride_name": "Afternoon Ride",
+      "start_t": 1603367731,
+      "elapsed_s": 1963,
+      "distance_m": 16702,
+      "avg_kmh": 30.6,
+      "rank": 1,
+      "gap_to_pr_s": 0,
+      "is_pr_at_time": true
+    },
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "4346199990",
+      "ride_name": "Afternoon Ride",
+      "start_t": 1605533446,
+      "elapsed_s": 2195,
+      "distance_m": 16683,
+      "avg_kmh": 27.4,
+      "rank": 7,
+      "gap_to_pr_s": 232,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "4662198837",
+      "ride_name": "Afternoon Ride",
+      "start_t": 1611321656,
+      "elapsed_s": 2015,
+      "distance_m": 16692,
+      "avg_kmh": 29.8,
+      "rank": 2,
+      "gap_to_pr_s": 52,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "4864823974",
+      "ride_name": "Lunch Ride",
+      "start_t": 1614510619,
+      "elapsed_s": 2335,
+      "distance_m": 17966,
+      "avg_kmh": 27.7,
+      "rank": 10,
+      "gap_to_pr_s": 372,
+      "is_pr_at_time": false
+    },
+    {
+      "segment_slug": "trojsky-most-privoz-klecanky-otocka",
+      "activity_id": "5202267645",
+      "ride_name": "Afternoon Ride",
+      "start_t": 1619535878,
+      "elapsed_s": 2098,
+      "distance_m": 16695,
+      "avg_kmh": 28.6,
+      "rank": 4,
+      "gap_to_pr_s": 135,
+      "is_pr_at_time": false
+    }
+  ],
+  "per_year": [
+    {
+      "year": 2019,
+      "count": 2,
+      "best_s": 2107
+    },
+    {
+      "year": 2020,
+      "count": 7,
+      "best_s": 1963
+    },
+    {
+      "year": 2021,
+      "count": 3,
+      "best_s": 2015
+    }
+  ],
+  "median_s": 2153
+}

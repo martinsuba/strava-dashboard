@@ -1,0 +1,39 @@
+{
+  "id": "2901609084",
+  "date": "2019-11-30T11:00:56Z",
+  "name": "Lunch Ride",
+  "km": 48.2,
+  "elapsed_s": 7744,
+  "moving_s": 7491,
+  "gear": "Giant Propel",
+  "efforts": [
+    {
+      "slug": "trojsky-most-privoz-klecanky",
+      "name": "Trojský most - Přívoz Klecánky",
+      "elapsed_s": 1127,
+      "pr_s": 924,
+      "avg_s": 1091,
+      "median_s": 1024,
+      "slowest_s": 1741,
+      "gap_to_pr_s": 203,
+      "rank": 20,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": false
+    },
+    {
+      "slug": "privoz-klecanky-trojsky-most",
+      "name": "Přívoz Klecánky - Trojský most",
+      "elapsed_s": 1025,
+      "pr_s": 891,
+      "avg_s": 1556,
+      "median_s": 1072,
+      "slowest_s": 5179,
+      "gap_to_pr_s": 134,
+      "rank": 6,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": false
+    }
+  ]
+}

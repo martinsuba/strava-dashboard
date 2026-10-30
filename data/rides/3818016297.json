@@ -1,0 +1,39 @@
+{
+  "id": "3818016297",
+  "date": "2020-07-23T14:42:32Z",
+  "name": "Afternoon Ride",
+  "km": 40.2,
+  "elapsed_s": 9821,
+  "moving_s": 7190,
+  "gear": "Giant Propel",
+  "efforts": [
+    {
+      "slug": "trojsky-most-privoz-klecanky",
+      "name": "Trojský most - Přívoz Klecánky",
+      "elapsed_s": 1192,
+      "pr_s": 924,
+      "avg_s": 1091,
+      "median_s": 1024,
+      "slowest_s": 1741,
+      "gap_to_pr_s": 268,
+      "rank": 21,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": false
+    },
+    {
+      "slug": "privoz-klecanky-trojsky-most",
+      "name": "Přívoz Klecánky - Trojský most",
+      "elapsed_s": 1187,
+      "pr_s": 891,
+      "avg_s": 1556,
+      "median_s": 1072,
+      "slowest_s": 5179,
+      "gap_to_pr_s": 296,
+      "rank": 20,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": false
+    }
+  ]
+}

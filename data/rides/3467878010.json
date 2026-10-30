@@ -1,0 +1,39 @@
+{
+  "id": "3467878010",
+  "date": "2020-05-17T10:54:59Z",
+  "name": "Lunch Ride",
+  "km": 47.4,
+  "elapsed_s": 19874,
+  "moving_s": 9778,
+  "gear": "Kellys Gate 30",
+  "efforts": [
+    {
+      "slug": "trojsky-most-privoz-klecanky",
+      "name": "Trojský most - Přívoz Klecánky",
+      "elapsed_s": 1410,
+      "pr_s": 924,
+      "avg_s": 1091,
+      "median_s": 1024,
+      "slowest_s": 1741,
+      "gap_to_pr_s": 486,
+      "rank": 25,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": false
+    },
+    {
+      "slug": "privoz-klecanky-trojsky-most",
+      "name": "Přívoz Klecánky - Trojský most",
+      "elapsed_s": 2970,
+      "pr_s": 891,
+      "avg_s": 1556,
+      "median_s": 1072,
+      "slowest_s": 5179,
+      "gap_to_pr_s": 2079,
+      "rank": 23,
+      "of": 26,
+      "is_pr": false,
+      "is_pr_at_time": false
+    }
+  ]
+}
